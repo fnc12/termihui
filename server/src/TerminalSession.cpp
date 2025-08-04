@@ -1,0 +1,248 @@
+#include "TerminalSession.h"
+
+#include <iostream>
+#include <cstring>
+#include <cerrno>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <signal.h>
+
+#ifdef __APPLE__
+#include <util.h>
+#elif __linux__
+#include <pty.h>
+#else
+#error "Unsupported platform"
+#endif
+
+TerminalSession::TerminalSession(size_t bufferSize)
+    : ptyFd(-1)
+    , childPid(-1)
+    , buffer(bufferSize)
+    , bufferSize(bufferSize)
+    , running(false)
+{
+}
+
+TerminalSession::~TerminalSession()
+{
+    this->cleanup();
+}
+
+TerminalSession::TerminalSession(TerminalSession&& other) noexcept
+    : ptyFd(other.ptyFd)
+    , childPid(other.childPid)
+    , buffer(std::move(other.buffer))
+    , bufferSize(other.bufferSize)
+    , running(other.running)
+{
+    other.ptyFd = -1;
+    other.childPid = -1;
+    other.running = false;
+}
+
+TerminalSession& TerminalSession::operator=(TerminalSession&& other) noexcept
+{
+    if (this != &other) {
+        this->cleanup();
+        
+        this->ptyFd = other.ptyFd;
+        this->childPid = other.childPid;
+        this->buffer = std::move(other.buffer);
+        this->bufferSize = other.bufferSize;
+        this->running = other.running;
+        
+        other.ptyFd = -1;
+        other.childPid = -1;
+        other.running = false;
+    }
+    return *this;
+}
+
+bool TerminalSession::startCommand(const std::string& command)
+{
+    if (this->running) {
+        std::cerr << "Сессия уже запущена\n";
+        return false;
+    }
+
+    // Создаем PTY
+    this->childPid = forkpty(&this->ptyFd, nullptr, nullptr, nullptr);
+    
+    if (this->childPid < 0) {
+        std::cerr << "Ошибка forkpty: " << strerror(errno) << "\n";
+        return false;
+    }
+    
+    if (this->childPid == 0) {
+        // Дочерний процесс
+        // Выполняем команду через bash
+        execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
+        
+        // Если execl не сработал
+        std::cerr << "Ошибка execl: " << strerror(errno) << "\n";
+        _exit(1);
+    }
+    
+    // Родительский процесс
+    this->setupNonBlocking();
+    this->running = true;
+    
+    return true;
+}
+
+ssize_t TerminalSession::sendInput(std::string_view input)
+{
+    if (!this->running || this->ptyFd < 0) {
+        return -1;
+    }
+    
+    ssize_t bytesWritten = write(this->ptyFd, input.data(), input.length());
+    if (bytesWritten < 0) {
+        std::cerr << "Ошибка записи в PTY: " << strerror(errno) << "\n";
+    }
+    
+    return bytesWritten;
+}
+
+std::string TerminalSession::readOutput()
+{
+    if (!this->running || this->ptyFd < 0) {
+        return "";
+    }
+    
+    std::string output;
+    
+    // Читаем все доступные данные
+    while (this->hasData(0)) {
+        ssize_t bytesRead = read(this->ptyFd, this->buffer.data(), this->bufferSize);
+        
+        if (bytesRead > 0) {
+            output.append(this->buffer.data(), bytesRead);
+        } else if (bytesRead == 0) {
+            // EOF - процесс завершился
+            this->checkChildStatus();
+            break;
+        } else {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // Нет данных для чтения
+                break;
+            } else {
+                std::cerr << "Ошибка чтения из PTY: " << strerror(errno) << "\n";
+                break;
+            }
+        }
+    }
+    
+    // Проверяем статус дочернего процесса
+    this->checkChildStatus();
+    
+    return output;
+}
+
+bool TerminalSession::isRunning() const
+{
+    return this->running;
+}
+
+pid_t TerminalSession::getChildPid() const
+{
+    return this->childPid;
+}
+
+void TerminalSession::terminate()
+{
+    if (this->running && this->childPid > 0) {
+        // Сначала пробуем мягкое завершение
+        kill(this->childPid, SIGTERM);
+        
+        // Ждем немного
+        usleep(100000); // 100ms
+        
+        // Если процесс еще работает, принудительно завершаем
+        if (this->running) {
+            kill(this->childPid, SIGKILL);
+        }
+    }
+    
+    this->cleanup();
+}
+
+int TerminalSession::getPtyFd() const
+{
+    return this->ptyFd;
+}
+
+bool TerminalSession::hasData(int timeoutMs) const
+{
+    if (this->ptyFd < 0) {
+        return false;
+    }
+    
+    struct pollfd pfd;
+    pfd.fd = this->ptyFd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    
+    int result = poll(&pfd, 1, timeoutMs);
+    
+    if (result > 0) {
+        return (pfd.revents & POLLIN) != 0;
+    }
+    
+    return false;
+}
+
+void TerminalSession::setupNonBlocking()
+{
+    if (this->ptyFd >= 0) {
+        int flags = fcntl(this->ptyFd, F_GETFL);
+        if (flags >= 0) {
+            fcntl(this->ptyFd, F_SETFL, flags | O_NONBLOCK);
+        }
+    }
+}
+
+void TerminalSession::cleanup()
+{
+    if (this->ptyFd >= 0) {
+        close(this->ptyFd);
+        this->ptyFd = -1;
+    }
+    
+    if (this->childPid > 0) {
+        // Ожидаем завершения дочернего процесса
+        int status;
+        waitpid(this->childPid, &status, WNOHANG);
+        this->childPid = -1;
+    }
+    
+    this->running = false;
+}
+
+void TerminalSession::checkChildStatus()
+{
+    if (this->childPid <= 0) {
+        return;
+    }
+    
+    int status;
+    pid_t result = waitpid(this->childPid, &status, WNOHANG);
+    
+    if (result > 0) {
+        // Дочерний процесс завершился
+        this->running = false;
+        this->childPid = -1;
+        
+        // TODO: В будущем можно добавить коллбэк для обработки завершения
+        // if (this->onProcessExit) {
+        //     this->onProcessExit(status, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        // }
+    } else if (result < 0 && errno != ECHILD) {
+        std::cerr << "Ошибка waitpid: " << strerror(errno) << "\n";
+    }
+} 
