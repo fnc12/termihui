@@ -16,14 +16,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-# Подключаем libhv для WebSocket сервера (пока отключено)
-# FetchContent_Declare(
-#     libhv
-#     GIT_REPOSITORY https://github.com/ithewei/libhv.git
-#     GIT_TAG v1.3.2
-# )
+# Подключаем libhv для WebSocket сервера
+FetchContent_Declare(
+    libhv
+    GIT_REPOSITORY https://github.com/ithewei/libhv.git
+    GIT_TAG v1.3.2
+)
 
-# FetchContent_MakeAvailable(libhv)
+FetchContent_MakeAvailable(libhv)
 
 # Для macOS/Linux проверяем наличие необходимых библиотек
 if(NOT WIN32)
@@ -36,21 +36,17 @@ if(NOT WIN32)
     endif()
 endif()
 
-# Исходники основного проекта (только используемые в main)
+# Исходники основного проекта
 set(SOURCES
     src/TerminalSession.cpp
+    src/WebSocketServer.cpp
     src/main.cpp
 )
 
 set(HEADERS
     src/TerminalSession.h
+    src/WebSocketServer.h
 )
-
-# Исходники для будущего WebSocket сервера (пока не используются)
-# src/WebSocketServer.cpp
-# src/WebSocketServer.h  
-# src/SessionManager.cpp
-# src/SessionManager.h
 
 # Создаем исполняемый файл
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
@@ -69,7 +65,7 @@ if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Threads::Threads
         ${UTIL_LIBRARIES}
-        # hv_static  # Пока отключено
+        hv_static
     )
 endif()
 
