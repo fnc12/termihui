@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <sstream>
 #include "hv/json.hpp"
+#include <fmt/core.h>
 
 std::atomic<bool> shouldExit{false};
 
@@ -54,10 +55,10 @@ int main(int argc, char* argv[])
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     
-    std::cout << "=== TermiHUI Server ===\n";
-    std::cout << "Сервер готов к работе\n";
-    std::cout << "Порт: 37854 (WebSocket)\n";
-    std::cout << "Для остановки нажмите Ctrl+C\n\n";
+    fmt::print("=== TermiHUI Server ===\n");
+    fmt::print("Сервер готов к работе\n");
+    fmt::print("Порт: 37854 (WebSocket)\n");
+    fmt::print("Для остановки нажмите Ctrl+C\n\n");
     
     // Создаем единственную терминальную сессию
     auto terminalSession = std::make_unique<TerminalSession>();
@@ -65,11 +66,11 @@ int main(int argc, char* argv[])
     // Создаем и запускаем WebSocket сервер
     WebSocketServer wsServer(37854);
     if (!wsServer.start()) {
-        std::cerr << "Не удалось запустить WebSocket сервер\n";
+        fmt::print(stderr, "Не удалось запустить WebSocket сервер\n");
         return 1;
     }
     
-    std::cout << "Сервер запущен! Ожидание подключений...\n\n";
+    fmt::print("Сервер запущен! Ожидание подключений...\n\n");
     
     // Основной цикл сервера
     while (!shouldExit) {
@@ -82,18 +83,18 @@ int main(int argc, char* argv[])
         // Обрабатываем события подключения/отключения
         for (const auto& event : connectionEvents) {
             if (event.connected) {
-                std::cout << "Клиент подключился: " << event.clientId << std::endl;
+                fmt::print("Клиент подключился: {}\n", event.clientId);
                 // Отправляем приветственное сообщение
                 std::string welcome = JsonHelper::createResponse("connected");
                 wsServer.sendMessage(event.clientId, welcome);
             } else {
-                std::cout << "Клиент отключился: " << event.clientId << std::endl;
+                fmt::print("Клиент отключился: {}\n", event.clientId);
             }
         }
         
         // Обрабатываем входящие сообщения
         for (const auto& msg : incomingMessages) {
-            std::cout << "Обработка сообщения от " << msg.clientId << ": " << msg.message << std::endl;
+            fmt::print("Обработка сообщения от {}: {}\n", msg.clientId, msg.message);
             
             try {
                 json msgJson = json::parse(msg.message);
@@ -103,7 +104,7 @@ int main(int argc, char* argv[])
                     std::string command = msgJson.value("command", "");
                     if (!command.empty()) {
                         if (terminalSession->startCommand(command)) {
-                            std::cout << "Запущена команда: " << command << " (PID: " << terminalSession->getChildPid() << ")" << std::endl;
+                            fmt::print("Запущена команда: {} (PID: {})\n", command, terminalSession->getChildPid());
                         } else {
                             std::string error = JsonHelper::createResponse("error", "Failed to start command");
                             wsServer.sendMessage(msg.clientId, error);
@@ -132,7 +133,7 @@ int main(int argc, char* argv[])
                     wsServer.sendMessage(msg.clientId, error);
                 }
             } catch (const json::exception& e) {
-                std::cerr << "Ошибка парсинга JSON: " << e.what() << std::endl;
+                fmt::print(stderr, "Ошибка парсинга JSON: {}\n", e.what());
                 std::string error = JsonHelper::createResponse("error", "Invalid JSON format");
                 wsServer.sendMessage(msg.clientId, error);
             }
@@ -142,7 +143,7 @@ int main(int argc, char* argv[])
         if (terminalSession->hasData(0)) {
             std::string output = terminalSession->readOutput();
             if (!output.empty()) {
-                std::cout << "Вывод терминала: " << output << std::endl;
+                fmt::print("Вывод терминала: {}\n", output);
                 std::string response = JsonHelper::createResponse("output", output);
                 wsServer.broadcastMessage(response);
             }
@@ -152,7 +153,7 @@ int main(int argc, char* argv[])
         static bool wasRunning = false;
         bool currentlyRunning = terminalSession->isRunning();
         if (wasRunning && !currentlyRunning) {
-            std::cout << "Команда завершена" << std::endl;
+            fmt::print("Команда завершена\n");
             std::string status = JsonHelper::createResponse("status", "", 0, false);
             wsServer.broadcastMessage(status);
         }
@@ -163,8 +164,8 @@ int main(int argc, char* argv[])
         auto now = std::chrono::steady_clock::now();
         if (now - lastStatsTime > std::chrono::seconds(30)) {
             size_t connectedClients = wsServer.getConnectedClients();
-            std::cout << "Подключенных клиентов: " << connectedClients << std::endl;
-            std::cout << "Терминальная сессия активна: " << (terminalSession->isRunning() ? "да" : "нет") << std::endl;
+            fmt::print("Подключенных клиентов: {}\n", connectedClients);
+            fmt::print("Терминальная сессия активна: {}\n", (terminalSession->isRunning() ? "да" : "нет"));
             lastStatsTime = now;
         }
         
@@ -172,9 +173,9 @@ int main(int argc, char* argv[])
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Уменьшено до 10ms для лучшей отзывчивости
     }
     
-    std::cout << "\n=== Завершение сервера ===\n";
+    fmt::print("\n=== Завершение сервера ===\n");
     wsServer.stop();
-    std::cout << "Сервер остановлен\n";
+    fmt::print("Сервер остановлен\n");
     return 0;
 }
 

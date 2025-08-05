@@ -25,6 +25,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(libhv)
 
+# Подключаем fmt для форматированного вывода
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG 10.1.1
+)
+
+FetchContent_MakeAvailable(fmt)
+
 # Для macOS/Linux проверяем наличие необходимых библиотек
 if(NOT WIN32)
     find_package(Threads REQUIRED)
@@ -66,6 +75,7 @@ if(NOT WIN32)
         Threads::Threads
         ${UTIL_LIBRARIES}
         hv_static
+        fmt::fmt
     )
 endif()
 
@@ -103,6 +113,7 @@ if(NOT WIN32)
         Catch2::Catch2WithMain
         Threads::Threads
         ${UTIL_LIBRARIES}
+        fmt::fmt
     )
 endif()
 

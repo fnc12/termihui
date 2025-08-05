@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <algorithm>
+#include <fmt/core.h>
 
 SessionManager::SessionManager(int pollIntervalMs)
     : pollIntervalMs(pollIntervalMs)
@@ -20,7 +21,7 @@ void SessionManager::start()
     }
     
     this->pollThread = std::make_unique<std::thread>(&SessionManager::pollLoop, this);
-    std::cout << "SessionManager запущен с интервалом " << this->pollIntervalMs << "мс\n";
+    fmt::print("SessionManager запущен с интервалом {}мс\n", this->pollIntervalMs);
 }
 
 void SessionManager::stop()
@@ -40,7 +41,7 @@ void SessionManager::stop()
     }
     this->sessions.clear();
     
-    std::cout << "SessionManager остановлен\n";
+    fmt::print("SessionManager остановлен\n");
 }
 
 bool SessionManager::createSession(const SessionId& sessionId, const std::string& command)
@@ -49,14 +50,14 @@ bool SessionManager::createSession(const SessionId& sessionId, const std::string
     
     // Проверяем, не существует ли уже такая сессия
     if (this->sessions.find(sessionId) != this->sessions.end()) {
-        std::cerr << "Сессия с ID '" << sessionId << "' уже существует\n";
+        fmt::print(stderr, "Сессия с ID '{}' уже существует\n", sessionId);
         return false;
     }
     
     // Создаем новую сессию
     auto session = std::make_shared<TerminalSession>();
     if (!session->startCommand(command)) {
-        std::cerr << "Не удалось запустить команду '" << command << "' для сессии '" << sessionId << "'\n";
+        fmt::print(stderr, "Не удалось запустить команду '{}' для сессии '{}'\n", command, sessionId);
         return false;
     }
     
@@ -69,7 +70,7 @@ bool SessionManager::createSession(const SessionId& sessionId, const std::string
         this->stats.activeSessions++;
     }
     
-    std::cout << "Создана сессия '" << sessionId << "' (PID: " << session->getChildPid() << ")\n";
+    fmt::print("Создана сессия '{}' (PID: {})\n", sessionId, session->getChildPid());
     return true;
 }
 
@@ -94,7 +95,7 @@ bool SessionManager::closeSession(const SessionId& sessionId)
         }
     }
     
-    std::cout << "Закрыта сессия '" << sessionId << "'\n";
+    fmt::print("Закрыта сессия '{}'\n", sessionId);
     return true;
 }
 
@@ -150,7 +151,7 @@ SessionManager::Stats SessionManager::getStats() const
 
 void SessionManager::pollLoop()
 {
-    std::cout << "Запущен цикл опроса сессий\n";
+    fmt::print("Запущен цикл опроса сессий\n");
     
     while (this->running.load()) {
         auto startTime = std::chrono::steady_clock::now();
@@ -184,7 +185,7 @@ void SessionManager::pollLoop()
         std::this_thread::sleep_for(std::chrono::milliseconds(this->pollIntervalMs));
     }
     
-    std::cout << "Цикл опроса сессий завершен\n";
+    fmt::print("Цикл опроса сессий завершен\n");
 }
 
 void SessionManager::pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSession> session)
@@ -220,7 +221,7 @@ void SessionManager::cleanupFinishedSessions()
     auto it = this->sessions.begin();
     while (it != this->sessions.end()) {
         if (!it->second->isRunning()) {
-            std::cout << "Удаляем завершенную сессию '" << it->first << "'\n";
+            fmt::print("Удаляем завершенную сессию '{}'\n", it->first);
             
             // Обновляем статистику
             {

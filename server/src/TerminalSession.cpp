@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <signal.h>
+#include <fmt/core.h>
 
 #ifdef __APPLE__
 #include <util.h>
@@ -66,7 +67,7 @@ TerminalSession& TerminalSession::operator=(TerminalSession&& other) noexcept
 bool TerminalSession::startCommand(const std::string& command)
 {
     if (this->running) {
-        std::cerr << "Сессия уже запущена\n";
+        fmt::print(stderr, "Сессия уже запущена\n");
         return false;
     }
 
@@ -74,7 +75,7 @@ bool TerminalSession::startCommand(const std::string& command)
     this->childPid = forkpty(&this->ptyFd, nullptr, nullptr, nullptr);
     
     if (this->childPid < 0) {
-        std::cerr << "Ошибка forkpty: " << strerror(errno) << "\n";
+        fmt::print(stderr, "Ошибка forkpty: {}\n", strerror(errno));
         return false;
     }
     
@@ -84,7 +85,7 @@ bool TerminalSession::startCommand(const std::string& command)
         execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
         
         // Если execl не сработал
-        std::cerr << "Ошибка execl: " << strerror(errno) << "\n";
+        fmt::print(stderr, "Ошибка execl: {}\n", strerror(errno));
         _exit(1);
     }
     
@@ -103,7 +104,7 @@ ssize_t TerminalSession::sendInput(std::string_view input)
     
     ssize_t bytesWritten = write(this->ptyFd, input.data(), input.length());
     if (bytesWritten < 0) {
-        std::cerr << "Ошибка записи в PTY: " << strerror(errno) << "\n";
+        fmt::print(stderr, "Ошибка записи в PTY: {}\n", strerror(errno));
     }
     
     return bytesWritten;
@@ -132,7 +133,7 @@ std::string TerminalSession::readOutput()
                 // Нет данных для чтения
                 break;
             } else {
-                std::cerr << "Ошибка чтения из PTY: " << strerror(errno) << "\n";
+                fmt::print(stderr, "Ошибка чтения из PTY: {}\n", strerror(errno));
                 break;
             }
         }
@@ -243,6 +244,6 @@ void TerminalSession::checkChildStatus()
         //     this->onProcessExit(status, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         // }
     } else if (result < 0 && errno != ECHILD) {
-        std::cerr << "Ошибка waitpid: " << strerror(errno) << "\n";
+        fmt::print(stderr, "Ошибка waitpid: {}\n", strerror(errno));
     }
 } 

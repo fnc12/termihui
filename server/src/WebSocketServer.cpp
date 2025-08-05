@@ -1,5 +1,6 @@
 #include "WebSocketServer.h"
 #include <iostream>
+#include <fmt/core.h>
 
 // Включаем libhv заголовки
 #include "hv/hlog.h"
@@ -40,15 +41,15 @@ bool WebSocketServer::start()
         
         // Запускаем сервер в отдельном потоке
         this->serverThread = std::make_unique<std::thread>([this]() {
-            std::cout << "Запуск WebSocket сервера на порту " << this->port << std::endl;
+            fmt::print("Запуск WebSocket сервера на порту {}\n", this->port);
             this->wsServer.run(false); // false = не блокировать поток
         });
         
-        std::cout << "WebSocket сервер запущен на порту " << this->port << std::endl;
+        fmt::print("WebSocket сервер запущен на порту {}\n", this->port);
         return true;
         
     } catch (const std::exception& e) {
-        std::cerr << "Ошибка запуска WebSocket сервера: " << e.what() << std::endl;
+        fmt::print(stderr, "Ошибка запуска WebSocket сервера: {}\n", e.what());
         this->running = false;
         return false;
     }
@@ -67,7 +68,7 @@ void WebSocketServer::stop()
             try {
                 channel->close();
             } catch (const std::exception& e) {
-                std::cerr << "Ошибка закрытия соединения " << clientId << ": " << e.what() << std::endl;
+                fmt::print(stderr, "Ошибка закрытия соединения {}: {}\n", clientId, e.what());
             }
         }
         this->clients.clear();
@@ -101,7 +102,7 @@ void WebSocketServer::stop()
         this->outgoingQueue.swap(empty);
     }
     
-    std::cout << "WebSocket сервер остановлен" << std::endl;
+    fmt::print("WebSocket сервер остановлен\n");
 }
 
 bool WebSocketServer::isRunning() const
@@ -183,7 +184,7 @@ void WebSocketServer::onConnection(const WebSocketChannelPtr& channel)
         this->channelToClientId[channel] = clientId;
     }
     
-    std::cout << "WebSocket подключение: " << clientId << " (адрес: " << channel->peeraddr() << ")" << std::endl;
+    fmt::print("WebSocket подключение: {} (адрес: {})\n", clientId, channel->peeraddr());
     
     // Добавляем событие в очередь для обработки в главном потоке
     {
@@ -200,13 +201,13 @@ void WebSocketServer::onMessage(const WebSocketChannelPtr& channel, const std::s
         std::lock_guard<std::mutex> lock(this->clientsMutex);
         auto it = this->channelToClientId.find(channel);
         if (it == this->channelToClientId.end()) {
-            std::cerr << "Получено сообщение от неизвестного клиента" << std::endl;
+            fmt::print(stderr, "Получено сообщение от неизвестного клиента\n");
             return;
         }
         clientId = it->second;
     }
     
-    std::cout << "Получено сообщение от " << clientId << ": " << message << std::endl;
+    fmt::print("Получено сообщение от {}: {}\n", clientId, message);
     
     // Добавляем сообщение в очередь для обработки в главном потоке
     {
@@ -232,7 +233,7 @@ void WebSocketServer::onClose(const WebSocketChannelPtr& channel)
     }
     
     if (found) {
-        std::cout << "WebSocket отключение: " << clientId << std::endl;
+        fmt::print("WebSocket отключение: {}\n", clientId);
         
         // Добавляем событие в очередь для обработки в главном потоке
         {
@@ -264,7 +265,7 @@ void WebSocketServer::processOutgoingMessages()
                 try {
                     channel->send(msg.message);
                 } catch (const std::exception& e) {
-                    std::cerr << "Ошибка отправки broadcast сообщения клиенту " << clientId << ": " << e.what() << std::endl;
+                    fmt::print(stderr, "Ошибка отправки broadcast сообщения клиенту {}: {}\n", clientId, e.what());
                 }
             }
         } else {
@@ -274,10 +275,10 @@ void WebSocketServer::processOutgoingMessages()
                 try {
                     it->second->send(msg.message);
                 } catch (const std::exception& e) {
-                    std::cerr << "Ошибка отправки сообщения клиенту " << msg.clientId << ": " << e.what() << std::endl;
+                    fmt::print(stderr, "Ошибка отправки сообщения клиенту {}: {}\n", msg.clientId, e.what());
                 }
             } else {
-                std::cerr << "Клиент " << msg.clientId << " не найден для отправки сообщения" << std::endl;
+                fmt::print(stderr, "Клиент {} не найден для отправки сообщения\n", msg.clientId);
             }
         }
     }
