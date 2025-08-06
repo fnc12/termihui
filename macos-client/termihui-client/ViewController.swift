@@ -209,8 +209,9 @@ extension ViewController: WebSocketManagerDelegate {
         // Обработка изменений статуса процесса
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                if !running {
-                    terminalVC.appendOutput("Process exited with code \(exitCode)\n")
+                if !running && exitCode != 0 {
+                    // Показываем сообщение об ошибке только при неудачном завершении
+                    terminalVC.appendOutput("❌ Process exited with code \(exitCode)\n")
                 }
             }
         }

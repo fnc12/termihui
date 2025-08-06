@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <sstream>
 #include "hv/json.hpp"
+#include "hv/hlog.h"
 #include <fmt/core.h>
 
 std::atomic<bool> shouldExit{false};
@@ -51,6 +52,9 @@ public:
 
 int main(int argc, char* argv[])
 {
+    // Отключаем автоматические логи libhv
+    hlog_disable();
+    
     // Устанавливаем обработчик сигналов
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
