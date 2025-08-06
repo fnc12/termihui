@@ -1,10 +1,3 @@
-//
-//  WelcomeViewController.swift
-//  termihui-client
-//
-//  Created by TermiHUI on 05.08.2025.
-//
-
 import Cocoa
 import SnapKit
 

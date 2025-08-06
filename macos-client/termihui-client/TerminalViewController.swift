@@ -1,10 +1,3 @@
-//
-//  TerminalViewController.swift
-//  termihui-client
-//
-//  Created by TermiHUI on 05.08.2025.
-//
-
 import Cocoa
 import SnapKit
 
@@ -26,6 +19,7 @@ class TerminalViewController: NSViewController {
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
     private var serverAddress: String = ""
+    private let ansiParser = ANSIParser()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -119,7 +113,16 @@ class TerminalViewController: NSViewController {
         newTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         newTextView.backgroundColor = NSColor.black
         newTextView.textColor = NSColor.green
-        newTextView.string = "TermiHUI Terminal v1.0.0\nГотов к работе...\n\n"
+        
+        // Создаём начальный attributed text
+        let initialText = "TermiHUI Terminal v1.0.0\nГотов к работе...\n\n"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.green,
+            .backgroundColor: NSColor.black
+        ]
+        let attributedText = NSAttributedString(string: initialText, attributes: attributes)
+        newTextView.textStorage?.setAttributedString(attributedText)
         
         // Настройки ресайза
         newTextView.isVerticallyResizable = true
@@ -215,26 +218,24 @@ class TerminalViewController: NSViewController {
     func appendOutput(_ output: String) {
         print("📺 TerminalViewController.appendOutput вызван с: \(output)")
         DispatchQueue.main.async {
-            let currentText = self.terminalTextView.string
-            let newText = currentText + output
+            // Парсим ANSI-коды в новом выводе
+            let styledSegments = self.ansiParser.parse(output)
+            let newAttributedText = styledSegments.toAttributedString()
             
-            print("📝 Обновляем текст с '\(currentText)' на '\(newText)'")
-            print("🎨 Цвет текста: \(self.terminalTextView.textColor?.description ?? "nil")")
-            print("🎨 Цвет фона: \(self.terminalTextView.backgroundColor.description)")
-            print("📏 Размер шрифта: \(self.terminalTextView.font?.pointSize ?? 0)")
-            print("📐 Размер view: \(self.terminalTextView.frame)")
-            print("📊 Длина текста: \(newText.count) символов")
+            // Получаем текущий attributed text
+            let currentAttributedText = self.terminalTextView.textStorage ?? NSMutableAttributedString()
             
-            self.terminalTextView.string = newText
+            // Добавляем новый стилизованный текст
+            currentAttributedText.append(newAttributedText)
             
-            // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ
-            self.terminalTextView.needsDisplay = true
-            self.terminalTextView.needsLayout = true
+            // Обновляем textStorage напрямую для лучшей производительности
+            self.terminalTextView.textStorage?.setAttributedString(currentAttributedText)
             
             // Автоматический скролл к концу
-            let range = NSRange(location: self.terminalTextView.string.count, length: 0)
+            let range = NSRange(location: self.terminalTextView.textStorage?.length ?? 0, length: 0)
             self.terminalTextView.scrollRangeToVisible(range)
-            print("✅ Текст обновлен и принудительно перерисован")
+            
+            print("✅ Стилизованный текст добавлен: \(styledSegments.count) сегментов")
         }
     }
     

@@ -1,10 +1,3 @@
-//
-//  WebSocketManager.swift
-//  termihui-client
-//
-//  Created by TermiHUI on 05.08.2025.
-//
-
 import Foundation
 import Cocoa
 

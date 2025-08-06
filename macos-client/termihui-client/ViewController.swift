@@ -1,10 +1,3 @@
-//
-//  ViewController.swift
-//  termihui-client
-//
-//  Created by Yevgeniy Zakharov on 05.08.2025.
-//
-
 import Cocoa
 import SnapKit
 
