@@ -26,6 +26,7 @@ TerminalSession::TerminalSession(size_t bufferSize)
     , buffer(bufferSize)
     , bufferSize(bufferSize)
     , running(false)
+    , sessionCreated(false)
 {
 }
 
@@ -40,10 +41,12 @@ TerminalSession::TerminalSession(TerminalSession&& other) noexcept
     , buffer(std::move(other.buffer))
     , bufferSize(other.bufferSize)
     , running(other.running)
+    , sessionCreated(other.sessionCreated)
 {
     other.ptyFd = -1;
     other.childPid = -1;
     other.running = false;
+    other.sessionCreated = false;
 }
 
 TerminalSession& TerminalSession::operator=(TerminalSession&& other) noexcept
@@ -56,18 +59,20 @@ TerminalSession& TerminalSession::operator=(TerminalSession&& other) noexcept
         this->buffer = std::move(other.buffer);
         this->bufferSize = other.bufferSize;
         this->running = other.running;
+        this->sessionCreated = other.sessionCreated;
         
         other.ptyFd = -1;
         other.childPid = -1;
         other.running = false;
+        other.sessionCreated = false;
     }
     return *this;
 }
 
-bool TerminalSession::startCommand(const std::string& command)
+bool TerminalSession::createSession()
 {
-    if (this->running) {
-        fmt::print(stderr, "Сессия уже запущена\n");
+    if (this->sessionCreated) {
+        fmt::print(stderr, "Сессия уже создана\n");
         return false;
     }
 
@@ -81,8 +86,8 @@ bool TerminalSession::startCommand(const std::string& command)
     
     if (this->childPid == 0) {
         // Дочерний процесс
-        // Выполняем команду через bash
-        execl("/bin/bash", "bash", "-c", command.c_str(), nullptr);
+        // Запускаем интерактивный bash
+        execl("/bin/bash", "bash", "-i", nullptr);
         
         // Если execl не сработал
         fmt::print(stderr, "Ошибка execl: {}\n", strerror(errno));
@@ -92,7 +97,30 @@ bool TerminalSession::startCommand(const std::string& command)
     // Родительский процесс
     this->setupNonBlocking();
     this->running = true;
+    this->sessionCreated = true;
     
+    fmt::print("Интерактивная bash-сессия создана (PID: {})\n", this->childPid);
+    
+    return true;
+}
+
+bool TerminalSession::executeCommand(const std::string& command)
+{
+    if (!this->sessionCreated || !this->running) {
+        fmt::print(stderr, "Сессия не создана или не активна\n");
+        return false;
+    }
+    
+    // Отправляем команду + перенос строки в интерактивный bash
+    std::string cmd = command + "\n";
+    ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
+    
+    if (bytesWritten < 0) {
+        fmt::print(stderr, "Ошибка отправки команды: {}\n", strerror(errno));
+        return false;
+    }
+    
+    fmt::print("Команда отправлена: {}\n", command);
     return true;
 }
 
@@ -223,6 +251,7 @@ void TerminalSession::cleanup()
     }
     
     this->running = false;
+    this->sessionCreated = false;
 }
 
 void TerminalSession::checkChildStatus()

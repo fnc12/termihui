@@ -67,6 +67,12 @@ int main(int argc, char* argv[])
     // Создаем единственную терминальную сессию
     auto terminalSession = std::make_unique<TerminalSession>();
     
+    // Создаем интерактивную bash-сессию
+    if (!terminalSession->createSession()) {
+        fmt::print(stderr, "Не удалось создать терминальную сессию\n");
+        return 1;
+    }
+    
     // Создаем и запускаем WebSocket сервер
     WebSocketServer wsServer(37854);
     if (!wsServer.start()) {
@@ -107,10 +113,10 @@ int main(int argc, char* argv[])
                 if (type == "execute") {
                     std::string command = msgJson.value("command", "");
                     if (!command.empty()) {
-                        if (terminalSession->startCommand(command)) {
-                            fmt::print("Запущена команда: {} (PID: {})\n", command, terminalSession->getChildPid());
+                        if (terminalSession->executeCommand(command)) {
+                            fmt::print("Выполнена команда: {}\n", command);
                         } else {
-                            std::string error = JsonHelper::createResponse("error", "Failed to start command");
+                            std::string error = JsonHelper::createResponse("error", "Failed to execute command");
                             wsServer.sendMessage(msg.clientId, error);
                         }
                     } else {

@@ -37,11 +37,17 @@ public:
     TerminalSession& operator=(TerminalSession&& other) noexcept;
     
     /**
-     * Запуск команды в PTY
-     * @param command команда для выполнения
-     * @return true если команда успешно запущена
+     * Создание интерактивной bash-сессии
+     * @return true если сессия успешно создана
      */
-    bool startCommand(const std::string& command);
+    bool createSession();
+    
+    /**
+     * Выполнение команды в существующей сессии
+     * @param command команда для выполнения
+     * @return true если команда успешно отправлена
+     */
+    bool executeCommand(const std::string& command);
     
     /**
      * Отправка текста в PTY
@@ -108,6 +114,7 @@ private:
     std::vector<char> buffer;     // Буфер для чтения данных
     size_t bufferSize;            // Размер буфера
     bool running;                 // Флаг активности процесса
+    bool sessionCreated;          // Флаг созданной сессии
     
     // TODO: Добавить в будущем:
     // - struct winsize m_windowSize;  // Размер окна терминала для resize-событий

@@ -1,1 +1,87 @@
+# TermiHUI Project .gitignore
+
+# Build directories
 build/
+*/build/
+
+# libhv logs  
+server/libhv.*.log
+
+# Xcode - macOS client
+macos-client/*.xcodeproj/project.xcworkspace/xcuserdata/
+macos-client/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+macos-client/*.xcodeproj/xcuserdata/
+macos-client/DerivedData/
+
+# Xcode - general
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.xcscmblueprint
+*.xcscheme
+!*.xcscheme
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# C++ build artifacts
+*.o
+*.so
+*.dylib
+*.a
+*.la
+*.lo
+*.obj
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

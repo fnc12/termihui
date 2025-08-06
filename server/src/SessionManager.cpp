@@ -56,8 +56,14 @@ bool SessionManager::createSession(const SessionId& sessionId, const std::string
     
     // Создаем новую сессию
     auto session = std::make_shared<TerminalSession>();
-    if (!session->startCommand(command)) {
-        fmt::print(stderr, "Не удалось запустить команду '{}' для сессии '{}'\n", command, sessionId);
+    if (!session->createSession()) {
+        fmt::print(stderr, "Не удалось создать интерактивную сессию для '{}'\n", sessionId);
+        return false;
+    }
+    
+    // Выполняем первую команду
+    if (!session->executeCommand(command)) {
+        fmt::print(stderr, "Не удалось выполнить команду '{}' для сессии '{}'\n", command, sessionId);
         return false;
     }
     

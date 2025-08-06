@@ -167,4 +167,91 @@ TEST_CASE("TerminalSession resource management", "[TerminalSession]") {
         // Проверяем, что процесс был корректно завершен
         // (это можно проверить через kill(pid, 0), но в тесте это сложно)
     }
+}
+
+TEST_CASE("Interactive bash session state persistence", "[TerminalSession][Interactive]") {
+    SECTION("Directory change should persist between commands") {
+        TerminalSession session;
+        
+        // Создаем интерактивную bash-сессию
+        REQUIRE(session.createSession());
+        REQUIRE(session.isRunning());
+        
+        // Ждем инициализации bash
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        
+        // Очищаем буфер от приветственных сообщений bash
+        session.readOutput();
+        
+        // 1. Выполняем pwd и сохраняем результат
+        REQUIRE(session.executeCommand("pwd"));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        
+        std::string initialDir;
+        int attempts = 0;
+        while (attempts < 20) {
+            if (session.hasData(50)) {
+                std::string output = session.readOutput();
+                initialDir += output;
+                if (initialDir.find('\n') != std::string::npos) {
+                    break; // Получили полную строку
+                }
+            }
+            attempts++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        
+        // Очищаем от лишних символов
+        size_t newlinePos = initialDir.find('\n');
+        if (newlinePos != std::string::npos) {
+            initialDir = initialDir.substr(0, newlinePos);
+        }
+        
+        REQUIRE(!initialDir.empty());
+        
+        // 2. Меняем директорию на /tmp
+        REQUIRE(session.executeCommand("cd /tmp"));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        
+        // Очищаем буфер после cd (cd обычно ничего не выводит)
+        session.readOutput();
+        
+        // 3. Снова выполняем pwd
+        REQUIRE(session.executeCommand("pwd"));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        
+        std::string newDir;
+        attempts = 0;
+        while (attempts < 20) {
+            if (session.hasData(50)) {
+                std::string output = session.readOutput();
+                newDir += output;
+                if (newDir.find('\n') != std::string::npos) {
+                    break; // Получили полную строку
+                }
+            }
+            attempts++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        
+        // Очищаем от лишних символов
+        newlinePos = newDir.find('\n');
+        if (newlinePos != std::string::npos) {
+            newDir = newDir.substr(0, newlinePos);
+        }
+        
+        REQUIRE(!newDir.empty());
+        
+        // 4. ГЛАВНАЯ ПРОВЕРКА: директории должны быть разные
+        // Если интерактивная сессия работает правильно, то newDir должен быть "/tmp"
+        // А initialDir должен быть исходной директорией (не "/tmp")
+        INFO("Initial directory: " << initialDir);
+        INFO("Directory after cd /tmp: " << newDir);
+        
+        // Проверяем, что директория изменилась
+        REQUIRE(initialDir != newDir);
+        
+        // Дополнительная проверка - новая директория должна быть /tmp
+        REQUIRE(newDir == "/tmp");
+    }
 } 

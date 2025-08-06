@@ -92,7 +92,7 @@ endif()
 # Создаем исполняемый файл для юнит-тестов
 set(TEST_SOURCES
     tests/test_main.cpp
-    tests/test_terminal_session.cpp
+    tests/test_interactive_session.cpp
     src/TerminalSession.cpp
 )
 
