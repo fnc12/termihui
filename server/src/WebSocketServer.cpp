@@ -2,8 +2,7 @@
 #include <iostream>
 #include <fmt/core.h>
 
-// Включаем libhv заголовки
-#include "hv/hlog.h"
+// libhv headers included via WebSocketServer.h
 
 WebSocketServer::WebSocketServer(int port)
     : port(port)

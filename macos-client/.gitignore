@@ -1,0 +1,15 @@
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# User-specific files
+*.xcuserstate
+*.xcuserdatad/
+
+# Build artifacts
+DerivedData/
+build/

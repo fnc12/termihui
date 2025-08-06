@@ -1,4 +1,0 @@
-2025-08-05 12:06:22.322 INFO  http server listening on 0.0.0.0:37854 [HttpServer.cpp:178:http_server_run]
-2025-08-05 12:06:22.323 INFO  EventLoop started, pid=57817 tid=81682439 [HttpServer.cpp:151:loop_thread]
-2025-08-05 12:08:05.077 INFO  [127.0.0.1:55790] Upgrade: websocket [HttpHandler.cpp:903:handleUpgrade]
-2025-08-05 12:08:05.077 INFO  [57817-81682439][127.0.0.1:55790][GET /]=>[101 Switching Protocols] [HttpHandler.cpp:323:onMessageComplete]

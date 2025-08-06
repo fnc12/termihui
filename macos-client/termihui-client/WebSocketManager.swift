@@ -1,0 +1,280 @@
+//
+//  WebSocketManager.swift
+//  termihui-client
+//
+//  Created by TermiHUI on 05.08.2025.
+//
+
+import Foundation
+import Cocoa
+
+/// Менеджер для управления WebSocket подключением к серверу TermiHUI
+class WebSocketManager: NSObject {
+    
+    // MARK: - Properties
+    private var webSocketTask: URLSessionWebSocketTask?
+    private var urlSession: URLSession?
+    weak var delegate: WebSocketManagerDelegate?
+    
+    private var isConnected = false
+    private var serverAddress = ""
+    
+    // MARK: - Public Methods
+    
+    /// Подключение к серверу
+    func connect(to serverAddress: String) {
+        print("🔌 Попытка подключения к: \(serverAddress)")
+        self.serverAddress = serverAddress
+        
+        // Формируем URL для WebSocket подключения
+        guard let url = URL(string: "ws://\(serverAddress)") else {
+            print("❌ Некорректный URL: ws://\(serverAddress)")
+            delegate?.webSocketManager(self, didFailWithError: WebSocketError.invalidURL)
+            return
+        }
+        
+        print("🌐 Создание WebSocket подключения к: \(url)")
+        
+        // Создаем URLSession и WebSocket task
+        urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        webSocketTask = urlSession?.webSocketTask(with: url)
+        
+        // Запускаем подключение
+        webSocketTask?.resume()
+        print("▶️ WebSocket задача запущена")
+        
+        // Начинаем слушать входящие сообщения
+        receiveMessage()
+        print("👂 Начинаем слушать входящие сообщения")
+    }
+    
+    /// Отключение от сервера
+    func disconnect() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
+        isConnected = false
+    }
+    
+    /// Отправка команды на сервер
+    func sendCommand(_ command: String) {
+        print("📤 Отправка команды: \(command)")
+        guard isConnected else {
+            print("❌ Не подключен к серверу")
+            delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
+            return
+        }
+        
+        let message = TerminalMessage.execute(command: command)
+        sendMessage(message)
+    }
+    
+    /// Отправка ввода в терминал
+    func sendInput(_ input: String) {
+        guard isConnected else {
+            delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
+            return
+        }
+        
+        let message = TerminalMessage.input(text: input)
+        sendMessage(message)
+    }
+    
+    // MARK: - Private Methods
+    
+    private func sendMessage(_ message: TerminalMessage) {
+        do {
+            let jsonData = try JSONEncoder().encode(message)
+            let jsonString = String(data: jsonData, encoding: .utf8) ?? ""
+            
+            let webSocketMessage = URLSessionWebSocketTask.Message.string(jsonString)
+            webSocketTask?.send(webSocketMessage) { [weak self] error in
+                if let error = error {
+                    self?.delegate?.webSocketManager(self!, didFailWithError: error)
+                }
+            }
+        } catch {
+            delegate?.webSocketManager(self, didFailWithError: error)
+        }
+    }
+    
+    private func receiveMessage() {
+        webSocketTask?.receive { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let message):
+                self.handleReceivedMessage(message)
+                // Продолжаем слушать следующие сообщения
+                self.receiveMessage()
+                
+            case .failure(let error):
+                self.delegate?.webSocketManager(self, didFailWithError: error)
+            }
+        }
+    }
+    
+    private func handleReceivedMessage(_ message: URLSessionWebSocketTask.Message) {
+        switch message {
+        case .string(let text):
+            handleJSONMessage(text)
+        case .data(let data):
+            if let text = String(data: data, encoding: .utf8) {
+                handleJSONMessage(text)
+            }
+        @unknown default:
+            break
+        }
+    }
+    
+    private func handleJSONMessage(_ jsonString: String) {
+        print("📨 Получено сообщение от сервера: \(jsonString)")
+        guard let jsonData = jsonString.data(using: .utf8) else { 
+            print("❌ Не удалось преобразовать в JSON data")
+            return 
+        }
+        
+        do {
+            let response = try JSONDecoder().decode(TerminalResponse.self, from: jsonData)
+            print("✅ JSON декодирован: type=\(response.type)")
+            
+            DispatchQueue.main.async {
+                switch response.type {
+                case "connected":
+                    self.delegate?.webSocketManagerDidConnect(self)
+                    
+                case "output":
+                    if let data = response.data {
+                        print("🔄 Передаем output в delegate: \(data)")
+                        self.delegate?.webSocketManager(self, didReceiveOutput: data)
+                    } else {
+                        print("❌ Нет data в output сообщении")
+                    }
+                    
+                case "status":
+                    if let running = response.running, let exitCode = response.exitCode {
+                        self.delegate?.webSocketManager(self, didReceiveStatus: running, exitCode: exitCode)
+                    }
+                    
+                case "error":
+                    let errorMessage = response.message ?? "Unknown error"
+                    self.delegate?.webSocketManager(self, didFailWithError: WebSocketError.serverError(errorMessage))
+                    
+                case "input_sent":
+                    // Подтверждение отправки ввода - можно игнорировать
+                    break
+                    
+                default:
+                    print("Unknown message type: \(response.type)")
+                }
+            }
+        } catch {
+            delegate?.webSocketManager(self, didFailWithError: error)
+        }
+    }
+}
+
+// MARK: - URLSessionWebSocketDelegate
+extension WebSocketManager: URLSessionWebSocketDelegate {
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocolString: String?) {
+        print("🎉 WebSocket подключение установлено! Протокол: \(protocolString ?? "none")")
+        isConnected = true
+        // Подключение установлено, ждем сообщение "connected" от сервера
+    }
+    
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        print("🔌 WebSocket подключение закрыто. Код: \(closeCode.rawValue)")
+        if let reason = reason, let reasonString = String(data: reason, encoding: .utf8) {
+            print("📝 Причина: \(reasonString)")
+        }
+        isConnected = false
+        DispatchQueue.main.async {
+            self.delegate?.webSocketManagerDidDisconnect(self)
+        }
+    }
+}
+
+// MARK: - URLSessionDelegate (Required for custom delegate)
+extension WebSocketManager: URLSessionDelegate {
+    func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+        isConnected = false
+        if let error = error {
+            DispatchQueue.main.async {
+                self.delegate?.webSocketManager(self, didFailWithError: error)
+            }
+        }
+    }
+}
+
+// MARK: - Data Models
+
+/// Сообщения, отправляемые на сервер
+enum TerminalMessage: Encodable {
+    case execute(command: String)
+    case input(text: String)
+    
+    private enum CodingKeys: String, CodingKey {
+        case type, command, text
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        switch self {
+        case .execute(let command):
+            try container.encode("execute", forKey: .type)
+            try container.encode(command, forKey: .command)
+        case .input(let text):
+            try container.encode("input", forKey: .type)
+            try container.encode(text, forKey: .text)
+        }
+    }
+}
+
+/// Ответы, получаемые от сервера
+struct TerminalResponse: Codable {
+    let type: String
+    let data: String?
+    let running: Bool?
+    let exitCode: Int?
+    let message: String?
+    let errorCode: String?
+    let serverVersion: String?
+    let bytes: Int?
+    
+    private enum CodingKeys: String, CodingKey {
+        case type, data, running, message
+        case exitCode = "exit_code"
+        case errorCode = "error_code"
+        case serverVersion = "server_version"
+        case bytes
+    }
+}
+
+/// Ошибки WebSocket подключения
+enum WebSocketError: Error, LocalizedError {
+    case invalidURL
+    case notConnected
+    case serverError(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Неверный адрес сервера"
+        case .notConnected:
+            return "Нет подключения к серверу"
+        case .serverError(let message):
+            return "Ошибка сервера: \(message)"
+        }
+    }
+}
+
+// MARK: - Delegate Protocol
+protocol WebSocketManagerDelegate: AnyObject {
+    func webSocketManagerDidConnect(_ manager: WebSocketManager)
+    func webSocketManagerDidDisconnect(_ manager: WebSocketManager)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveOutput output: String)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)
+    func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
+}

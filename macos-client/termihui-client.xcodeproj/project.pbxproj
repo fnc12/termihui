@@ -1,0 +1,584 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		EC175C232E420393005C4C31 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC175C222E420393005C4C31 /* SnapKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EC175BF52E41EF40005C4C31 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC175BDB2E41EF3F005C4C31 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EC175BE22E41EF3F005C4C31;
+			remoteInfo = "termihui-client";
+		};
+		EC175BFF2E41EF40005C4C31 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC175BDB2E41EF3F005C4C31 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EC175BE22E41EF3F005C4C31;
+			remoteInfo = "termihui-client";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		EC175BE32E41EF3F005C4C31 /* termihui-client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		EC175BE52E41EF3F005C4C31 /* termihui-client */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "termihui-client";
+			sourceTree = "<group>";
+		};
+		EC175BF72E41EF40005C4C31 /* termihui-clientTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "termihui-clientTests";
+			sourceTree = "<group>";
+		};
+		EC175C012E41EF40005C4C31 /* termihui-clientUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "termihui-clientUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		EC175BE02E41EF3F005C4C31 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC175C232E420393005C4C31 /* SnapKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BF12E41EF40005C4C31 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BFB2E41EF40005C4C31 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		EC175BDA2E41EF3F005C4C31 = {
+			isa = PBXGroup;
+			children = (
+				EC175BE52E41EF3F005C4C31 /* termihui-client */,
+				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
+				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
+				EC175BE42E41EF3F005C4C31 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		EC175BE42E41EF3F005C4C31 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EC175BE32E41EF3F005C4C31 /* termihui-client.app */,
+				EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */,
+				EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		EC175BE22E41EF3F005C4C31 /* termihui-client */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client" */;
+			buildPhases = (
+				EC175BDF2E41EF3F005C4C31 /* Sources */,
+				EC175BE02E41EF3F005C4C31 /* Frameworks */,
+				EC175BE12E41EF3F005C4C31 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EC175BE52E41EF3F005C4C31 /* termihui-client */,
+			);
+			name = "termihui-client";
+			packageProductDependencies = (
+				EC175C222E420393005C4C31 /* SnapKit */,
+			);
+			productName = "termihui-client";
+			productReference = EC175BE32E41EF3F005C4C31 /* termihui-client.app */;
+			productType = "com.apple.product-type.application";
+		};
+		EC175BF32E41EF40005C4C31 /* termihui-clientTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientTests" */;
+			buildPhases = (
+				EC175BF02E41EF40005C4C31 /* Sources */,
+				EC175BF12E41EF40005C4C31 /* Frameworks */,
+				EC175BF22E41EF40005C4C31 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EC175BF62E41EF40005C4C31 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
+			);
+			name = "termihui-clientTests";
+			packageProductDependencies = (
+			);
+			productName = "termihui-clientTests";
+			productReference = EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		EC175BFD2E41EF40005C4C31 /* termihui-clientUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientUITests" */;
+			buildPhases = (
+				EC175BFA2E41EF40005C4C31 /* Sources */,
+				EC175BFB2E41EF40005C4C31 /* Frameworks */,
+				EC175BFC2E41EF40005C4C31 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EC175C002E41EF40005C4C31 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
+			);
+			name = "termihui-clientUITests";
+			packageProductDependencies = (
+			);
+			productName = "termihui-clientUITests";
+			productReference = EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EC175BDB2E41EF3F005C4C31 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					EC175BE22E41EF3F005C4C31 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					EC175BF32E41EF40005C4C31 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = EC175BE22E41EF3F005C4C31;
+					};
+					EC175BFD2E41EF40005C4C31 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = EC175BE22E41EF3F005C4C31;
+					};
+				};
+			};
+			buildConfigurationList = EC175BDE2E41EF3F005C4C31 /* Build configuration list for PBXProject "termihui-client" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = EC175BDA2E41EF3F005C4C31;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EC175C212E420393005C4C31 /* XCRemoteSwiftPackageReference "SnapKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EC175BE42E41EF3F005C4C31 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EC175BE22E41EF3F005C4C31 /* termihui-client */,
+				EC175BF32E41EF40005C4C31 /* termihui-clientTests */,
+				EC175BFD2E41EF40005C4C31 /* termihui-clientUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EC175BE12E41EF3F005C4C31 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BF22E41EF40005C4C31 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BFC2E41EF40005C4C31 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		EC175BDF2E41EF3F005C4C31 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BF02E41EF40005C4C31 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC175BFA2E41EF40005C4C31 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		EC175BF62E41EF40005C4C31 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EC175BE22E41EF3F005C4C31 /* termihui-client */;
+			targetProxy = EC175BF52E41EF40005C4C31 /* PBXContainerItemProxy */;
+		};
+		EC175C002E41EF40005C4C31 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EC175BE22E41EF3F005C4C31 /* termihui-client */;
+			targetProxy = EC175BFF2E41EF40005C4C31 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		EC175C062E41EF40005C4C31 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		EC175C072E41EF40005C4C31 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		EC175C092E41EF40005C4C31 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "termihui-client/termihui_client.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		EC175C0A2E41EF40005C4C31 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "termihui-client/termihui_client.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		EC175C0C2E41EF40005C4C31 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-clientTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/termihui-client.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/termihui-client";
+			};
+			name = Debug;
+		};
+		EC175C0D2E41EF40005C4C31 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-clientTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/termihui-client.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/termihui-client";
+			};
+			name = Release;
+		};
+		EC175C0F2E41EF40005C4C31 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-clientUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "termihui-client";
+			};
+			name = Debug;
+		};
+		EC175C102E41EF40005C4C31 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-clientUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "termihui-client";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		EC175BDE2E41EF3F005C4C31 /* Build configuration list for PBXProject "termihui-client" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC175C062E41EF40005C4C31 /* Debug */,
+				EC175C072E41EF40005C4C31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC175C092E41EF40005C4C31 /* Debug */,
+				EC175C0A2E41EF40005C4C31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC175C0C2E41EF40005C4C31 /* Debug */,
+				EC175C0D2E41EF40005C4C31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC175C0F2E41EF40005C4C31 /* Debug */,
+				EC175C102E41EF40005C4C31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EC175C212E420393005C4C31 /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SnapKit/SnapKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.7.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EC175C222E420393005C4C31 /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EC175C212E420393005C4C31 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = EC175BDB2E41EF3F005C4C31 /* Project object */;
+}
