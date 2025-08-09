@@ -7,7 +7,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Insert code here to initialize your application
+        print("🚀 AppDelegate: Запуск приложения TermiHUI")
+        
+        // Инициализируем C++ ядро клиента
+        let coreInitialized = ClientCoreWrapper.initializeApp()
+        
+        if !coreInitialized {
+            print("❌ AppDelegate: Критическая ошибка - не удалось инициализировать ядро")
+            NSApplication.shared.terminate(self)
+            return
+        }
+        
+        print("✅ AppDelegate: Приложение успешно запущено")
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {

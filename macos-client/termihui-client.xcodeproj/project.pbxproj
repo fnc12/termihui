@@ -104,6 +104,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client" */;
 			buildPhases = (
+				EC3566EF2E47551500312FBC /* ShellScript */,
 				EC175BDF2E41EF3F005C4C31 /* Sources */,
 				EC175BE02E41EF3F005C4C31 /* Frameworks */,
 				EC175BE12E41EF3F005C4C31 /* Resources */,
@@ -239,6 +240,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		EC3566EF2E47551500312FBC /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Автоматическая сборка C++ ядра клиента\nset -e\n\n# Добавляем пути для поиска cmake и make\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nCLIENT_CORE_DIR=\"${SRCROOT}/../client-core\"\nBUILD_DIR=\"${CLIENT_CORE_DIR}/build\"\nLIB_FILE=\"${BUILD_DIR}/lib/libtermihui_client_core.a\"\n\necho \"🔧 Проверка C++ ядра...\"\n\n# Проверяем наличие cmake\nif ! command -v cmake &> /dev/null; then\n    echo \"❌ cmake не найден. Убедись что установлен Homebrew: brew install cmake\"\n    exit 1\nfi\n\n# Проверяем нужность пересборки\nNEED_BUILD=false\n\nif [ ! -f \"$LIB_FILE\" ]; then\n    echo \"📦 Библиотека не найдена, сборка...\"\n    NEED_BUILD=true\nelif [ \"$CLIENT_CORE_DIR/src/client_core.cpp\" -nt \"$LIB_FILE\" ]; then\n    echo \"🔄 Исходники изменились, пересборка...\"\n    NEED_BUILD=true\nelif [ \"$CLIENT_CORE_DIR/CMakeLists.txt\" -nt \"$LIB_FILE\" ]; then\n    echo \"🔄 CMake изменился, пересборка...\"\n    NEED_BUILD=true\nelse\n    echo \"✅ Библиотека актуальна\"\nfi\n\nif [ \"$NEED_BUILD\" = true ]; then\n    echo \"🛠 Сборка C++ библиотеки...\"\n    echo \"📍 Переходим в: $CLIENT_CORE_DIR\"\n    \n    cd \"$CLIENT_CORE_DIR\"\n    mkdir -p build && cd build\n    \n    echo \"⚙️ Запуск cmake...\"\n    cmake .. -DCMAKE_BUILD_TYPE=Release\n    \n    echo \"🔨 Запуск make...\"\n    make -j4\n    \n    if [ -f \"$LIB_FILE\" ]; then\n        echo \"✅ C++ ядро собрано: $LIB_FILE\"\n    else\n        echo \"❌ Ошибка сборки C++ библиотеки\"\n        exit 1\n    fi\nfi\n\necho \"🎯 C++ ядро готово к использованию\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		EC175BDF2E41EF3F005C4C31 /* Sources */ = {
@@ -401,6 +422,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CODE_SIGN_ENTITLEMENTS = "termihui-client/termihui_client.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -408,6 +430,7 @@
 				DEVELOPMENT_TEAM = QDTPG5DB79;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../client-core/include";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -415,11 +438,14 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../client-core/build/lib";
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ltermihui_client_core_with_fmt";
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/TermiHUI-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -429,6 +455,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CODE_SIGN_ENTITLEMENTS = "termihui-client/termihui_client.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -436,6 +463,7 @@
 				DEVELOPMENT_TEAM = QDTPG5DB79;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../client-core/include";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -443,11 +471,14 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../client-core/build/lib";
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ltermihui_client_core_with_fmt";
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/TermiHUI-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
