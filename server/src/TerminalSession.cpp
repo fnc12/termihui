@@ -86,6 +86,9 @@ bool TerminalSession::createSession()
     
     if (this->childPid == 0) {
         // Дочерний процесс
+        // Устанавливаем пустой промпт чтобы убрать "bash-3.2$"
+        setenv("PS1", "", 1);
+        
         // Запускаем интерактивный bash
         execl("/bin/bash", "bash", "-i", nullptr);
         

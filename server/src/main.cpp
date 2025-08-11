@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
         if (terminalSession->hasData(0)) {
             std::string output = terminalSession->readOutput();
             if (!output.empty()) {
-                fmt::print("Вывод терминала: {}\n", output);
+                fmt::print("Вывод терминала: *{}*\n", output);
                 std::string response = JsonHelper::createResponse("output", output);
                 wsServer.broadcastMessage(response);
             }

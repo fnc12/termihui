@@ -216,7 +216,7 @@ class TerminalViewController: NSViewController {
     }
     
     func appendOutput(_ output: String) {
-        print("📺 TerminalViewController.appendOutput вызван с: \(output)")
+        print("📺 TerminalViewController.appendOutput вызван с: *\(output)*")
         DispatchQueue.main.async {
             // Парсим ANSI-коды в новом выводе
             let styledSegments = self.ansiParser.parse(output)
