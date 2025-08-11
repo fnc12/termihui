@@ -3,6 +3,9 @@
 #include <iostream>
 #include <cstring>
 #include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <sstream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -10,6 +13,9 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <signal.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <pwd.h>
 #include <fmt/core.h>
 
 #ifdef __APPLE__
@@ -278,4 +284,99 @@ void TerminalSession::checkChildStatus()
     } else if (result < 0 && errno != ECHILD) {
         fmt::print(stderr, "Ошибка waitpid: {}\n", strerror(errno));
     }
-} 
+}
+
+std::vector<std::string> TerminalSession::getCompletions(const std::string& text, int cursorPosition) const
+{
+    // Получаем текущую рабочую директорию bash-процесса
+    std::string currentDir = getCurrentWorkingDirectory();
+    if (currentDir.empty()) {
+        fmt::print(stderr, "Не удалось получить текущую директорию, используем '.'\n");
+        currentDir = ".";
+    }
+    
+    fmt::print("Текущая рабочая директория bash: '{}'\n", currentDir);
+    
+    // Делегируем работу CompletionManager с правильной директорией
+    return completionManager.getCompletions(text, cursorPosition, currentDir);
+}
+
+std::string TerminalSession::getCurrentWorkingDirectory() const
+{
+    if (childPid <= 0) {
+        return "";
+    }
+    
+#ifdef __APPLE__
+    // На macOS нужно найти реальный bash-процесс, который может быть дочерним процессом
+    // Сначала пробуем найти bash-процесс среди дочерних процессов
+    std::string findBashCommand = "pgrep -P " + std::to_string(childPid) + " bash 2>/dev/null | head -1";
+    
+    fmt::print("Ищем bash-процесс: {}\n", findBashCommand);
+    
+    FILE* bashPipe = popen(findBashCommand.c_str(), "r");
+    pid_t bashPid = childPid; // По умолчанию используем исходный PID
+    
+    if (bashPipe) {
+        char buffer[32];
+        if (fgets(buffer, sizeof(buffer), bashPipe) != nullptr) {
+            bashPid = std::atoi(buffer);
+            fmt::print("Найден bash-процесс с PID: {}\n", bashPid);
+        }
+        pclose(bashPipe);
+    }
+    
+    // Теперь получаем cwd для найденного bash-процесса
+    std::string command = "lsof -p " + std::to_string(bashPid) + " -d cwd -Fn 2>/dev/null | grep '^n' | cut -c2-";
+    
+    fmt::print("Выполняем команду: {}\n", command);
+    
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe) {
+        char buffer[PATH_MAX];
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            pclose(pipe);
+            // Удаляем символ новой строки в конце
+            std::string result(buffer);
+            if (!result.empty() && result.back() == '\n') {
+                result.pop_back();
+            }
+            fmt::print("lsof вернул: '{}'\n", result);
+            if (!result.empty() && result != "/") {
+                return result;
+            }
+        }
+        pclose(pipe);
+    }
+    
+    fmt::print("lsof не сработал, используем fallback директорию\n");
+    
+    // Fallback - используем домашнюю директорию пользователя
+    const char* home = getenv("HOME");
+    if (home) {
+        return std::string(home);
+    }
+    
+    // Последний fallback - текущая директория сервера
+    return ".";
+    
+#else
+    // На Linux используем /proc/{pid}/cwd
+    std::string procPath = "/proc/" + std::to_string(childPid) + "/cwd";
+    
+    char buffer[PATH_MAX];
+    ssize_t len = readlink(procPath.c_str(), buffer, sizeof(buffer) - 1);
+    
+    if (len != -1) {
+        buffer[len] = '\0';
+        return std::string(buffer);
+    }
+#endif
+    
+    fmt::print(stderr, "Не удалось получить текущую директорию процесса {}\n", childPid);
+    return "";
+}
+
+
+
+ 

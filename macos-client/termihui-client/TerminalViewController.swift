@@ -13,11 +13,12 @@ class TerminalViewController: NSViewController {
     private var terminalTextView = NSTextView()
     
     private let inputContainerView = NSView()
-    private let commandTextField = NSTextField()
+    private let commandTextField = TabHandlingTextField()
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
     
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
+    weak var webSocketManager: WebSocketManager?
     private var serverAddress: String = ""
     private let ansiParser = ANSIParser()
     
@@ -148,6 +149,7 @@ class TerminalViewController: NSViewController {
         commandTextField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         commandTextField.target = self
         commandTextField.action = #selector(sendCommand)
+        commandTextField.tabDelegate = self // Устанавливаем делегат для Tab-обработки
         
         // Send button
         sendButton.bezelStyle = .rounded
@@ -263,6 +265,199 @@ class TerminalViewController: NSViewController {
         delegate?.terminalViewControllerDidRequestDisconnect(self)
     }
 }
+
+// MARK: - TabHandlingTextFieldDelegate
+extension TerminalViewController: TabHandlingTextFieldDelegate {
+    func tabHandlingTextField(_ textField: TabHandlingTextField, didPressTabWithText text: String, cursorPosition: Int) {
+        print("🎯 TerminalViewController получил Tab событие:")
+        print("   Текст: '\(text)'")
+        print("   Позиция курсора: \(cursorPosition)")
+        
+        // Отправляем запрос автодополнения на сервер
+        webSocketManager?.requestCompletion(for: text, cursorPosition: cursorPosition)
+    }
+}
+
+// MARK: - Completion Logic
+extension TerminalViewController {
+    
+    /// Обрабатывает результаты автодополнения и применяет их к полю ввода
+    func handleCompletionResults(_ completions: [String], originalText: String, cursorPosition: Int) {
+        print("🎯 Обработка автодополнения:")
+        print("   Исходный текст: '\(originalText)'")
+        print("   Позиция курсора: \(cursorPosition)")
+        print("   Варианты: \(completions)")
+        
+        switch completions.count {
+        case 0:
+            // Нет вариантов - звук ошибки
+            handleNoCompletions()
+            
+        case 1:
+            // Один вариант - автоматически дополняем
+            handleSingleCompletion(completions[0], originalText: originalText, cursorPosition: cursorPosition)
+            
+        default:
+            // Несколько вариантов - ищем общий префикс или показываем список
+            handleMultipleCompletions(completions, originalText: originalText, cursorPosition: cursorPosition)
+        }
+    }
+    
+    /// Обрабатывает случай когда нет вариантов автодополнения
+    private func handleNoCompletions() {
+        print("❌ Нет вариантов автодополнения")
+        // Воспроизводим системный звук ошибки
+        NSSound.beep()
+        
+        // Можно также показать временное сообщение
+        showTemporaryMessage("Нет вариантов автодополнения")
+    }
+    
+    /// Обрабатывает случай с одним вариантом автодополнения
+    private func handleSingleCompletion(_ completion: String, originalText: String, cursorPosition: Int) {
+        print("✅ Единственный вариант: '\(completion)'")
+        
+        // Применяем автодополнение к полю ввода
+        applyCompletion(completion, originalText: originalText, cursorPosition: cursorPosition)
+        
+        showTemporaryMessage("Дополнено до: \(completion)")
+    }
+    
+    /// Обрабатывает случай с несколькими вариантами автодополнения
+    private func handleMultipleCompletions(_ completions: [String], originalText: String, cursorPosition: Int) {
+        print("🔄 Несколько вариантов (\(completions.count))")
+        
+        // Ищем общий префикс среди всех вариантов
+        let commonPrefix = findCommonPrefix(completions)
+        let currentWord = extractCurrentWord(originalText, cursorPosition: cursorPosition)
+        
+        print("   Текущее слово: '\(currentWord)'")
+        print("   Общий префикс: '\(commonPrefix)'")
+        
+        if commonPrefix.count > currentWord.count {
+            // Есть общий префикс длиннее текущего слова - дополняем до него
+            print("✅ Дополняем до общего префикса: '\(commonPrefix)'")
+            applyCompletion(commonPrefix, originalText: originalText, cursorPosition: cursorPosition)
+            showTemporaryMessage("Дополнено до общего префикса")
+        } else {
+            // Нет общего префикса - показываем список вариантов
+            print("📋 Показываем список вариантов")
+            showCompletionList(completions)
+        }
+    }
+    
+    /// Применяет автодополнение к полю ввода
+    private func applyCompletion(_ completion: String, originalText: String, cursorPosition: Int) {
+        // Извлекаем текущее слово для замены
+        let currentWord = extractCurrentWord(originalText, cursorPosition: cursorPosition)
+        let wordStart = findWordStart(originalText, cursorPosition: cursorPosition)
+        
+        // Создаем новый текст с заменой
+        let beforeWord = String(originalText.prefix(wordStart))
+        let afterCursor = String(originalText.suffix(originalText.count - cursorPosition))
+        let newText = beforeWord + completion + afterCursor
+        
+        print("🔄 Применяем автодополнение:")
+        print("   До слова: '\(beforeWord)'")
+        print("   Заменяем: '\(currentWord)' → '\(completion)'")
+        print("   После курсора: '\(afterCursor)'")
+        print("   Результат: '\(newText)'")
+        
+        // Обновляем поле ввода
+        commandTextField.stringValue = newText
+        
+        // Устанавливаем курсор в конец дополненного слова
+        let newCursorPosition = beforeWord.count + completion.count
+        setCursorPosition(newCursorPosition)
+    }
+    
+    /// Извлекает текущее слово под курсором
+    private func extractCurrentWord(_ text: String, cursorPosition: Int) -> String {
+        let wordStart = findWordStart(text, cursorPosition: cursorPosition)
+        let wordEnd = cursorPosition
+        
+        if wordStart < wordEnd && wordStart < text.count && wordEnd <= text.count {
+            let startIndex = text.index(text.startIndex, offsetBy: wordStart)
+            let endIndex = text.index(text.startIndex, offsetBy: wordEnd)
+            return String(text[startIndex..<endIndex])
+        }
+        
+        return ""
+    }
+    
+    /// Находит начало текущего слова
+    private func findWordStart(_ text: String, cursorPosition: Int) -> Int {
+        var start = cursorPosition - 1
+        
+        while start >= 0 && start < text.count {
+            let index = text.index(text.startIndex, offsetBy: start)
+            let char = text[index]
+            
+            if char == " " || char == "\t" {
+                break
+            }
+            start -= 1
+        }
+        
+        return start + 1
+    }
+    
+    /// Находит общий префикс среди всех вариантов автодополнения
+    private func findCommonPrefix(_ completions: [String]) -> String {
+        guard !completions.isEmpty else { return "" }
+        guard completions.count > 1 else { return completions[0] }
+        
+        let first = completions[0]
+        var commonLength = 0
+        
+        for i in 0..<first.count {
+            let char = first[first.index(first.startIndex, offsetBy: i)]
+            var allMatch = true
+            
+            for completion in completions.dropFirst() {
+                if i >= completion.count || completion[completion.index(completion.startIndex, offsetBy: i)] != char {
+                    allMatch = false
+                    break
+                }
+            }
+            
+            if allMatch {
+                commonLength = i + 1
+            } else {
+                break
+            }
+        }
+        
+        return String(first.prefix(commonLength))
+    }
+    
+    /// Устанавливает позицию курсора в поле ввода
+    private func setCursorPosition(_ position: Int) {
+        if let fieldEditor = commandTextField.currentEditor() {
+            let range = NSRange(location: position, length: 0)
+            fieldEditor.selectedRange = range
+        }
+    }
+    
+    /// Показывает список вариантов автодополнения в терминале
+    private func showCompletionList(_ completions: [String]) {
+        let completionText = "💡 Варианты автодополнения:\n" + completions.map { "  \($0)" }.joined(separator: "\n") + "\n"
+        appendOutput(completionText)
+    }
+    
+    /// Показывает временное сообщение в статус баре
+    private func showTemporaryMessage(_ message: String) {
+        let originalStatus = statusLabel.stringValue
+        statusLabel.stringValue = message
+        
+        // Возвращаем оригинальный статус через 2 секунды
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.statusLabel.stringValue = originalStatus
+        }
+    }
+}
+
+
 
 // MARK: - Delegate Protocol
 protocol TerminalViewControllerDelegate: AnyObject {

@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <sys/types.h>
+#include "CompletionManager.h"
 
 /**
  * Класс для управления терминальными сессиями через PTY
@@ -91,6 +92,20 @@ public:
      * @return true если данные доступны
      */
     bool hasData(int timeoutMs = 0) const;
+    
+    /**
+     * Получение вариантов автодополнения для текста
+     * @param text текст для автодополнения
+     * @param cursorPosition позиция курсора в тексте
+     * @return вектор строк с вариантами автодополнения
+     */
+    std::vector<std::string> getCompletions(const std::string& text, int cursorPosition) const;
+    
+    /**
+     * Получение текущей рабочей директории bash-процесса
+     * @return путь к текущей директории или пустая строка при ошибке
+     */
+    std::string getCurrentWorkingDirectory() const;
 
 private:
     /**
@@ -115,6 +130,11 @@ private:
     size_t bufferSize;            // Размер буфера
     bool running;                 // Флаг активности процесса
     bool sessionCreated;          // Флаг созданной сессии
+    
+ 
+    
+    // Менеджер автодополнения
+    CompletionManager completionManager;
     
     // TODO: Добавить в будущем:
     // - struct winsize m_windowSize;  // Размер окна терминала для resize-событий

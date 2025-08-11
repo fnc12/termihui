@@ -49,12 +49,14 @@ endif()
 set(SOURCES
     src/TerminalSession.cpp
     src/WebSocketServer.cpp
+    src/CompletionManager.cpp
     src/main.cpp
 )
 
 set(HEADERS
     src/TerminalSession.h
     src/WebSocketServer.h
+    src/CompletionManager.h
 )
 
 # Создаем исполняемый файл
@@ -93,7 +95,9 @@ endif()
 set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_interactive_session.cpp
+    tests/test_completion_manager.cpp
     src/TerminalSession.cpp
+    src/CompletionManager.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})

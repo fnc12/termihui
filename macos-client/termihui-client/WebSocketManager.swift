@@ -74,6 +74,19 @@ class WebSocketManager: NSObject {
         sendMessage(message)
     }
     
+    /// Запрос автодополнения
+    func requestCompletion(for text: String, cursorPosition: Int) {
+        print("📤 Запрос автодополнения для: '\(text)' (позиция: \(cursorPosition))")
+        guard isConnected else {
+            print("❌ Не подключен к серверу для автодополнения")
+            delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
+            return
+        }
+        
+        let message = TerminalMessage.completion(text: text, cursorPosition: cursorPosition)
+        sendMessage(message)
+    }
+    
     // MARK: - Private Methods
     
     private func sendMessage(_ message: TerminalMessage) {
@@ -158,6 +171,18 @@ class WebSocketManager: NSObject {
                     // Подтверждение отправки ввода - можно игнорировать
                     break
                     
+                case "completion_result":
+                    if let completions = response.completions,
+                       let originalText = response.originalText,
+                       let cursorPosition = response.cursorPosition {
+                        print("🎯 Получены варианты автодополнения: \(completions)")
+                        self.delegate?.webSocketManager(self, didReceiveCompletions: completions, 
+                                                      originalText: originalText, 
+                                                      cursorPosition: cursorPosition)
+                    } else {
+                        print("❌ Некорректный формат completion_result")
+                    }
+                    
                 default:
                     print("Unknown message type: \(response.type)")
                 }
@@ -200,50 +225,7 @@ extension WebSocketManager: URLSessionDelegate {
     }
 }
 
-// MARK: - Data Models
 
-/// Сообщения, отправляемые на сервер
-enum TerminalMessage: Encodable {
-    case execute(command: String)
-    case input(text: String)
-    
-    private enum CodingKeys: String, CodingKey {
-        case type, command, text
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        switch self {
-        case .execute(let command):
-            try container.encode("execute", forKey: .type)
-            try container.encode(command, forKey: .command)
-        case .input(let text):
-            try container.encode("input", forKey: .type)
-            try container.encode(text, forKey: .text)
-        }
-    }
-}
-
-/// Ответы, получаемые от сервера
-struct TerminalResponse: Codable {
-    let type: String
-    let data: String?
-    let running: Bool?
-    let exitCode: Int?
-    let message: String?
-    let errorCode: String?
-    let serverVersion: String?
-    let bytes: Int?
-    
-    private enum CodingKeys: String, CodingKey {
-        case type, data, running, message
-        case exitCode = "exit_code"
-        case errorCode = "error_code"
-        case serverVersion = "server_version"
-        case bytes
-    }
-}
 
 /// Ошибки WebSocket подключения
 enum WebSocketError: Error, LocalizedError {
@@ -270,4 +252,5 @@ protocol WebSocketManagerDelegate: AnyObject {
     func webSocketManager(_ manager: WebSocketManager, didReceiveOutput output: String)
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)
     func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int)
 }

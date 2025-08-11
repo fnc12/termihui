@@ -106,6 +106,7 @@ class ViewController: NSViewController {
     
     private func showTerminalScreen(serverAddress: String) {
         terminalViewController.configure(serverAddress: serverAddress)
+        terminalViewController.webSocketManager = webSocketManager
         addChild(terminalViewController)
         view.addSubview(terminalViewController.view)
         
@@ -206,6 +207,20 @@ extension ViewController: WebSocketManagerDelegate {
                     // Показываем сообщение об ошибке только при неудачном завершении
                     terminalVC.appendOutput("❌ Process exited with code \(exitCode)\n")
                 }
+            }
+        }
+    }
+    
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int) {
+        print("🎯 ViewController получил варианты автодополнения:")
+        print("   Исходный текст: '\(originalText)'")
+        print("   Позиция курсора: \(cursorPosition)")
+        print("   Варианты: \(completions)")
+        
+        // Передаем варианты автодополнения в TerminalViewController для обработки
+        DispatchQueue.main.async {
+            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                terminalVC.handleCompletionResults(completions, originalText: originalText, cursorPosition: cursorPosition)
             }
         }
     }

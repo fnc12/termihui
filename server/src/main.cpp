@@ -138,6 +138,23 @@ int main(int argc, char* argv[])
                         std::string error = JsonHelper::createResponse("error", "Missing text field");
                         wsServer.sendMessage(msg.clientId, error);
                     }
+                } else if (type == "completion") {
+                    std::string text = msgJson.value("text", "");
+                    int cursorPosition = msgJson.value("cursor_position", 0);
+                    
+                    fmt::print("Запрос автодополнения: '{}' (позиция: {})\n", text, cursorPosition);
+                    
+                    // Получаем варианты автодополнения
+                    auto completions = terminalSession->getCompletions(text, cursorPosition);
+                    
+                    // Создаем JSON ответ с вариантами
+                    json response;
+                    response["type"] = "completion_result";
+                    response["completions"] = completions;
+                    response["original_text"] = text;
+                    response["cursor_position"] = cursorPosition;
+                    
+                    wsServer.sendMessage(msg.clientId, response.dump());
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Unknown message type");
                     wsServer.sendMessage(msg.clientId, error);
