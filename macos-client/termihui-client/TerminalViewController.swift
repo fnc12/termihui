@@ -15,6 +15,7 @@ class TerminalViewController: NSViewController {
     private let inputContainerView = NSView()
     private let commandTextField = TabHandlingTextField()
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
+    private var inputUnderlineView: NSView!
     
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
@@ -142,7 +143,7 @@ class TerminalViewController: NSViewController {
     
     private func setupInputView() {
         inputContainerView.wantsLayer = true
-        inputContainerView.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        inputContainerView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         
         // Command text field
         commandTextField.placeholderString = "Введите команду..."
@@ -150,6 +151,22 @@ class TerminalViewController: NSViewController {
         commandTextField.target = self
         commandTextField.action = #selector(sendCommand)
         commandTextField.tabDelegate = self // Устанавливаем делегат для Tab-обработки
+        
+        // Убираем все визуальные элементы поля для слияния с фоном
+        commandTextField.focusRingType = .none
+        commandTextField.isBordered = false
+        commandTextField.isBezeled = false
+        commandTextField.backgroundColor = NSColor.clear
+        commandTextField.drawsBackground = false
+        
+        // Добавляем тонкую линию снизу как в современных терминалах (опционально)
+        let underlineView = NSView()
+        underlineView.wantsLayer = true
+        underlineView.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        inputContainerView.addSubview(underlineView)
+        
+        // Сохраняем ссылку для layout constraints
+        self.inputUnderlineView = underlineView
         
         // Send button
         sendButton.bezelStyle = .rounded
@@ -205,6 +222,14 @@ class TerminalViewController: NSViewController {
             make.centerY.equalToSuperview()
             make.width.equalTo(80)
         }
+        
+        // Underline view constraints
+        inputUnderlineView.snp.makeConstraints { make in
+            make.leading.equalTo(commandTextField.snp.leading)
+            make.trailing.equalTo(commandTextField.snp.trailing)
+            make.bottom.equalTo(commandTextField.snp.bottom).offset(2)
+            make.height.equalTo(1)
+        }
     }
     
     private func setupActions() {
@@ -254,8 +279,8 @@ class TerminalViewController: NSViewController {
         // Очищаем поле ввода
         commandTextField.stringValue = ""
         
-        // Добавляем команду в терминал (как эхо)
-        appendOutput("$ \(command)\n")
+        // НЕ добавляем эхо команды - PTY уже предоставляет полный вывод
+        // appendOutput("$ \(command)\n")  // Убираем дублирование
         
         // Отправляем команду через delegate
         delegate?.terminalViewController(self, didSendCommand: command)
