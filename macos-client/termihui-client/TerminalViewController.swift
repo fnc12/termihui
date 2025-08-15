@@ -116,14 +116,13 @@ class TerminalViewController: NSViewController {
         newTextView.backgroundColor = NSColor.black
         newTextView.textColor = NSColor.green
         
-        // Создаём начальный attributed text
-        let initialText = "TermiHUI Terminal v1.0.0\nГотов к работе...\n\n"
+        // Создаём пустой attributed text - терминал начинается чистым
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
             .foregroundColor: NSColor.green,
             .backgroundColor: NSColor.black
         ]
-        let attributedText = NSAttributedString(string: initialText, attributes: attributes)
+        let attributedText = NSAttributedString(string: "", attributes: attributes)
         newTextView.textStorage?.setAttributedString(attributedText)
         
         // Настройки ресайза
