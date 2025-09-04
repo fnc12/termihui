@@ -33,11 +33,28 @@ class TerminalViewController: NSViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         
-        // ПЕРЕСОЗДАЁМ NSTextView ПОСЛЕ того как layout завершён
-        recreateTextViewWithCorrectSize()
+        // Принудительно обновляем layout родительского view
+        view.superview?.layoutSubtreeIfNeeded()
+        view.layoutSubtreeIfNeeded()
         
-        // Устанавливаем фокус на поле ввода команд
-        view.window?.makeFirstResponder(commandTextField)
+        print("🔧 viewDidAppear: Parent view размер: \(view.frame)")
+        print("🔧 viewDidAppear: ScrollView размер после layout: \(terminalScrollView.frame)")
+        
+        // Небольшая задержка чтобы layout точно завершился
+        DispatchQueue.main.async {
+            // ПЕРЕСОЗДАЁМ NSTextView ПОСЛЕ того как layout завершён
+            self.recreateTextViewWithCorrectSize()
+            
+            // Устанавливаем фокус на поле ввода команд
+            self.view.window?.makeFirstResponder(self.commandTextField)
+        }
+    }
+    
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        
+        // При изменении размера view обновляем frame NSTextView
+        updateTextViewFrame()
     }
     
     // MARK: - Setup Methods
@@ -79,13 +96,35 @@ class TerminalViewController: NSViewController {
         terminalScrollView.hasVerticalScroller = true
         terminalScrollView.hasHorizontalScroller = false
         terminalScrollView.autohidesScrollers = false
-        terminalScrollView.backgroundColor = NSColor.black
-        terminalScrollView.borderType = .noBorder
+        terminalScrollView.backgroundColor = NSColor.red  // ВРЕМЕННО: красный фон для диагностики
+        terminalScrollView.borderType = .lineBorder
+        terminalScrollView.drawsBackground = true
         
         // Создаём временный text view (будет заменён в viewDidAppear)
         terminalTextView.isEditable = false
         terminalTextView.backgroundColor = NSColor.black
         terminalScrollView.documentView = terminalTextView
+        
+        print("🔧 TerminalScrollView настроен: фон чёрный, размер: \(terminalScrollView.frame)")
+    }
+    
+    private func updateTextViewFrame() {
+        // Обновляем frame существующего NSTextView под размер ScrollView
+        guard let textView = terminalScrollView.documentView as? NSTextView else { return }
+        
+        let contentSize = terminalScrollView.contentSize
+        let currentContentHeight = textView.textStorage?.length ?? 0 > 0 ? textView.frame.height : contentSize.height
+        
+        // Новый frame: ширина = ScrollView, высота = максимум из ScrollView и текущего контента
+        let newFrame = NSRect(
+            x: 0, 
+            y: 0, 
+            width: contentSize.width, 
+            height: max(contentSize.height, currentContentHeight)
+        )
+        
+        textView.frame = newFrame
+        print("🔧 Обновили frame NSTextView: \(newFrame)")
     }
     
     private func recreateTextViewWithCorrectSize() {
@@ -98,6 +137,9 @@ class TerminalViewController: NSViewController {
         textContainer.widthTracksTextView = true
         textContainer.heightTracksTextView = false
         
+        print("🔧 TextContainer создан с размером: \(textContainer.containerSize)")
+        print("🔧 ContentSize был: \(contentSize)")
+        
         // Создаём layout manager
         let layoutManager = NSLayoutManager()
         layoutManager.addTextContainer(textContainer)
@@ -106,15 +148,18 @@ class TerminalViewController: NSViewController {
         let textStorage = NSTextStorage()
         textStorage.addLayoutManager(layoutManager)
         
-        // СОЗДАЁМ NSTextView с правильными размерами
-        let newTextView = NSTextView(frame: NSRect(x: 0, y: 0, width: contentSize.width, height: contentSize.height), textContainer: textContainer)
+        // СОЗДАЁМ NSTextView с правильным frame
+        let textViewFrame = NSRect(x: 0, y: 0, width: contentSize.width, height: contentSize.height)
+        let newTextView = NSTextView(frame: textViewFrame, textContainer: textContainer)
+        
+        print("🔧 NSTextView создан с frame: \(textViewFrame)")
         
         // Настраиваем новый text view
         newTextView.isEditable = false
         newTextView.isSelectable = true
         newTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        newTextView.backgroundColor = NSColor.black
-        newTextView.textColor = NSColor.green
+        newTextView.backgroundColor = NSColor.gray.withAlphaComponent(0.3)  // ВРЕМЕННО: полупрозрачный серый
+        newTextView.textColor = NSColor.yellow  // ВРЕМЕННО: жёлтый текст для контраста
         
         // Создаём пустой attributed text - терминал начинается чистым
         let attributes: [NSAttributedString.Key: Any] = [
@@ -122,14 +167,16 @@ class TerminalViewController: NSViewController {
             .foregroundColor: NSColor.green,
             .backgroundColor: NSColor.black
         ]
-        let attributedText = NSAttributedString(string: "", attributes: attributes)
+        // ВРЕМЕННО: добавляем тестовый текст для диагностики
+        let testText = "🔧 TERMINAL VIEW РАБОТАЕТ\nЖдём вывода команд...\n"
+        let attributedText = NSAttributedString(string: testText, attributes: attributes)
         newTextView.textStorage?.setAttributedString(attributedText)
         
-        // Настройки ресайза
+        // Настройки ресайза - позволяем NSTextView расти по содержимому
         newTextView.isVerticallyResizable = true
         newTextView.isHorizontallyResizable = false
         newTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        newTextView.minSize = NSSize(width: 0, height: contentSize.height)
+        newTextView.minSize = NSSize(width: 0, height: 0)  // Минимальный размер 0 - пусть растёт по контенту
         
         // Заменяем старый text view на новый
         terminalTextView = newTextView
@@ -138,6 +185,10 @@ class TerminalViewController: NSViewController {
         terminalScrollView.documentView = terminalTextView
         
         print("✅ NSTextView пересоздан с размером: \(newTextView.frame)")
+        print("🔧 ScrollView размер: \(terminalScrollView.frame)")
+        print("🔧 ScrollView contentSize: \(terminalScrollView.contentSize)")
+        print("🔧 TextView minSize: \(newTextView.minSize)")
+        print("🔧 TextView backgroundColor: \(newTextView.backgroundColor)")
     }
     
     private func setupInputView() {
@@ -179,6 +230,11 @@ class TerminalViewController: NSViewController {
     }
     
     private func setupLayout() {
+        print("🔧 setupLayout: Размеры до constraints:")
+        print("   View: \(view.frame)")
+        print("   ScrollView: \(terminalScrollView.frame)")
+        print("   InputContainer: \(inputContainerView.frame)")
+        
         // Toolbar
         toolbarView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
@@ -196,16 +252,25 @@ class TerminalViewController: NSViewController {
             make.leading.greaterThanOrEqualTo(disconnectButton.snp.trailing).offset(12)
         }
         
-        // Terminal view
+        // Принудительно обновляем layout перед установкой constraints
+        view.layoutSubtreeIfNeeded()
+        
+        // Terminal view - возвращаемся к старому подходу с минимальной высотой
         terminalScrollView.snp.makeConstraints { make in
             make.top.equalTo(toolbarView.snp.bottom)
             make.leading.trailing.equalToSuperview()
             make.bottom.equalTo(inputContainerView.snp.top)
+            make.height.greaterThanOrEqualTo(200)
         }
+        
+        print("🔧 Terminal constraints установлены на весь размер: \(view.frame)")
+        
+        print("🔧 Terminal constraints установлены с минимальной высотой 200")
         
         // Input container
         inputContainerView.snp.makeConstraints { make in
-            make.leading.trailing.bottom.equalToSuperview()
+            make.leading.trailing.equalToSuperview()
+            make.bottom.equalToSuperview() // Прижимаем к низу
             make.height.equalTo(50)
         }
         
@@ -229,6 +294,8 @@ class TerminalViewController: NSViewController {
             make.bottom.equalTo(commandTextField.snp.bottom).offset(2)
             make.height.equalTo(1)
         }
+        
+        print("🔧 setupLayout завершён: все constraints установлены")
     }
     
     private func setupActions() {

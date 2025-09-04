@@ -21,7 +21,13 @@ class ViewController: NSViewController {
         super.viewDidLoad()
         setupUI()
         setupDelegates()
+        setupWindowObserver()
         determineInitialState()
+    }
+    
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        setupWindow()
     }
     
     // MARK: - Setup Methods
@@ -29,9 +35,34 @@ class ViewController: NSViewController {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         
-        // Устанавливаем размер окна
-        view.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
-        preferredContentSize = NSSize(width: 800, height: 600)
+        // Не устанавливаем фиксированный размер - позволяем окну быть изменяемым
+        // view.frame и preferredContentSize убираем для гибкости
+    }
+    
+    private func setupWindow() {
+        guard let window = view.window else { return }
+        
+        // Делаем окно изменяемым по размеру
+        window.styleMask.insert(.resizable)
+        
+        // Добавляем поддержку полноэкранного режима
+        window.collectionBehavior = [.fullScreenPrimary]
+        
+        // Устанавливаем начальный размер и минимальные размеры
+        window.setContentSize(NSSize(width: 800, height: 600))
+        window.minSize = NSSize(width: 400, height: 300)
+        
+        // Центрируем окно на экране
+        window.center()
+        
+        // Управляем размером ViewController.view вручную через frame
+        if let contentView = window.contentView {
+            view.translatesAutoresizingMaskIntoConstraints = true // Включаем autoresizing
+            view.frame = contentView.bounds
+            print("🔧 Установили начальный frame ViewController: \(view.frame)")
+        }
+        
+        print("🔧 Окно настроено: изменяемый размер, минимум 400x300, поддержка полного экрана")
     }
     
     private func setupDelegates() {
@@ -39,6 +70,51 @@ class ViewController: NSViewController {
         connectingViewController.delegate = self
         terminalViewController.delegate = self
         webSocketManager.delegate = self
+    }
+    
+    private func setupWindowObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidResize(_:)),
+            name: NSWindow.didResizeNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func windowDidResize(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window == view.window else { return }
+        
+        print("🔧 Окно изменило размер: \(window.frame.size)")
+        
+        // ПРИНУДИТЕЛЬНО устанавливаем frame ViewController под размер окна
+        if let contentView = window.contentView {
+            view.frame = contentView.bounds
+            print("🔧 Установили frame ViewController: \(view.frame)")
+        }
+        
+        // Обновляем frame дочерних view controllers
+        updateChildViewFrame()
+        
+        // Принудительно обновляем layout всех дочерних контроллеров
+        DispatchQueue.main.async {
+            self.view.layoutSubtreeIfNeeded()
+            self.children.forEach { child in
+                child.view.layoutSubtreeIfNeeded()
+            }
+        }
+    }
+    
+    private func updateChildViewFrame() {
+        // Устанавливаем frame всех дочерних view controllers = размеру parent view
+        children.forEach { child in
+            child.view.frame = view.bounds
+            print("🔧 Обновили frame дочернего контроллера: \(child.view.frame)")
+        }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func determineInitialState() {
@@ -85,34 +161,30 @@ class ViewController: NSViewController {
     private func showWelcomeScreen() {
         addChild(welcomeViewController)
         view.addSubview(welcomeViewController.view)
-        
-        welcomeViewController.view.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
+        updateChildViewFrame()
     }
     
     private func showConnectingScreen(serverAddress: String) {
         connectingViewController.configure(serverAddress: serverAddress)
         addChild(connectingViewController)
         view.addSubview(connectingViewController.view)
-        
-        connectingViewController.view.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
+        updateChildViewFrame()
         
         // Подключение инициируется в determineInitialState() или при нажатии кнопки в welcome
         // Здесь только показываем UI
     }
     
     private func showTerminalScreen(serverAddress: String) {
+        print("🔧 showTerminalScreen: Parent view размер: \(view.frame)")
+        print("🔧 showTerminalScreen: Window размер: \(view.window?.frame.size ?? CGSize.zero)")
+        
         terminalViewController.configure(serverAddress: serverAddress)
         terminalViewController.webSocketManager = webSocketManager
         addChild(terminalViewController)
         view.addSubview(terminalViewController.view)
+        updateChildViewFrame()
         
-        terminalViewController.view.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
+        print("🔧 showTerminalScreen: Terminal view добавлен с frame")
     }
     
     private func showErrorAndReturnToWelcome(message: String) {
