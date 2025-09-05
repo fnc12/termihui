@@ -10,7 +10,8 @@ class TerminalViewController: NSViewController {
     private let statusLabel = NSTextField(labelWithString: "Подключен")
     
     private let terminalScrollView = NSScrollView()
-    private var terminalTextView = NSTextView()
+    private var collectionView = NSCollectionView()
+    private let collectionLayout = NSCollectionViewFlowLayout()
     
     private let inputContainerView = NSView()
     private let commandTextField = TabHandlingTextField()
@@ -105,103 +106,37 @@ class TerminalViewController: NSViewController {
     }
     
     private func setupTerminalView() {
-        // Настраиваем только scroll view, text view создадим позже
+        // Настраиваем scroll view и коллекцию блоков
         terminalScrollView.hasVerticalScroller = true
         terminalScrollView.hasHorizontalScroller = false
-        terminalScrollView.autohidesScrollers = false
-        terminalScrollView.backgroundColor = NSColor.red  // ВРЕМЕННО: красный фон для диагностики
-        terminalScrollView.borderType = .lineBorder
+        terminalScrollView.autohidesScrollers = true
+        terminalScrollView.backgroundColor = NSColor.black
+        terminalScrollView.borderType = .noBorder
         terminalScrollView.drawsBackground = true
-        
-        // Создаём временный text view (будет заменён в viewDidAppear)
-        terminalTextView.isEditable = false
-        terminalTextView.backgroundColor = NSColor.black
-        terminalScrollView.documentView = terminalTextView
-        
-        print("🔧 TerminalScrollView настроен: фон чёрный, размер: \(terminalScrollView.frame)")
+
+        // Конфигурация layout: одна колонка, динамическая высота
+        collectionLayout.minimumLineSpacing = 8
+        collectionLayout.minimumInteritemSpacing = 0
+        collectionLayout.sectionInset = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+
+        collectionView.collectionViewLayout = collectionLayout
+        collectionView.isSelectable = true
+        collectionView.backgroundColors = [NSColor.black]
+        collectionView.delegate = self
+        collectionView.dataSource = self
+        collectionView.register(CommandBlockItem.self, forItemWithIdentifier: CommandBlockItem.reuseId)
+
+        terminalScrollView.documentView = collectionView
+
+        print("🔧 CollectionView включён. TerminalScrollView размер: \(terminalScrollView.frame)")
     }
     
     private func updateTextViewFrame() {
-        // Обновляем frame существующего NSTextView под размер ScrollView
-        guard let textView = terminalScrollView.documentView as? NSTextView else { return }
-        
-        let contentSize = terminalScrollView.contentSize
-        let currentContentHeight = textView.textStorage?.length ?? 0 > 0 ? textView.frame.height : contentSize.height
-        
-        // Новый frame: ширина = ScrollView, высота = максимум из ScrollView и текущего контента
-        let newFrame = NSRect(
-            x: 0, 
-            y: 0, 
-            width: contentSize.width, 
-            height: max(contentSize.height, currentContentHeight)
-        )
-        
-        textView.frame = newFrame
-        print("🔧 Обновили frame NSTextView: \(newFrame)")
+        // Больше не используется: рендер переехал в коллекцию
     }
     
     private func recreateTextViewWithCorrectSize() {
-        // Теперь у scroll view есть правильные размеры!
-        let contentSize = terminalScrollView.contentSize
-        print("🔧 Пересоздаём NSTextView с размером: \(contentSize)")
-        
-        // Создаём text container с правильными размерами
-        let textContainer = NSTextContainer(containerSize: NSSize(width: contentSize.width, height: CGFloat.greatestFiniteMagnitude))
-        textContainer.widthTracksTextView = true
-        textContainer.heightTracksTextView = false
-        
-        print("🔧 TextContainer создан с размером: \(textContainer.containerSize)")
-        print("🔧 ContentSize был: \(contentSize)")
-        
-        // Создаём layout manager
-        let layoutManager = NSLayoutManager()
-        layoutManager.addTextContainer(textContainer)
-        
-        // Создаём text storage
-        let textStorage = NSTextStorage()
-        textStorage.addLayoutManager(layoutManager)
-        
-        // СОЗДАЁМ NSTextView с правильным frame
-        let textViewFrame = NSRect(x: 0, y: 0, width: contentSize.width, height: contentSize.height)
-        let newTextView = NSTextView(frame: textViewFrame, textContainer: textContainer)
-        
-        print("🔧 NSTextView создан с frame: \(textViewFrame)")
-        
-        // Настраиваем новый text view
-        newTextView.isEditable = false
-        newTextView.isSelectable = true
-        newTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        newTextView.backgroundColor = NSColor.gray.withAlphaComponent(0.3)  // ВРЕМЕННО: полупрозрачный серый
-        newTextView.textColor = NSColor.yellow  // ВРЕМЕННО: жёлтый текст для контраста
-        
-        // Создаём пустой attributed text - терминал начинается чистым
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-            .foregroundColor: NSColor.green,
-            .backgroundColor: NSColor.black
-        ]
-        // ВРЕМЕННО: добавляем тестовый текст для диагностики
-        let testText = "🔧 TERMINAL VIEW РАБОТАЕТ\nЖдём вывода команд...\n"
-        let attributedText = NSAttributedString(string: testText, attributes: attributes)
-        newTextView.textStorage?.setAttributedString(attributedText)
-        
-        // Настройки ресайза - позволяем NSTextView расти по содержимому
-        newTextView.isVerticallyResizable = true
-        newTextView.isHorizontallyResizable = false
-        newTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        newTextView.minSize = NSSize(width: 0, height: 0)  // Минимальный размер 0 - пусть растёт по контенту
-        
-        // Заменяем старый text view на новый
-        terminalTextView = newTextView
-        
-        // Устанавливаем как document view
-        terminalScrollView.documentView = terminalTextView
-        
-        print("✅ NSTextView пересоздан с размером: \(newTextView.frame)")
-        print("🔧 ScrollView размер: \(terminalScrollView.frame)")
-        print("🔧 ScrollView contentSize: \(terminalScrollView.contentSize)")
-        print("🔧 TextView minSize: \(newTextView.minSize)")
-        print("🔧 TextView backgroundColor: \(newTextView.backgroundColor)")
+        // Больше не используется
     }
     
     private func setupInputView() {
@@ -326,21 +261,14 @@ class TerminalViewController: NSViewController {
         // Копим вывод в текущем блоке (если есть незавершённый)
         if let idx = currentBlockIndex {
             commandBlocks[idx].output.append(output)
+            reloadBlock(at: idx)
         } else {
-            // Если блока нет (например, вывод вне команд) — создаём временный блок
-            let block = CommandBlock(id: UUID(), output: output, isFinished: false, exitCode: nil)
+            // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
+            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil)
             commandBlocks.append(block)
-            currentBlockIndex = commandBlocks.count - 1
-        }
-        
-        // Временный рендер в общий NSTextView (оставляем для видимости до внедрения CollectionView)
-        DispatchQueue.main.async {
-            let styled = self.ansiParser.parse(output).toAttributedString()
-            let current = self.terminalTextView.textStorage ?? NSMutableAttributedString()
-            current.append(styled)
-            self.terminalTextView.textStorage?.setAttributedString(current)
-            let range = NSRange(location: self.terminalTextView.textStorage?.length ?? 0, length: 0)
-            self.terminalTextView.scrollRangeToVisible(range)
+            let newIndex = commandBlocks.count - 1
+            insertBlock(at: newIndex)
+            currentBlockIndex = newIndex
         }
     }
     
@@ -389,23 +317,7 @@ extension TerminalViewController {
         let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
-
-        // Временный рендер: выводим заголовок команды жирным перед её выводом
-        if let cmd = command, !cmd.isEmpty {
-            DispatchQueue.main.async {
-                let header = "\n" + cmd + "\n"
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold),
-                    .foregroundColor: NSColor.white
-                ]
-                let headerAttr = NSAttributedString(string: header, attributes: attrs)
-                let current = self.terminalTextView.textStorage ?? NSMutableAttributedString()
-                current.append(headerAttr)
-                self.terminalTextView.textStorage?.setAttributedString(current)
-                let range = NSRange(location: self.terminalTextView.textStorage?.length ?? 0, length: 0)
-                self.terminalTextView.scrollRangeToVisible(range)
-            }
-        }
+        insertBlock(at: currentBlockIndex!)
     }
     
     func didFinishCommandBlock(exitCode: Int) {
@@ -413,6 +325,7 @@ extension TerminalViewController {
         if let idx = currentBlockIndex {
             commandBlocks[idx].isFinished = true
             commandBlocks[idx].exitCode = exitCode
+            reloadBlock(at: idx)
             currentBlockIndex = nil
         }
     }
@@ -589,6 +502,66 @@ extension TerminalViewController {
         // Возвращаем оригинальный статус через 2 секунды
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             self.statusLabel.stringValue = originalStatus
+        }
+    }
+}
+
+// MARK: - Collection helpers
+extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDelegate, NSCollectionViewDelegateFlowLayout {
+    func numberOfSections(in collectionView: NSCollectionView) -> Int { 1 }
+    func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
+        return commandBlocks.count
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
+        let item = collectionView.makeItem(withIdentifier: CommandBlockItem.reuseId, for: indexPath)
+        guard let blockItem = item as? CommandBlockItem else { return item }
+        let block = commandBlocks[indexPath.item]
+        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode)
+        return blockItem
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> NSSize {
+        let contentWidth = collectionView.bounds.width - (collectionLayout.sectionInset.left + collectionLayout.sectionInset.right)
+        let block = commandBlocks[indexPath.item]
+        let height = CommandBlockItem.estimatedHeight(command: block.command, output: block.output, width: contentWidth)
+        return NSSize(width: contentWidth, height: height)
+    }
+
+    private func insertBlock(at index: Int) {
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.performBatchUpdates({
+            collectionView.insertItems(at: Set([indexPath]))
+        }, completionHandler: { _ in
+            self.scrollToBottom()
+        })
+    }
+
+    private func reloadBlock(at index: Int) {
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.reloadItems(at: Set([indexPath]))
+        scrollToBottomThrottled()
+    }
+
+    private func scrollToBottom() {
+        let count = collectionView.numberOfItems(inSection: 0)
+        if count > 0 {
+            let indexPath = IndexPath(item: count - 1, section: 0)
+            collectionView.scrollToItems(at: Set([indexPath]), scrollPosition: .bottom)
+        }
+    }
+
+    private var lastScrollUpdate: TimeInterval { get { _lastScrollUpdate } set { _lastScrollUpdate = newValue } }
+    private static var _scrollTimestamp: TimeInterval = 0
+    private var _lastScrollUpdate: TimeInterval {
+        get { return TerminalViewController._scrollTimestamp }
+        set { TerminalViewController._scrollTimestamp = newValue }
+    }
+    private func scrollToBottomThrottled() {
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - lastScrollUpdate > 0.03 {
+            lastScrollUpdate = now
+            scrollToBottom()
         }
     }
 }
