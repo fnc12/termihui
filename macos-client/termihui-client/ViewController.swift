@@ -296,5 +296,24 @@ extension ViewController: WebSocketManagerDelegate {
             }
         }
     }
+
+    // MARK: - Command events
+    func webSocketManagerDidReceiveCommandStart(_ manager: WebSocketManager) {
+        // Заглушка: пока просто уведомляем TerminalViewController о старте блока (без текста)
+        DispatchQueue.main.async {
+            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                terminalVC.didStartCommandBlock()
+            }
+        }
+    }
+    
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int) {
+        // Заглушка: уведомляем TerminalViewController о завершении блока
+        DispatchQueue.main.async {
+            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                terminalVC.didFinishCommandBlock(exitCode: exitCode)
+            }
+        }
+    }
 }
 

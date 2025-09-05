@@ -182,6 +182,15 @@ class WebSocketManager: NSObject {
                     } else {
                         print("❌ Некорректный формат completion_result")
                     }
+                
+                case "command_start":
+                    print("🎯 Событие: command_start")
+                    self.delegate?.webSocketManagerDidReceiveCommandStart(self)
+                    
+                case "command_end":
+                    let exitCode = response.exitCode ?? 0
+                    print("🏁 Событие: command_end (exit=\(exitCode))")
+                    self.delegate?.webSocketManager(self, didReceiveCommandEndWithExitCode: exitCode)
                     
                 default:
                     print("Unknown message type: \(response.type)")
@@ -253,4 +262,7 @@ protocol WebSocketManagerDelegate: AnyObject {
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)
     func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int)
+    // Командные события
+    func webSocketManagerDidReceiveCommandStart(_ manager: WebSocketManager)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int)
 }

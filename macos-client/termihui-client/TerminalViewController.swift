@@ -371,6 +371,16 @@ extension TerminalViewController: TabHandlingTextFieldDelegate {
 
 // MARK: - Completion Logic
 extension TerminalViewController {
+    // Пока просто фиксация событий, без изменения текста.
+    func didStartCommandBlock() {
+        print("🧱 Начат блок команды")
+        // Здесь позже будет логика добавления новой ячейки в collection view
+    }
+    
+    func didFinishCommandBlock(exitCode: Int) {
+        print("🏁 Завершён блок команды (exit=\(exitCode))")
+        // Здесь позже будет логика завершения соответствующей ячейки
+    }
     
     /// Обрабатывает результаты автодополнения и применяет их к полю ввода
     func handleCompletionResults(_ completions: [String], originalText: String, cursorPosition: Int) {

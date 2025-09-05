@@ -170,9 +170,44 @@ int main(int argc, char* argv[])
         if (terminalSession->hasData(0)) {
             std::string output = terminalSession->readOutput();
             if (!output.empty()) {
-                fmt::print("Вывод терминала: *{}*\n", output);
-                std::string response = JsonHelper::createResponse("output", output);
-                wsServer.broadcastMessage(response);
+                // Парсим и вырезаем OSC 133 маркеры (A/B/C/D). Отправляем события в вебсокет.
+                // Форматы:
+                //  \033]133;A\007                — начало команды
+                //  \033]133;B;exit=<code>\007   — конец команды с кодом
+                //  \033]133;C\007                — начало промпта
+                //  \033]133;D\007                — конец промпта
+                size_t pos = 0;
+                while ((pos = output.find("\x1b]133;", pos)) != std::string::npos) {
+                    size_t end = output.find('\x07', pos);
+                    if (end == std::string::npos) break;
+                    std::string osc = output.substr(pos, end - pos + 1);
+
+                    // Определяем тип
+                    if (osc.rfind("\x1b]133;A", 0) == 0) {
+                        json ev; ev["type"] = "command_start"; wsServer.broadcastMessage(ev.dump());
+                    } else if (osc.rfind("\x1b]133;B", 0) == 0) {
+                        // Пытаемся извлечь exit=<code>
+                        int exitCode = 0;
+                        auto k = osc.find("exit=");
+                        if (k != std::string::npos) {
+                            exitCode = std::atoi(osc.c_str() + k + 5);
+                        }
+                        json ev; ev["type"] = "command_end"; ev["exit_code"] = exitCode; wsServer.broadcastMessage(ev.dump());
+                    } else if (osc.rfind("\x1b]133;C", 0) == 0) {
+                        json ev; ev["type"] = "prompt_start"; wsServer.broadcastMessage(ev.dump());
+                    } else if (osc.rfind("\x1b]133;D", 0) == 0) {
+                        json ev; ev["type"] = "prompt_end"; wsServer.broadcastMessage(ev.dump());
+                    }
+
+                    // Удаляем маркер из отображаемого вывода
+                    output.erase(pos, end - pos + 1);
+                }
+
+                if (!output.empty()) {
+                    fmt::print("Вывод терминала: *{}*\n", output);
+                    std::string response = JsonHelper::createResponse("output", output);
+                    wsServer.broadcastMessage(response);
+                }
             }
         }
         

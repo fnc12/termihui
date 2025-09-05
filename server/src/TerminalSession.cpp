@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <fmt/core.h>
+#include <fstream>
 
 #ifdef __APPLE__
 #include <util.h>
@@ -94,8 +95,36 @@ bool TerminalSession::createSession()
         // Дочерний процесс
         // Устанавливаем пустой промпт чтобы убрать "bash-3.2$"
         setenv("PS1", "", 1);
-        
-        // Запускаем интерактивный bash
+
+        // Создаём временный rcfile с OSC 133 хуками (как у Warp/iTerm2)
+        // Формат маркеров:
+        //  \033]133;A\007                — начало команды (preexec)
+        //  \033]133;B;exit=<code>\007   — конец команды (precmd/PROMPT_COMMAND)
+        char rcTemplate[] = "/tmp/termihui_bashrc_XXXXXX";
+        int rcFd = mkstemp(rcTemplate);
+        if (rcFd >= 0) {
+            std::string rcContent;
+            rcContent.append("# TermiHUI shell integration (bash)\n");
+            rcContent.append("export PS1=\"\"\n");
+            // preexec: печатаем OSC 133;A перед каждой исполняемой командой
+            rcContent.append("__termihui_preexec() { printf '\\033]133;A\\007'; }\n");
+            // precmd: печатаем OSC 133;B с кодом завершения предыдущей команды
+            rcContent.append("__termihui_precmd() { local ec=$?; printf '\\033]133;B;exit=%s\\007' \"$ec\"; }\n");
+            // В bash используем trap DEBUG как аналог preexec
+            rcContent.append("trap '__termihui_preexec' DEBUG\n");
+            // PROMPT_COMMAND выполняется перед выводом приглашения — аналог precmd
+            rcContent.append("PROMPT_COMMAND='__termihui_precmd'\n");
+
+            // Записываем файл и закрываем
+            ssize_t ignored = write(rcFd, rcContent.data(), rcContent.size());
+            (void)ignored;
+            close(rcFd);
+
+            // Запускаем bash с нашим rcfile. --noprofile чтобы не мешали чужие профили
+            execl("/bin/bash", "bash", "--noprofile", "--rcfile", rcTemplate, "-i", nullptr);
+        }
+
+        // Fallback: если не удалось создать rcfile — запускаем обычный bash
         execl("/bin/bash", "bash", "-i", nullptr);
         
         // Если execl не сработал
