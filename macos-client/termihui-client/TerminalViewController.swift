@@ -128,11 +128,23 @@ class TerminalViewController: NSViewController {
 
         terminalScrollView.documentView = collectionView
 
+        // Устанавливаем стартовый frame коллекции вручную под текущий contentSize scrollView
+        collectionView.frame = NSRect(origin: .zero, size: terminalScrollView.contentSize)
+
         print("🔧 CollectionView включён. TerminalScrollView размер: \(terminalScrollView.frame)")
     }
     
     private func updateTextViewFrame() {
-        // Больше не используется: рендер переехал в коллекцию
+        // Ручное управление размерами documentView (collectionView)
+        let contentSize = terminalScrollView.contentSize
+        // Перед измерением сбрасываем кэши лэйаута
+        collectionView.collectionViewLayout?.invalidateLayout()
+        let layoutHeight = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? 0
+        let newHeight = max(contentSize.height, layoutHeight)
+        let newFrame = NSRect(x: 0, y: 0, width: contentSize.width, height: newHeight)
+        if collectionView.frame != newFrame {
+            collectionView.frame = newFrame
+        }
     }
     
     private func recreateTextViewWithCorrectSize() {
@@ -533,6 +545,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         collectionView.performBatchUpdates({
             collectionView.insertItems(at: Set([indexPath]))
         }, completionHandler: { _ in
+            self.updateTextViewFrame()
             self.scrollToBottom()
         })
     }
@@ -540,6 +553,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
     private func reloadBlock(at index: Int) {
         let indexPath = IndexPath(item: index, section: 0)
         collectionView.reloadItems(at: Set([indexPath]))
+        self.updateTextViewFrame()
         scrollToBottomThrottled()
     }
 
