@@ -23,6 +23,7 @@ class TerminalViewController: NSViewController {
     weak var webSocketManager: WebSocketManager?
     private var serverAddress: String = ""
     private let ansiParser = ANSIParser()
+    private let baseTopInset: CGFloat = 8
     
     // MARK: - Command Blocks Model (in-memory only, no UI yet)
     private struct CommandBlock {
@@ -135,15 +136,31 @@ class TerminalViewController: NSViewController {
     }
     
     private func updateTextViewFrame() {
-        // Ручное управление размерами documentView (collectionView)
-        let contentSize = terminalScrollView.contentSize
-        // Перед измерением сбрасываем кэши лэйаута
+        // Ручное управление размерами documentView (collectionView) и «гравитация вниз»
+        let viewport = terminalScrollView.contentSize
+
+        // 1) ширина документа = ширине viewport
+        var frame = collectionView.frame
+        frame.size.width = viewport.width
+
+        // 2) сбросить верхний inset и измерить высоту контента
+        collectionLayout.sectionInset.top = baseTopInset
         collectionView.collectionViewLayout?.invalidateLayout()
-        let layoutHeight = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? 0
-        let newHeight = max(contentSize.height, layoutHeight)
-        let newFrame = NSRect(x: 0, y: 0, width: contentSize.width, height: newHeight)
-        if collectionView.frame != newFrame {
-            collectionView.frame = newFrame
+        let contentH0 = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? 0
+
+        // 3) добавляем пустое пространство сверху, если контента мало
+        let extraTop = max(0, viewport.height - contentH0)
+        if extraTop > 0 {
+            collectionLayout.sectionInset.top = baseTopInset + extraTop
+            collectionView.collectionViewLayout?.invalidateLayout()
+        }
+
+        // 4) высота документа = max(viewport, фактическая высота контента)
+        let contentH = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? viewport.height
+        frame.size.height = max(viewport.height, contentH)
+
+        if collectionView.frame != frame {
+            collectionView.frame = frame
         }
     }
     
