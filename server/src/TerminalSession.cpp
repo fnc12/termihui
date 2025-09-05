@@ -106,14 +106,16 @@ bool TerminalSession::createSession()
             std::string rcContent;
             rcContent.append("# TermiHUI shell integration (bash)\n");
             rcContent.append("export PS1=\"\"\n");
-            // preexec: печатаем OSC 133;A перед каждой исполняемой командой
-            rcContent.append("__termihui_preexec() { printf '\\033]133;A\\007'; }\n");
             // precmd: печатаем OSC 133;B с кодом завершения предыдущей команды
             rcContent.append("__termihui_precmd() { local ec=$?; printf '\\033]133;B;exit=%s\\007' \"$ec\"; }\n");
+            // wrapper для PROMPT_COMMAND: ставит guard на время precmd, чтобы DEBUG-trap не дал лишний A
+            rcContent.append("__termihui_precmd_wrapper() { local ec=$?; __TERMIHUI_IN_PRECMD=1; __termihui_precmd \"$ec\"; unset __TERMIHUI_IN_PRECMD; }\n");
+            // preexec: печатаем OSC 133;A перед пользовательской командой, но НЕ перед PROMPT_COMMAND
+            rcContent.append("__termihui_preexec() { if [[ -n \"$__TERMIHUI_IN_PRECMD\" ]]; then return; fi; if [[ \"$BASH_COMMAND\" == \"__termihui_precmd_wrapper\" || \"$BASH_COMMAND\" == \"__termihui_precmd\" ]]; then return; fi; printf '\\033]133;A\\007'; }\n");
             // В bash используем trap DEBUG как аналог preexec
             rcContent.append("trap '__termihui_preexec' DEBUG\n");
             // PROMPT_COMMAND выполняется перед выводом приглашения — аналог precmd
-            rcContent.append("PROMPT_COMMAND='__termihui_precmd'\n");
+            rcContent.append("PROMPT_COMMAND='__termihui_precmd_wrapper'\n");
 
             // Записываем файл и закрываем
             ssize_t ignored = write(rcFd, rcContent.data(), rcContent.size());
