@@ -23,6 +23,19 @@ class TerminalViewController: NSViewController {
     private var serverAddress: String = ""
     private let ansiParser = ANSIParser()
     
+    // MARK: - Command Blocks Model (in-memory only, no UI yet)
+    private struct CommandBlock {
+        let id: UUID
+        var command: String?
+        var output: String
+        var isFinished: Bool
+        var exitCode: Int?
+    }
+    private var commandBlocks: [CommandBlock] = []
+    
+    // Указатель на текущий незавершённый блок (индекс в массиве)
+    private var currentBlockIndex: Int? = nil
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -310,25 +323,24 @@ class TerminalViewController: NSViewController {
     
     func appendOutput(_ output: String) {
         print("📺 TerminalViewController.appendOutput вызван с: *\(output)*")
+        // Копим вывод в текущем блоке (если есть незавершённый)
+        if let idx = currentBlockIndex {
+            commandBlocks[idx].output.append(output)
+        } else {
+            // Если блока нет (например, вывод вне команд) — создаём временный блок
+            let block = CommandBlock(id: UUID(), output: output, isFinished: false, exitCode: nil)
+            commandBlocks.append(block)
+            currentBlockIndex = commandBlocks.count - 1
+        }
+        
+        // Временный рендер в общий NSTextView (оставляем для видимости до внедрения CollectionView)
         DispatchQueue.main.async {
-            // Парсим ANSI-коды в новом выводе
-            let styledSegments = self.ansiParser.parse(output)
-            let newAttributedText = styledSegments.toAttributedString()
-            
-            // Получаем текущий attributed text
-            let currentAttributedText = self.terminalTextView.textStorage ?? NSMutableAttributedString()
-            
-            // Добавляем новый стилизованный текст
-            currentAttributedText.append(newAttributedText)
-            
-            // Обновляем textStorage напрямую для лучшей производительности
-            self.terminalTextView.textStorage?.setAttributedString(currentAttributedText)
-            
-            // Автоматический скролл к концу
+            let styled = self.ansiParser.parse(output).toAttributedString()
+            let current = self.terminalTextView.textStorage ?? NSMutableAttributedString()
+            current.append(styled)
+            self.terminalTextView.textStorage?.setAttributedString(current)
             let range = NSRange(location: self.terminalTextView.textStorage?.length ?? 0, length: 0)
             self.terminalTextView.scrollRangeToVisible(range)
-            
-            print("✅ Стилизованный текст добавлен: \(styledSegments.count) сегментов")
         }
     }
     
@@ -372,14 +384,37 @@ extension TerminalViewController: TabHandlingTextFieldDelegate {
 // MARK: - Completion Logic
 extension TerminalViewController {
     // Пока просто фиксация событий, без изменения текста.
-    func didStartCommandBlock() {
-        print("🧱 Начат блок команды")
-        // Здесь позже будет логика добавления новой ячейки в collection view
+    func didStartCommandBlock(command: String? = nil) {
+        print("🧱 Начат блок команды: \(command ?? "<unknown>")")
+        let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil)
+        commandBlocks.append(block)
+        currentBlockIndex = commandBlocks.count - 1
+
+        // Временный рендер: выводим заголовок команды жирным перед её выводом
+        if let cmd = command, !cmd.isEmpty {
+            DispatchQueue.main.async {
+                let header = "\n" + cmd + "\n"
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold),
+                    .foregroundColor: NSColor.white
+                ]
+                let headerAttr = NSAttributedString(string: header, attributes: attrs)
+                let current = self.terminalTextView.textStorage ?? NSMutableAttributedString()
+                current.append(headerAttr)
+                self.terminalTextView.textStorage?.setAttributedString(current)
+                let range = NSRange(location: self.terminalTextView.textStorage?.length ?? 0, length: 0)
+                self.terminalTextView.scrollRangeToVisible(range)
+            }
+        }
     }
     
     func didFinishCommandBlock(exitCode: Int) {
         print("🏁 Завершён блок команды (exit=\(exitCode))")
-        // Здесь позже будет логика завершения соответствующей ячейки
+        if let idx = currentBlockIndex {
+            commandBlocks[idx].isFinished = true
+            commandBlocks[idx].exitCode = exitCode
+            currentBlockIndex = nil
+        }
     }
     
     /// Обрабатывает результаты автодополнения и применяет их к полю ввода

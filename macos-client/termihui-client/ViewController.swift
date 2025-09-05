@@ -298,11 +298,15 @@ extension ViewController: WebSocketManagerDelegate {
     }
 
     // MARK: - Command events
-    func webSocketManagerDidReceiveCommandStart(_ manager: WebSocketManager) {
-        // Заглушка: пока просто уведомляем TerminalViewController о старте блока (без текста)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?) {
+        // Передаем команду как заголовок блока (если есть)
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.didStartCommandBlock()
+                if let cmd = command, !cmd.isEmpty {
+                    terminalVC.didStartCommandBlock(command: cmd)
+                } else {
+                    terminalVC.didStartCommandBlock()
+                }
             }
         }
     }

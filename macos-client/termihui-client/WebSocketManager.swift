@@ -11,6 +11,7 @@ class WebSocketManager: NSObject {
     
     private var isConnected = false
     private var serverAddress = ""
+    private var lastSentCommand: String? = nil
     
     // MARK: - Public Methods
     
@@ -59,6 +60,9 @@ class WebSocketManager: NSObject {
             return
         }
         
+        // Сохраняем последнюю отправленную команду для заголовка блока
+        lastSentCommand = command
+
         let message = TerminalMessage.execute(command: command)
         sendMessage(message)
     }
@@ -185,7 +189,10 @@ class WebSocketManager: NSObject {
                 
                 case "command_start":
                     print("🎯 Событие: command_start")
-                    self.delegate?.webSocketManagerDidReceiveCommandStart(self)
+                    // Передаем последнюю отправленную команду как заголовок блока
+                    let cmd = self.lastSentCommand
+                    self.lastSentCommand = nil
+                    self.delegate?.webSocketManager(self, didReceiveCommandStart: cmd)
                     
                 case "command_end":
                     let exitCode = response.exitCode ?? 0
@@ -263,6 +270,6 @@ protocol WebSocketManagerDelegate: AnyObject {
     func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int)
     // Командные события
-    func webSocketManagerDidReceiveCommandStart(_ manager: WebSocketManager)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int)
 }

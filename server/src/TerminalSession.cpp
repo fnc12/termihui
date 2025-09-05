@@ -95,6 +95,15 @@ bool TerminalSession::createSession()
         // Дочерний процесс
         // Устанавливаем пустой промпт чтобы убрать "bash-3.2$"
         setenv("PS1", "", 1);
+        // Убираем системный баннер о переходе на zsh
+        setenv("BASH_SILENCE_DEPRECATION_WARNING", "1", 1);
+
+        // Отключаем локальное эхо в slave TTY, чтобы введённые команды не дублировались в вывод
+        struct termios tio;
+        if (tcgetattr(STDIN_FILENO, &tio) == 0) {
+            tio.c_lflag &= ~ECHO; // оставляем канонический режим, убираем только эхо
+            tcsetattr(STDIN_FILENO, TCSANOW, &tio);
+        }
 
         // Создаём временный rcfile с OSC 133 хуками (как у Warp/iTerm2)
         // Формат маркеров:
