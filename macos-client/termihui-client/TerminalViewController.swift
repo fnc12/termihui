@@ -793,7 +793,9 @@ extension TerminalViewController {
             case .header:
                 let ns = ("$ \(block.command ?? "")\n") as NSString
                 if local.location < ns.length, local.length > 0, local.location + local.length <= ns.length {
-                    result += ns.substring(with: local)
+                    var piece = ns.substring(with: local)
+                    if piece.hasPrefix("$ ") { piece.removeFirst(2) }
+                    result += piece
                 }
             case .output:
                 let ns = (block.output as NSString)
