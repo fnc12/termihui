@@ -2,7 +2,7 @@ import Cocoa
 import SnapKit
 
 /// Основной экран терминала
-class TerminalViewController: NSViewController {
+class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - UI Components
     private let toolbarView = NSView()
@@ -37,6 +37,24 @@ class TerminalViewController: NSViewController {
     
     // Указатель на текущий незавершённый блок (индекс в массиве)
     private var currentBlockIndex: Int? = nil
+
+    // MARK: - Global Document for unified selection (model only)
+    private enum SegmentKind { case header, output }
+    private struct GlobalSegment {
+        let blockIndex: Int
+        let kind: SegmentKind
+        var range: NSRange // глобальный диапазон в общем документе
+    }
+    private struct GlobalDocument {
+        var totalLength: Int = 0
+        var segments: [GlobalSegment] = []
+    }
+    private var globalDocument = GlobalDocument()
+
+    // MARK: - Selection state (global)
+    private var isSelecting: Bool = false
+    private var selectionAnchor: Int? = nil // глобальный индекс начала выделения
+    private var selectionRange: NSRange? = nil // текущий глобальный диапазон
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -121,7 +139,7 @@ class TerminalViewController: NSViewController {
         collectionLayout.sectionInset = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
 
         collectionView.collectionViewLayout = collectionLayout
-        collectionView.isSelectable = true
+        collectionView.isSelectable = false
         collectionView.backgroundColors = [NSColor.black]
         collectionView.delegate = self
         collectionView.dataSource = self
@@ -133,6 +151,9 @@ class TerminalViewController: NSViewController {
         collectionView.frame = NSRect(origin: .zero, size: terminalScrollView.contentSize)
 
         print("🔧 CollectionView включён. TerminalScrollView размер: \(terminalScrollView.frame)")
+
+        // Жесты для сквозного выделения
+        setupSelectionGestures()
     }
     
     private func updateTextViewFrame() {
@@ -291,6 +312,7 @@ class TerminalViewController: NSViewController {
         if let idx = currentBlockIndex {
             commandBlocks[idx].output.append(output)
             reloadBlock(at: idx)
+            rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
             let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil)
@@ -298,6 +320,7 @@ class TerminalViewController: NSViewController {
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)
             currentBlockIndex = newIndex
+            rebuildGlobalDocument(startingAt: newIndex)
         }
     }
     
@@ -340,6 +363,24 @@ extension TerminalViewController: TabHandlingTextFieldDelegate {
 
 // MARK: - Completion Logic
 extension TerminalViewController {
+    fileprivate func setupSelectionGestures() {
+        // Перехватим события колллекции, чтобы мышь шла через VC
+        collectionView.postsFrameChangedNotifications = true
+        collectionView.acceptsTouchEvents = false
+        // Включаем отслеживание мыши
+        collectionView.addTrackingArea(NSTrackingArea(rect: collectionView.bounds, options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect], owner: self, userInfo: nil))
+        
+        // Жест нажатия (эмулирует mouseDown)
+        let press = NSPressGestureRecognizer(target: self, action: #selector(handlePressGesture(_:)))
+        press.minimumPressDuration = 0
+        press.delegate = self
+        collectionView.addGestureRecognizer(press)
+        
+        // Жест перетаскивания (эмулирует mouseDragged)
+        let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
+        pan.delegate = self
+        collectionView.addGestureRecognizer(pan)
+    }
     // Пока просто фиксация событий, без изменения текста.
     func didStartCommandBlock(command: String? = nil) {
         print("🧱 Начат блок команды: \(command ?? "<unknown>")")
@@ -347,6 +388,7 @@ extension TerminalViewController {
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
         insertBlock(at: currentBlockIndex!)
+        rebuildGlobalDocument(startingAt: currentBlockIndex!)
     }
     
     func didFinishCommandBlock(exitCode: Int) {
@@ -356,6 +398,7 @@ extension TerminalViewController {
             commandBlocks[idx].exitCode = exitCode
             reloadBlock(at: idx)
             currentBlockIndex = nil
+            rebuildGlobalDocument(startingAt: idx)
         }
     }
     
@@ -535,6 +578,33 @@ extension TerminalViewController {
     }
 }
 
+// MARK: - Global Document rebuild
+extension TerminalViewController {
+    /// Полностью перестраивает глобальную карту сегментов, начиная с указанного индекса блока.
+    /// Для простоты пока пересчитываем весь документ.
+    fileprivate func rebuildGlobalDocument(startingAt _: Int) {
+        var segments: [GlobalSegment] = []
+        var offset = 0
+        for (idx, block) in commandBlocks.enumerated() {
+            if let command = block.command {
+                let cmdTextNSString = ("$ \(command)\n") as NSString
+                let range = NSRange(location: offset, length: cmdTextNSString.length)
+                segments.append(GlobalSegment(blockIndex: idx, kind: .header, range: range))
+                offset += cmdTextNSString.length
+            }
+
+            if !block.output.isEmpty {
+                let outNSString = block.output as NSString
+                let range = NSRange(location: offset, length: outNSString.length)
+                segments.append(GlobalSegment(blockIndex: idx, kind: .output, range: range))
+                offset += outNSString.length
+            }
+        }
+        globalDocument = GlobalDocument(totalLength: offset, segments: segments)
+        // print("🧭 GlobalDocument rebuilt: length=\(globalDocument.totalLength), segments=\(globalDocument.segments.count)")
+    }
+}
+
 // MARK: - Collection helpers
 extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDelegate, NSCollectionViewDelegateFlowLayout {
     func numberOfSections(in collectionView: NSCollectionView) -> Int { 1 }
@@ -547,6 +617,8 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
         blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode)
+        // применяем подсветку для текущего выделения, если оно попадает в этот блок
+        applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem
     }
 
@@ -597,7 +669,209 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
     }
 }
 
+// MARK: - Selection handling & highlighting
+extension TerminalViewController {
+    override func mouseDown(with event: NSEvent) {
+        guard let window = view.window else { return }
+        let locationInView = view.convert(event.locationInWindow, from: nil)
+        guard let (blockIndex, localIndex) = hitTestGlobalIndex(at: locationInView) else { return }
+        let globalIndex = localIndex
+        isSelecting = true
+        selectionAnchor = globalIndex
+        selectionRange = NSRange(location: globalIndex, length: 0)
+        updateSelectionHighlight()
+    }
 
+    override func mouseDragged(with event: NSEvent) {
+        guard isSelecting, let anchor = selectionAnchor, let window = view.window else { return }
+        let locationInView = view.convert(event.locationInWindow, from: nil)
+        guard let (_, globalIndex) = hitTestGlobalIndex(at: locationInView) else { return }
+        let start = min(anchor, globalIndex)
+        let end = max(anchor, globalIndex)
+        selectionRange = NSRange(location: start, length: end - start)
+        updateSelectionHighlight()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        isSelecting = false
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // Cmd+C — копирование выделенного текста
+        if event.modifierFlags.contains(.command), let chars = event.charactersIgnoringModifiers, chars.lowercased() == "c" {
+            copySelectionToPasteboard()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    /// Конвертирует координату клика в глобальный индекс символа, если попадает в текст
+    private func hitTestGlobalIndex(at pointInRoot: NSPoint) -> (blockIndex: Int, globalIndex: Int)? {
+        // Пройдёмся по видимым item-ам
+        let visible = collectionView.visibleItems()
+        for case let item as CommandBlockItem in visible {
+            guard let indexPath = collectionView.indexPath(for: item) else { continue }
+            // Конвертируем точку в координаты item
+            let pointInItem = item.view.convert(pointInRoot, from: view)
+            if !item.view.bounds.contains(pointInItem) { continue }
+
+            // Проверяем заголовок
+            if let hIdx = item.headerCharacterIndex(at: pointInItem) {
+                let global = mapLocalToGlobal(blockIndex: indexPath.item, kind: .header, localIndex: hIdx)
+                return (indexPath.item, global)
+            }
+            // Проверяем тело
+            if let bIdx = item.bodyCharacterIndex(at: pointInItem) {
+                let global = mapLocalToGlobal(blockIndex: indexPath.item, kind: .output, localIndex: bIdx)
+                return (indexPath.item, global)
+            }
+        }
+        return nil
+    }
+
+    /// Преобразует локальный индекс символа внутри блока в глобальный индекс по документу
+    private func mapLocalToGlobal(blockIndex: Int, kind: SegmentKind, localIndex: Int) -> Int {
+        for seg in globalDocument.segments {
+            if seg.blockIndex == blockIndex && seg.kind == kind {
+                return seg.range.location + min(localIndex, seg.range.length)
+            }
+        }
+        // если сегмент не найден — возвращаем конец документа
+        return globalDocument.totalLength
+    }
+
+    /// Подсвечивает актуальный selection во всех видимых ячейках
+    private func updateSelectionHighlight() {
+        guard let sel = selectionRange else {
+            // сбрасываем подсветку
+            for case let item as CommandBlockItem in collectionView.visibleItems() {
+                item.clearSelectionHighlight()
+            }
+            return
+        }
+        for case let item as CommandBlockItem in collectionView.visibleItems() {
+            guard let indexPath = collectionView.indexPath(for: item) else { continue }
+            let headerLocal = localRange(for: sel, blockIndex: indexPath.item, kind: .header)
+            let bodyLocal = localRange(for: sel, blockIndex: indexPath.item, kind: .output)
+            item.setSelectionHighlight(headerRange: headerLocal, bodyRange: bodyLocal)
+        }
+    }
+
+    /// Возвращает локальный диапазон внутри указанного сегмента для глобального диапазона selection
+    private func localRange(for global: NSRange, blockIndex: Int, kind: SegmentKind) -> NSRange? {
+        guard let seg = globalDocument.segments.first(where: { $0.blockIndex == blockIndex && $0.kind == kind }) else { return nil }
+        let inter = intersection(of: global, and: seg.range)
+        guard inter.length > 0 else { return nil }
+        return NSRange(location: inter.location - seg.range.location, length: inter.length)
+    }
+
+    private func intersection(of a: NSRange, and b: NSRange) -> NSRange {
+        let start = max(a.location, b.location)
+        let end = min(a.location + a.length, b.location + b.length)
+        return end > start ? NSRange(location: start, length: end - start) : NSRange(location: 0, length: 0)
+    }
+
+    /// Применяет подсветку при конфигурации ячейки
+    fileprivate func applySelectionHighlightIfNeeded(to item: CommandBlockItem, at blockIndex: Int) {
+        guard let sel = selectionRange else {
+            item.clearSelectionHighlight(); return
+        }
+        let headerLocal = localRange(for: sel, blockIndex: blockIndex, kind: .header)
+        let bodyLocal = localRange(for: sel, blockIndex: blockIndex, kind: .output)
+        item.setSelectionHighlight(headerRange: headerLocal, bodyRange: bodyLocal)
+    }
+
+    private func copySelectionToPasteboard() {
+        guard let sel = selectionRange, sel.length > 0 else { return }
+        var result = ""
+        for seg in globalDocument.segments {
+            let inter = intersection(of: sel, and: seg.range)
+            guard inter.length > 0 else { continue }
+            let local = NSRange(location: inter.location - seg.range.location, length: inter.length)
+            let block = commandBlocks[seg.blockIndex]
+            switch seg.kind {
+            case .header:
+                let ns = ("$ \(block.command ?? "")\n") as NSString
+                if local.location < ns.length, local.length > 0, local.location + local.length <= ns.length {
+                    result += ns.substring(with: local)
+                }
+            case .output:
+                let ns = (block.output as NSString)
+                if local.location < ns.length, local.length > 0, local.location + local.length <= ns.length {
+                    result += ns.substring(with: local)
+                }
+            }
+        }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(result, forType: .string)
+    }
+}
+
+// MARK: - Gesture handlers
+extension TerminalViewController {
+    @objc private func handlePressGesture(_ gr: NSPressGestureRecognizer) {
+        guard let v = gr.view else { return }
+        let p = view.convert(gr.location(in: v), from: v)
+        switch gr.state {
+        case .began:
+            // Назначаем себя firstResponder, чтобы перехватывать Cmd+C
+            view.window?.makeFirstResponder(self)
+            if let (_, gi) = hitTestGlobalIndex(at: p) {
+                isSelecting = true
+                selectionAnchor = gi
+                selectionRange = NSRange(location: gi, length: 0)
+                updateSelectionHighlight()
+            }
+        default:
+            break
+        }
+    }
+    
+    @objc private func handlePanGesture(_ gr: NSPanGestureRecognizer) {
+        guard let v = gr.view else { return }
+        let p = view.convert(gr.location(in: v), from: v)
+        switch gr.state {
+        case .began:
+            // Назначаем себя firstResponder, чтобы перехватывать Cmd+C
+            view.window?.makeFirstResponder(self)
+            if let (_, gi) = hitTestGlobalIndex(at: p) {
+                isSelecting = true
+                selectionAnchor = gi
+                selectionRange = NSRange(location: gi, length: 0)
+                updateSelectionHighlight()
+            }
+        case .changed:
+            guard isSelecting, let anchor = selectionAnchor, let (_, gi) = hitTestGlobalIndex(at: p) else { return }
+            let start = min(anchor, gi)
+            let end = max(anchor, gi)
+            selectionRange = NSRange(location: start, length: end - start)
+            updateSelectionHighlight()
+        case .ended, .cancelled, .failed:
+            isSelecting = false
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - Standard Edit Actions
+extension TerminalViewController {
+    @IBAction func copy(_ sender: Any?) {
+        if let sel = selectionRange, sel.length > 0 {
+            copySelectionToPasteboard()
+        } else {
+            NSSound.beep()
+        }
+    }
+}
+
+// MARK: - NSGestureRecognizerDelegate
+extension TerminalViewController {
+    func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: NSGestureRecognizer) -> Bool {
+        return true
+    }
+}
 
 // MARK: - Delegate Protocol
 protocol TerminalViewControllerDelegate: AnyObject {

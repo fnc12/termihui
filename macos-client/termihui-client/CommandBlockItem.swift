@@ -8,6 +8,10 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let container = NSView()
     private let separatorView = NSView()
     
+    // Текущее состояние подсветки (для сброса)
+    private var lastHeaderHighlight: NSRange?
+    private var hasBodyHighlight: Bool = false
+    
     override func loadView() {
         view = container
     }
@@ -19,7 +23,7 @@ final class CommandBlockItem: NSCollectionViewItem {
     
     func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?) {
         if let cmd = command, !cmd.isEmpty {
-            headerLabel.stringValue = cmd
+            headerLabel.stringValue = "$ " + cmd
             headerLabel.isHidden = false
         } else {
             headerLabel.stringValue = ""
@@ -27,6 +31,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         }
         
         bodyTextView.string = output
+        clearSelectionHighlight()
     }
     
     private func setupUI() {
@@ -39,10 +44,12 @@ final class CommandBlockItem: NSCollectionViewItem {
         headerLabel.maximumNumberOfLines = 0
         
         bodyTextView.isEditable = false
-        bodyTextView.isSelectable = true
+        // Отключаем нативное выделение, чтобы сквозное шло через контроллер
+        bodyTextView.isSelectable = false
         bodyTextView.drawsBackground = false
         bodyTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         bodyTextView.textColor = .white
+        bodyTextView.textContainerInset = NSSize(width: 0, height: 0)
         
         separatorView.wantsLayer = true
         separatorView.layer?.backgroundColor = NSColor.separatorColor.cgColor
@@ -78,7 +85,8 @@ final class CommandBlockItem: NSCollectionViewItem {
         
         var total: CGFloat = 16 // vertical insets
         if let cmd = command, !cmd.isEmpty {
-            let rect = (cmd as NSString).boundingRect(
+            let displayCmd = "$ " + cmd
+            let rect = (displayCmd as NSString).boundingRect(
                 with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
                 options: [.usesLineFragmentOrigin, .usesFontLeading],
                 attributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)]
@@ -93,6 +101,98 @@ final class CommandBlockItem: NSCollectionViewItem {
         )
         total += ceil(bodyRect.height)
         return max(total, 28)
+    }
+
+    // MARK: - Selection Highlight API
+    func clearSelectionHighlight() {
+        // Сбрасываем заголовок
+        if let last = lastHeaderHighlight, last.length > 0 {
+            let attr = NSMutableAttributedString(string: headerLabel.stringValue)
+            headerLabel.attributedStringValue = attr
+            lastHeaderHighlight = nil
+        }
+        // Сбрасываем тело
+        if hasBodyHighlight, let storage = bodyTextView.textStorage {
+            storage.removeAttribute(.backgroundColor, range: NSRange(location: 0, length: storage.length))
+            hasBodyHighlight = false
+        }
+    }
+
+    func setSelectionHighlight(headerRange: NSRange?, bodyRange: NSRange?) {
+        clearSelectionHighlight()
+        if let hr = headerRange, hr.length > 0, !headerLabel.isHidden {
+            let cmdText = headerLabel.stringValue // теперь содержит "$ " + cmd
+            // Полный заголовок в глобальном документе выглядит как "$ <cmd>\n"
+            // Контентная часть заголовка (без завершающего "\n") начинается с 0 (у нас уже есть "$ ")
+            let contentStart = 0
+            let contentLength = cmdText.count // без \n
+            let contentInFull = NSRange(location: contentStart, length: contentLength)
+            let inter = NSIntersectionRange(hr, contentInFull)
+            if inter.length > 0 {
+                // Прямое отображение в координаты label
+                let mapped = inter
+                let attr = NSMutableAttributedString(string: cmdText)
+                attr.addAttribute(.backgroundColor, value: NSColor.selectedTextBackgroundColor, range: mapped)
+                headerLabel.attributedStringValue = attr
+                lastHeaderHighlight = mapped
+            } else {
+                headerLabel.attributedStringValue = NSAttributedString(string: cmdText)
+                lastHeaderHighlight = nil
+            }
+        }
+        if let br = bodyRange, br.length > 0, let storage = bodyTextView.textStorage {
+            // Ограничиваем диапазон UTF-16 длиной текста
+            let utf16Len = (storage.string as NSString).length
+            let safeLocation = max(0, min(br.location, utf16Len))
+            var safeLength = max(0, min(br.length, utf16Len - safeLocation))
+            // Если выделение заканчивается ровно на границе строки, расширим на перевод строки (\n или \r\n)
+            if safeLocation + safeLength < utf16Len {
+                let nsString = storage.string as NSString
+                let end = safeLocation + safeLength
+                let ch = nsString.character(at: end)
+                if ch == 10 { // \n
+                    safeLength += 1
+                } else if ch == 13 { // \r
+                    safeLength += 1
+                    if end + 1 < utf16Len, nsString.character(at: end + 1) == 10 { // \r\n
+                        safeLength += 1
+                    }
+                }
+            }
+            if safeLength > 0 {
+                let clamped = NSRange(location: safeLocation, length: safeLength)
+                storage.addAttribute(.backgroundColor, value: NSColor.selectedTextBackgroundColor, range: clamped)
+                hasBodyHighlight = true
+                bodyTextView.setNeedsDisplay(bodyTextView.bounds)
+            }
+        }
+    }
+
+    // MARK: - Hit Testing to character index
+    /// Возвращает индекс символа в bodyTextView для точки в координатах item.view
+    func bodyCharacterIndex(at pointInItem: NSPoint) -> Int? {
+        let ptInBody = bodyTextView.convert(pointInItem, from: self.view)
+        if !bodyTextView.bounds.contains(ptInBody) { return nil }
+        guard let lm = bodyTextView.layoutManager, let tc = bodyTextView.textContainer else { return nil }
+        let glyphPoint = NSPoint(x: ptInBody.x - bodyTextView.textContainerOrigin.x, y: ptInBody.y - bodyTextView.textContainerOrigin.y)
+        var fraction: CGFloat = 0
+        let idx = lm.characterIndex(for: glyphPoint, in: tc, fractionOfDistanceBetweenInsertionPoints: &fraction)
+        return idx
+    }
+
+    /// Грубая оценка индекса символа в заголовке (монопространный шрифт)
+    func headerCharacterIndex(at pointInItem: NSPoint) -> Int? {
+        if headerLabel.isHidden { return nil }
+        let frame = headerLabel.frame
+        if !frame.contains(pointInItem) { return nil }
+        let localX = pointInItem.x - frame.minX
+        let text = headerLabel.stringValue
+        guard !text.isEmpty else { return 0 }
+        let width = frame.width
+        if width <= 0 { return 0 }
+        let approxCharWidth = width / CGFloat(max(1, text.count))
+        let idx = Int(floor(localX / max(1, approxCharWidth)))
+        return max(0, min(idx, text.count))
     }
 }
 
