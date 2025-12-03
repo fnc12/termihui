@@ -208,14 +208,40 @@ int main(int argc, char* argv[])
                     }
 
                     std::string osc = output.substr(oscPos, oscEnd - oscPos + 1);
+                    
+                    // Вспомогательная лямбда для извлечения значения параметра из OSC строки
+                    auto extractParam = [&osc](const std::string& key) -> std::string {
+                        auto pos = osc.find(key + "=");
+                        if (pos == std::string::npos) return "";
+                        size_t start = pos + key.length() + 1;
+                        size_t end = osc.find_first_of(";\x07", start);
+                        if (end == std::string::npos) end = osc.length();
+                        return osc.substr(start, end - start);
+                    };
+                    
                     // Обрабатываем событие
                     if (osc.rfind("\x1b]133;A", 0) == 0) {
-                        json ev; ev["type"] = "command_start"; wsServer.broadcastMessage(ev.dump());
+                        json ev;
+                        ev["type"] = "command_start";
+                        std::string cwd = extractParam("cwd");
+                        if (!cwd.empty()) {
+                            ev["cwd"] = cwd;
+                            terminalSession->setLastKnownCwd(cwd); // Обновляем cwd для автодополнения
+                        }
+                        wsServer.broadcastMessage(ev.dump());
                     } else if (osc.rfind("\x1b]133;B", 0) == 0) {
                         int exitCode = 0;
                         auto k = osc.find("exit=");
                         if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
-                        json ev; ev["type"] = "command_end"; ev["exit_code"] = exitCode; wsServer.broadcastMessage(ev.dump());
+                        std::string cwd = extractParam("cwd");
+                        json ev;
+                        ev["type"] = "command_end";
+                        ev["exit_code"] = exitCode;
+                        if (!cwd.empty()) {
+                            ev["cwd"] = cwd;
+                            terminalSession->setLastKnownCwd(cwd); // Обновляем cwd для автодополнения
+                        }
+                        wsServer.broadcastMessage(ev.dump());
                     } else if (osc.rfind("\x1b]133;C", 0) == 0) {
                         json ev; ev["type"] = "prompt_start"; wsServer.broadcastMessage(ev.dump());
                     } else if (osc.rfind("\x1b]133;D", 0) == 0) {

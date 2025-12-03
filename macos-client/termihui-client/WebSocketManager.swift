@@ -188,16 +188,16 @@ class WebSocketManager: NSObject {
                     }
                 
                 case "command_start":
-                    print("🎯 Событие: command_start")
+                    print("🎯 Событие: command_start, cwd=\(response.cwd ?? "nil")")
                     // Передаем последнюю отправленную команду как заголовок блока
                     let cmd = self.lastSentCommand
                     self.lastSentCommand = nil
-                    self.delegate?.webSocketManager(self, didReceiveCommandStart: cmd)
+                    self.delegate?.webSocketManager(self, didReceiveCommandStart: cmd, cwd: response.cwd)
                     
                 case "command_end":
                     let exitCode = response.exitCode ?? 0
-                    print("🏁 Событие: command_end (exit=\(exitCode))")
-                    self.delegate?.webSocketManager(self, didReceiveCommandEndWithExitCode: exitCode)
+                    print("🏁 Событие: command_end (exit=\(exitCode)), cwd=\(response.cwd ?? "nil")")
+                    self.delegate?.webSocketManager(self, didReceiveCommandEndWithExitCode: exitCode, cwd: response.cwd)
                     
                 default:
                     print("Unknown message type: \(response.type)")
@@ -269,7 +269,7 @@ protocol WebSocketManagerDelegate: AnyObject {
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)
     func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int)
-    // Командные события
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?)
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int)
+    // Командные события с cwd
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?)
 }

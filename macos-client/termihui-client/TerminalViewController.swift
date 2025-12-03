@@ -32,6 +32,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         var output: String
         var isFinished: Bool
         var exitCode: Int?
+        var cwdStart: String?   // cwd при запуске команды
+        var cwdEnd: String?     // cwd после завершения команды (может измениться, например cd)
     }
     private var commandBlocks: [CommandBlock] = []
     
@@ -315,7 +317,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
-            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil)
+            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)
@@ -382,20 +384,21 @@ extension TerminalViewController {
         collectionView.addGestureRecognizer(pan)
     }
     // Пока просто фиксация событий, без изменения текста.
-    func didStartCommandBlock(command: String? = nil) {
-        print("🧱 Начат блок команды: \(command ?? "<unknown>")")
-        let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil)
+    func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
+        print("🧱 Начат блок команды: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
+        let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
         insertBlock(at: currentBlockIndex!)
         rebuildGlobalDocument(startingAt: currentBlockIndex!)
     }
     
-    func didFinishCommandBlock(exitCode: Int) {
-        print("🏁 Завершён блок команды (exit=\(exitCode))")
+    func didFinishCommandBlock(exitCode: Int, cwd: String? = nil) {
+        print("🏁 Завершён блок команды (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
         if let idx = currentBlockIndex {
             commandBlocks[idx].isFinished = true
             commandBlocks[idx].exitCode = exitCode
+            commandBlocks[idx].cwdEnd = cwd
             reloadBlock(at: idx)
             currentBlockIndex = nil
             rebuildGlobalDocument(startingAt: idx)

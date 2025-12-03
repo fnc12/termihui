@@ -39,6 +39,7 @@ struct TerminalResponse: Codable {
     let serverVersion: String?
     let bytes: Int?
     let command: String?
+    let cwd: String?
     
     // Поля для completion_result
     let completions: [String]?
@@ -54,5 +55,6 @@ struct TerminalResponse: Codable {
         case originalText = "original_text"
         case cursorPosition = "cursor_position"
         case command
+        case cwd
     }
 }

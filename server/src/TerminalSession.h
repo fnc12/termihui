@@ -106,6 +106,18 @@ public:
      * @return путь к текущей директории или пустая строка при ошибке
      */
     std::string getCurrentWorkingDirectory() const;
+    
+    /**
+     * Установка последнего известного cwd (из OSC маркеров)
+     * @param cwd путь к директории
+     */
+    void setLastKnownCwd(const std::string& cwd);
+    
+    /**
+     * Получение последнего известного cwd
+     * @return путь или пустая строка
+     */
+    std::string getLastKnownCwd() const;
 
 private:
     /**
@@ -131,7 +143,8 @@ private:
     bool running;                 // Флаг активности процесса
     bool sessionCreated;          // Флаг созданной сессии
     
- 
+    // Последний известный cwd из OSC маркеров
+    mutable std::string lastKnownCwd;
     
     // Менеджер автодополнения
     CompletionManager completionManager;

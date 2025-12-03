@@ -298,24 +298,24 @@ extension ViewController: WebSocketManagerDelegate {
     }
 
     // MARK: - Command events
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?) {
-        // Передаем команду как заголовок блока (если есть)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?) {
+        // Передаем команду и cwd как заголовок блока (если есть)
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                 if let cmd = command, !cmd.isEmpty {
-                    terminalVC.didStartCommandBlock(command: cmd)
+                    terminalVC.didStartCommandBlock(command: cmd, cwd: cwd)
                 } else {
-                    terminalVC.didStartCommandBlock()
+                    terminalVC.didStartCommandBlock(cwd: cwd)
                 }
             }
         }
     }
     
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int) {
-        // Заглушка: уведомляем TerminalViewController о завершении блока
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?) {
+        // Уведомляем TerminalViewController о завершении блока с cwd
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.didFinishCommandBlock(exitCode: exitCode)
+                terminalVC.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
             }
         }
     }
