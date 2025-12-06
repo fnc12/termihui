@@ -94,9 +94,15 @@ int main(int argc, char* argv[])
         for (const auto& event : connectionEvents) {
             if (event.connected) {
                 fmt::print("Клиент подключился: {}\n", event.clientId);
-                // Отправляем приветственное сообщение
-                std::string welcome = JsonHelper::createResponse("connected");
-                wsServer.sendMessage(event.clientId, welcome);
+                // Отправляем приветственное сообщение с текущим cwd
+                json welcomeMsg;
+                welcomeMsg["type"] = "connected";
+                welcomeMsg["server_version"] = "1.0.0";
+                std::string cwd = terminalSession->getLastKnownCwd();
+                if (!cwd.empty()) {
+                    welcomeMsg["cwd"] = cwd;
+                }
+                wsServer.sendMessage(event.clientId, welcomeMsg.dump());
             } else {
                 fmt::print("Клиент отключился: {}\n", event.clientId);
             }

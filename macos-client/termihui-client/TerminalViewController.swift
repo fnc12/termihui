@@ -14,9 +14,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let collectionLayout = NSCollectionViewFlowLayout()
     
     private let inputContainerView = NSView()
+    private let cwdLabel = NSTextField(labelWithString: "")
     private let commandTextField = TabHandlingTextField()
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
     private var inputUnderlineView: NSView!
+    
+    // Текущая рабочая директория
+    private var currentCwd: String = ""
     
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
@@ -195,6 +199,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         inputContainerView.wantsLayer = true
         inputContainerView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         
+        // CWD label — фиолетовый, как в Warp
+        cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
+        cwdLabel.textColor = NSColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1.0) // Фиолетовый
+        cwdLabel.backgroundColor = .clear
+        cwdLabel.isBordered = false
+        cwdLabel.isBezeled = false
+        cwdLabel.isEditable = false
+        cwdLabel.isSelectable = false
+        cwdLabel.lineBreakMode = .byTruncatingHead // Обрезаем начало пути, если длинный
+        cwdLabel.stringValue = "~"
+        inputContainerView.addSubview(cwdLabel)
+        
         // Command text field
         commandTextField.placeholderString = "Введите команду..."
         commandTextField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -271,19 +287,27 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         inputContainerView.snp.makeConstraints { make in
             make.leading.trailing.equalToSuperview()
             make.bottom.equalToSuperview() // Прижимаем к низу
-            make.height.equalTo(50)
+            make.height.equalTo(70) // Увеличиваем высоту для cwd лейбла
+        }
+        
+        // CWD label сверху
+        cwdLabel.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(12)
+            make.trailing.equalToSuperview().offset(-12)
+            make.top.equalToSuperview().offset(6)
+            make.height.equalTo(16)
         }
         
         commandTextField.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(12)
-            make.centerY.equalToSuperview()
+            make.top.equalTo(cwdLabel.snp.bottom).offset(4)
             make.trailing.equalTo(sendButton.snp.leading).offset(-8)
             make.height.equalTo(24)
         }
         
         sendButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalToSuperview()
+            make.centerY.equalTo(commandTextField)
             make.width.equalTo(80)
         }
         
@@ -328,6 +352,36 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     func showConnectionStatus(_ status: String) {
         statusLabel.stringValue = status
+    }
+    
+    /// Обновляет отображение текущей рабочей директории
+    func updateCurrentCwd(_ cwd: String) {
+        currentCwd = cwd
+        // Получаем реальный home directory (не sandboxed)
+        let homeDir = realHomeDirectory()
+        let displayCwd: String
+        if cwd.hasPrefix(homeDir) {
+            displayCwd = "~" + String(cwd.dropFirst(homeDir.count))
+        } else {
+            displayCwd = cwd
+        }
+        cwdLabel.stringValue = displayCwd
+        print("📂 CWD обновлён: \(displayCwd)")
+    }
+    
+    /// Возвращает реальный home directory пользователя (не sandboxed контейнер)
+    private func realHomeDirectory() -> String {
+        // NSHomeDirectory() в sandboxed app возвращает путь к контейнеру
+        // Используем getpwuid для получения реального home
+        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
+            return String(cString: home)
+        }
+        // Fallback: извлекаем из /Users/username
+        let components = NSHomeDirectory().components(separatedBy: "/")
+        if components.count >= 3 && components[1] == "Users" {
+            return "/Users/\(components[2])"
+        }
+        return NSHomeDirectory()
     }
     
     // MARK: - Actions
@@ -402,6 +456,10 @@ extension TerminalViewController {
             reloadBlock(at: idx)
             currentBlockIndex = nil
             rebuildGlobalDocument(startingAt: idx)
+        }
+        // Обновляем отображение cwd если он изменился (например после cd)
+        if let newCwd = cwd {
+            updateCurrentCwd(newCwd)
         }
     }
     
@@ -619,7 +677,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         let item = collectionView.makeItem(withIdentifier: CommandBlockItem.reuseId, for: indexPath)
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
-        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode)
+        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart)
         // применяем подсветку для текущего выделения, если оно попадает в этот блок
         applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem
@@ -628,7 +686,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
     func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> NSSize {
         let contentWidth = collectionView.bounds.width - (collectionLayout.sectionInset.left + collectionLayout.sectionInset.right)
         let block = commandBlocks[indexPath.item]
-        let height = CommandBlockItem.estimatedHeight(command: block.command, output: block.output, width: contentWidth)
+        let height = CommandBlockItem.estimatedHeight(command: block.command, output: block.output, width: contentWidth, cwdStart: block.cwdStart)
         return NSSize(width: contentWidth, height: height)
     }
 

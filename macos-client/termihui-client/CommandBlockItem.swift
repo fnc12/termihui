@@ -3,6 +3,7 @@ import Cocoa
 final class CommandBlockItem: NSCollectionViewItem {
     static let reuseId = NSUserInterfaceItemIdentifier("CommandBlockItem")
     
+    private let cwdLabel = NSTextField(labelWithString: "")
     private let headerLabel = NSTextField(labelWithString: "")
     private let bodyTextView = NSTextView()
     private let container = NSView()
@@ -21,7 +22,16 @@ final class CommandBlockItem: NSCollectionViewItem {
         setupUI()
     }
     
-    func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?) {
+    func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?, cwdStart: String?) {
+        // CWD лейбл — серый, над командой
+        if let cwd = cwdStart, !cwd.isEmpty {
+            cwdLabel.stringValue = shortenHomePath(cwd)
+            cwdLabel.isHidden = false
+        } else {
+            cwdLabel.stringValue = ""
+            cwdLabel.isHidden = true
+        }
+        
         if let cmd = command, !cmd.isEmpty {
             headerLabel.stringValue = "$ " + cmd
             headerLabel.isHidden = false
@@ -34,9 +44,26 @@ final class CommandBlockItem: NSCollectionViewItem {
         clearSelectionHighlight()
     }
     
+    /// Сокращает home directory до ~
+    private func shortenHomePath(_ path: String) -> String {
+        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
+            let homeDir = String(cString: home)
+            if path.hasPrefix(homeDir) {
+                return "~" + String(path.dropFirst(homeDir.count))
+            }
+        }
+        return path
+    }
+    
     private func setupUI() {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
+        
+        // CWD лейбл — серый, маленький
+        cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        cwdLabel.textColor = NSColor.gray
+        cwdLabel.lineBreakMode = .byTruncatingHead
+        cwdLabel.maximumNumberOfLines = 1
         
         headerLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
         headerLabel.textColor = .white
@@ -54,16 +81,24 @@ final class CommandBlockItem: NSCollectionViewItem {
         separatorView.wantsLayer = true
         separatorView.layer?.backgroundColor = NSColor.separatorColor.cgColor
         
+        view.addSubview(cwdLabel)
         view.addSubview(headerLabel)
         view.addSubview(bodyTextView)
         view.addSubview(separatorView)
         
+        cwdLabel.translatesAutoresizingMaskIntoConstraints = false
         headerLabel.translatesAutoresizingMaskIntoConstraints = false
         bodyTextView.translatesAutoresizingMaskIntoConstraints = false
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            headerLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            // CWD сверху
+            cwdLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
+            cwdLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            cwdLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            
+            // Команда под cwd
+            headerLabel.topAnchor.constraint(equalTo: cwdLabel.bottomAnchor, constant: 2),
             headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             headerLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
             
@@ -79,11 +114,17 @@ final class CommandBlockItem: NSCollectionViewItem {
         ])
     }
     
-    static func estimatedHeight(command: String?, output: String, width: CGFloat) -> CGFloat {
+    static func estimatedHeight(command: String?, output: String, width: CGFloat, cwdStart: String? = nil) -> CGFloat {
         let horizontalInsets: CGFloat = 16
         let constrainedWidth = max(0, width - horizontalInsets)
         
         var total: CGFloat = 16 // vertical insets
+        
+        // CWD лейбл
+        if let cwd = cwdStart, !cwd.isEmpty {
+            total += 14 // высота cwd лейбла + отступ
+        }
+        
         if let cmd = command, !cmd.isEmpty {
             let displayCmd = "$ " + cmd
             let rect = (displayCmd as NSString).boundingRect(

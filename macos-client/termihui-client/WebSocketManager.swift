@@ -152,7 +152,7 @@ class WebSocketManager: NSObject {
             DispatchQueue.main.async {
                 switch response.type {
                 case "connected":
-                    self.delegate?.webSocketManagerDidConnect(self)
+                    self.delegate?.webSocketManagerDidConnect(self, initialCwd: response.cwd)
                     
                 case "output":
                     if let data = response.data {
@@ -263,7 +263,7 @@ enum WebSocketError: Error, LocalizedError {
 
 // MARK: - Delegate Protocol
 protocol WebSocketManagerDelegate: AnyObject {
-    func webSocketManagerDidConnect(_ manager: WebSocketManager)
+    func webSocketManagerDidConnect(_ manager: WebSocketManager, initialCwd: String?)
     func webSocketManagerDidDisconnect(_ manager: WebSocketManager)
     func webSocketManager(_ manager: WebSocketManager, didReceiveOutput output: String)
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)

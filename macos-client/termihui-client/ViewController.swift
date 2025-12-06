@@ -236,10 +236,16 @@ extension ViewController: TerminalViewControllerDelegate {
 
 // MARK: - WebSocketManagerDelegate
 extension ViewController: WebSocketManagerDelegate {
-    func webSocketManagerDidConnect(_ manager: WebSocketManager) {
+    func webSocketManagerDidConnect(_ manager: WebSocketManager, initialCwd: String?) {
         DispatchQueue.main.async {
             if case .connecting(let serverAddress) = self.currentState {
+                // Сначала показываем терминал, потом передаём cwd
                 self.currentState = .connected(serverAddress: serverAddress)
+                // Теперь TerminalViewController уже добавлен — передаём cwd
+                if let cwd = initialCwd,
+                   let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                    terminalVC.updateCurrentCwd(cwd)
+                }
             }
         }
     }
