@@ -199,6 +199,25 @@ int main(int argc, char* argv[])
                     response["cursor_position"] = cursorPosition;
                     
                     wsServer.sendMessage(msg.clientId, response.dump());
+                } else if (type == "resize") {
+                    int cols = msgJson.value("cols", 80);
+                    int rows = msgJson.value("rows", 24);
+                    
+                    if (cols > 0 && rows > 0) {
+                        if (terminalSession->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
+                            json response;
+                            response["type"] = "resize_ack";
+                            response["cols"] = cols;
+                            response["rows"] = rows;
+                            wsServer.sendMessage(msg.clientId, response.dump());
+                        } else {
+                            std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
+                            wsServer.sendMessage(msg.clientId, error);
+                        }
+                    } else {
+                        std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
+                        wsServer.sendMessage(msg.clientId, error);
+                    }
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Unknown message type");
                     wsServer.sendMessage(msg.clientId, error);

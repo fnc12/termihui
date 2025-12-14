@@ -5,7 +5,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <cstdlib>
-#include <iostream>
+#include <fmt/core.h>
 
 CompletionManager::CompletionManager()
 {
@@ -40,7 +40,7 @@ std::vector<std::string> CompletionManager::getCompletions(const std::string& te
         }
     }
     
-    std::cout << "CompletionManager: Found " << completions.size() << " options for '" << text << "' in directory '" << currentDir << "'" << std::endl;
+    fmt::print("CompletionManager: Found {} options for '{}' in directory '{}'\n", completions.size(), text, currentDir);
     return completions;
 }
 
@@ -119,8 +119,7 @@ std::vector<std::string> CompletionManager::getFileCompletions(const std::string
     // Expand tilde to home directory for search
     std::string expandedSearchDir = expandTilde(searchDir);
     
-    std::cout << "CompletionManager: Searching files in '" << searchDir << "' (expanded: '" 
-              << expandedSearchDir << "'), prefix: '" << filePrefix << "'" << std::endl;
+    fmt::print("CompletionManager: Searching files in '{}' (expanded: '{}'), prefix: '{}'\n", searchDir, expandedSearchDir, filePrefix);
     
     // Open directory
     DIR* dir = opendir(expandedSearchDir.c_str());
@@ -149,9 +148,9 @@ std::vector<std::string> CompletionManager::getFileCompletions(const std::string
         }
         closedir(dir);
         
-        std::cout << "CompletionManager: Found " << matches.size() << " files" << std::endl;
+        fmt::print("CompletionManager: Found {} files\n", matches.size());
     } else {
-        std::cout << "CompletionManager: Failed to open directory '" << expandedSearchDir << "'" << std::endl;
+        fmt::print(stderr, "CompletionManager: Failed to open directory '{}'\n", expandedSearchDir);
     }
     
     return matches;

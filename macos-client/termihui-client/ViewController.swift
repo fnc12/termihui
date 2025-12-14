@@ -241,10 +241,13 @@ extension ViewController: WebSocketManagerDelegate {
             if case .connecting(let serverAddress) = self.currentState {
                 // First show terminal, then pass cwd
                 self.currentState = .connected(serverAddress: serverAddress)
-                // Now TerminalViewController is added — pass cwd
-                if let cwd = initialCwd,
-                   let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                    terminalVC.updateCurrentCwd(cwd)
+                // Now TerminalViewController is added — pass cwd and initial size
+                if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                    if let cwd = initialCwd {
+                        terminalVC.updateCurrentCwd(cwd)
+                    }
+                    // Send initial terminal size to server
+                    terminalVC.sendInitialTerminalSize()
                 }
             }
         }

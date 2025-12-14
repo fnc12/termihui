@@ -29,6 +29,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let ansiParser = ANSIParser()
     private let baseTopInset: CGFloat = 8
     
+    // Terminal size tracking
+    private var lastTerminalCols: Int = 0
+    private var lastTerminalRows: Int = 0
+    private var resizeDebounceTimer: Timer?
+    private let terminalFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    
     // MARK: - Command Blocks Model (in-memory only, no UI yet)
     private struct CommandBlock {
         let id: UUID
@@ -94,6 +100,62 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Update NSTextView frame when view size changes
         updateTextViewFrame()
+        
+        // Debounced terminal resize notification
+        scheduleTerminalResizeUpdate()
+    }
+    
+    /// Calculate terminal size in characters based on view dimensions
+    private func calculateTerminalSize() -> (cols: Int, rows: Int) {
+        // Get the width of the output area (collectionView)
+        let viewWidth = terminalScrollView.contentSize.width
+        let viewHeight = terminalScrollView.contentSize.height
+        
+        // Account for padding/margins in CommandBlockItem
+        let effectiveWidth = viewWidth - (CommandBlockItem.horizontalPadding * 2)
+        
+        // Calculate character dimensions
+        let charSize = "M".size(withAttributes: [.font: terminalFont])
+        let charWidth = charSize.width
+        let lineHeight = ceil(terminalFont.ascender - terminalFont.descender + terminalFont.leading)
+        
+        // Calculate columns and rows
+        let cols = max(20, Int(floor(effectiveWidth / charWidth)))
+        let rows = max(5, Int(floor(viewHeight / lineHeight)))
+        
+        return (cols, rows)
+    }
+    
+    /// Schedule a debounced terminal resize update
+    private func scheduleTerminalResizeUpdate() {
+        resizeDebounceTimer?.invalidate()
+        resizeDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+            self?.sendTerminalResizeIfNeeded()
+        }
+    }
+    
+    /// Send terminal resize to server if dimensions changed
+    private func sendTerminalResizeIfNeeded() {
+        let (cols, rows) = calculateTerminalSize()
+        
+        // Only send if size actually changed
+        if cols != lastTerminalCols || rows != lastTerminalRows {
+            lastTerminalCols = cols
+            lastTerminalRows = rows
+            
+            print("📐 Terminal size changed: \(cols)x\(rows)")
+            webSocketManager?.sendResize(cols: cols, rows: rows)
+        }
+    }
+    
+    /// Force send current terminal size (e.g., on initial connection)
+    func sendInitialTerminalSize() {
+        let (cols, rows) = calculateTerminalSize()
+        lastTerminalCols = cols
+        lastTerminalRows = rows
+        
+        print("📐 Initial terminal size: \(cols)x\(rows)")
+        webSocketManager?.sendResize(cols: cols, rows: rows)
     }
     
     // MARK: - Setup Methods

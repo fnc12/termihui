@@ -91,6 +91,17 @@ class WebSocketManager: NSObject {
         sendMessage(message)
     }
     
+    /// Send terminal resize event
+    func sendResize(cols: Int, rows: Int) {
+        guard isConnected else {
+            return
+        }
+        
+        print("📐 Sending resize: \(cols)x\(rows)")
+        let message = TerminalMessage.resize(cols: cols, rows: rows)
+        sendMessage(message)
+    }
+    
     // MARK: - Private Methods
     
     private func sendMessage(_ message: TerminalMessage) {

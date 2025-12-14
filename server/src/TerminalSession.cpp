@@ -436,6 +436,26 @@ std::string TerminalSession::getCurrentWorkingDirectory() const
     return "";
 }
 
-
+bool TerminalSession::setWindowSize(unsigned short cols, unsigned short rows)
+{
+    if (this->ptyFd < 0) {
+        fmt::print(stderr, "Cannot set window size: PTY not initialized\n");
+        return false;
+    }
+    
+    struct winsize ws;
+    ws.ws_col = cols;
+    ws.ws_row = rows;
+    ws.ws_xpixel = 0;
+    ws.ws_ypixel = 0;
+    
+    if (ioctl(this->ptyFd, TIOCSWINSZ, &ws) < 0) {
+        fmt::print(stderr, "Failed to set window size: {}\n", strerror(errno));
+        return false;
+    }
+    
+    fmt::print("Terminal size set to {}x{}\n", cols, rows);
+    return true;
+}
 
  

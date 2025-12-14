@@ -118,6 +118,14 @@ public:
      * @return path or empty string
      */
     std::string getLastKnownCwd() const;
+    
+    /**
+     * Set terminal window size
+     * @param cols number of columns (width in characters)
+     * @param rows number of rows (height in characters)
+     * @return true if size was set successfully
+     */
+    bool setWindowSize(unsigned short cols, unsigned short rows);
 
 private:
     /**

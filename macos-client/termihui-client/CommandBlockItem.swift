@@ -3,6 +3,9 @@ import Cocoa
 final class CommandBlockItem: NSCollectionViewItem {
     static let reuseId = NSUserInterfaceItemIdentifier("CommandBlockItem")
     
+    /// Horizontal padding for content (left + right)
+    static let horizontalPadding: CGFloat = 8
+    
     private let cwdLabel = NSTextField(labelWithString: "")
     private let headerLabel = NSTextField(labelWithString: "")
     private let bodyTextView = NSTextView()
@@ -91,21 +94,22 @@ final class CommandBlockItem: NSCollectionViewItem {
         bodyTextView.translatesAutoresizingMaskIntoConstraints = false
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
+        let padding = Self.horizontalPadding
         NSLayoutConstraint.activate([
             // CWD at top
             cwdLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
-            cwdLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            cwdLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            cwdLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
+            cwdLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
             
             // Command below cwd
             headerLabel.topAnchor.constraint(equalTo: cwdLabel.bottomAnchor, constant: 2),
-            headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            headerLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
+            headerLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
             
             bodyTextView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 4),
-            bodyTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            bodyTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-            bodyTextView.bottomAnchor.constraint(equalTo: separatorView.topAnchor, constant: -8),
+            bodyTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
+            bodyTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
+            bodyTextView.bottomAnchor.constraint(equalTo: separatorView.topAnchor, constant: -padding),
 
             separatorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             separatorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),

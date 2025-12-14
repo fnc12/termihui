@@ -5,9 +5,10 @@ enum TerminalMessage: Encodable {
     case execute(command: String)
     case input(text: String)
     case completion(text: String, cursorPosition: Int)
+    case resize(cols: Int, rows: Int)
     
     private enum CodingKeys: String, CodingKey {
-        case type, command, text, cursor_position
+        case type, command, text, cursor_position, cols, rows
     }
     
     func encode(to encoder: Encoder) throws {
@@ -24,6 +25,10 @@ enum TerminalMessage: Encodable {
             try container.encode("completion", forKey: .type)
             try container.encode(text, forKey: .text)
             try container.encode(cursorPosition, forKey: .cursor_position)
+        case .resize(let cols, let rows):
+            try container.encode("resize", forKey: .type)
+            try container.encode(cols, forKey: .cols)
+            try container.encode(rows, forKey: .rows)
         }
     }
 }
