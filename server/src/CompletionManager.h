@@ -2,12 +2,14 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 /**
  * Autocompletion manager for terminal commands and files
  * 
  * Features:
- * - Command autocompletion from popular commands list
+ * - Command autocompletion from PATH executables
+ * - Shell builtin commands support
  * - File and directory autocompletion
  * - Tilde (~) support for home directories
  * - Context detection (command vs file)
@@ -15,7 +17,7 @@
 class CompletionManager {
 public:
     /**
-     * Constructor
+     * Constructor - initializes command cache from PATH and builtins
      */
     CompletionManager();
     
@@ -37,7 +39,22 @@ public:
      */
     std::vector<std::string> getCompletions(const std::string& text, int cursorPosition, const std::string& currentDir = ".") const;
     
+    /**
+     * Get number of cached commands
+     */
+    size_t getCachedCommandCount() const { return cachedCommands.size(); }
+    
 private:
+    /**
+     * Scan PATH directories and cache all executable commands
+     */
+    void scanPathDirectories();
+    
+    /**
+     * Load shell builtin commands
+     */
+    void loadBuiltinCommands();
+    
     /**
      * Extract last word from text
      * @param text text to analyze
@@ -77,6 +94,6 @@ private:
     std::string expandTilde(const std::string& path) const;
     
 private:
-    // List of popular commands for autocompletion
-    std::vector<std::string> commonCommands;
+    // Cached commands from PATH + builtins (sorted, no duplicates)
+    std::set<std::string> cachedCommands;
 };

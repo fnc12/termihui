@@ -474,7 +474,7 @@ extension TerminalViewController: TabHandlingTextFieldDelegate {
         print("   Text: '\(text)'")
         print("   Cursor position: \(cursorPosition)")
         
-        // Отправляем запрос автодополнения на сервер
+        // Send completion request to server
         webSocketManager?.requestCompletion(for: text, cursorPosition: cursorPosition)
     }
 }
@@ -584,27 +584,35 @@ extension TerminalViewController {
         
         switch completions.count {
         case 0:
-            // Нет вариантов - звук ошибки
-            handleNoCompletions()
+            // No completion options - insert literal tab
+            handleNoCompletions(originalText: originalText, cursorPosition: cursorPosition)
             
         case 1:
-            // Один вариант - автоматически дополняем
+            // Single option - auto-complete
             handleSingleCompletion(completions[0], originalText: originalText, cursorPosition: cursorPosition)
             
         default:
-            // Несколько вариантов - ищем общий префикс или показываем список
+            // Multiple options - find common prefix or show list
             handleMultipleCompletions(completions, originalText: originalText, cursorPosition: cursorPosition)
         }
     }
     
-    /// Handles case when there are no completion options
-    private func handleNoCompletions() {
-        print("❌ No completion options")
-        // Play system error sound
-        NSSound.beep()
+    /// Handles case when there are no completion options - inserts literal tab
+    private func handleNoCompletions(originalText: String, cursorPosition: Int) {
+        print("⇥ No completion options - inserting tab")
         
-        // Can also show temporary message
-        showTemporaryMessage("No completion options")
+        // Insert tab character at cursor position
+        let beforeCursor = String(originalText.prefix(cursorPosition))
+        let afterCursor = String(originalText.suffix(originalText.count - cursorPosition))
+        let newText = beforeCursor + "\t" + afterCursor
+        
+        commandTextField.stringValue = newText
+        
+        // Move cursor after inserted tab
+        let newCursorPosition = cursorPosition + 1
+        if let editor = commandTextField.currentEditor() {
+            editor.selectedRange = NSRange(location: newCursorPosition, length: 0)
+        }
     }
     
     /// Handles case with single completion option
