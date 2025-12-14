@@ -22,7 +22,7 @@ bool WebSocketServer::start()
     
     try {
         // Setup callbacks - they will be called in libhv background thread
-        this->wsService.onopen = [this](const WebSocketChannelPtr& channel, const HttpRequestPtr& request) {
+        this->wsService.onopen = [this](const WebSocketChannelPtr& channel, [[maybe_unused]] const HttpRequestPtr& request) {
             this->onConnection(channel);
         };
         
