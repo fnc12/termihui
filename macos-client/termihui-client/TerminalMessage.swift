@@ -1,6 +1,6 @@
 import Foundation
 
-/// Сообщения, отправляемые на сервер
+/// Messages sent to server
 enum TerminalMessage: Encodable {
     case execute(command: String)
     case input(text: String)
@@ -28,7 +28,25 @@ enum TerminalMessage: Encodable {
     }
 }
 
-/// Ответы, получаемые от сервера
+/// Command history record
+struct CommandHistoryRecord: Codable {
+    let command: String
+    let output: String
+    let exitCode: Int
+    let cwdStart: String
+    let cwdEnd: String
+    let isFinished: Bool
+    
+    private enum CodingKeys: String, CodingKey {
+        case command, output
+        case exitCode = "exit_code"
+        case cwdStart = "cwd_start"
+        case cwdEnd = "cwd_end"
+        case isFinished = "is_finished"
+    }
+}
+
+/// Responses received from server
 struct TerminalResponse: Codable {
     let type: String
     let data: String?
@@ -41,13 +59,16 @@ struct TerminalResponse: Codable {
     let command: String?
     let cwd: String?
     
-    // Поля для completion_result
+    // Fields for completion_result
     let completions: [String]?
     let originalText: String?
     let cursorPosition: Int?
     
+    // Fields for history
+    let commands: [CommandHistoryRecord]?
+    
     private enum CodingKeys: String, CodingKey {
-        case type, data, running, message, completions
+        case type, data, running, message, completions, commands
         case exitCode = "exit_code"
         case errorCode = "error_code"
         case serverVersion = "server_version"

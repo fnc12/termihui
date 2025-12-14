@@ -79,76 +79,76 @@ TerminalSession& TerminalSession::operator=(TerminalSession&& other) noexcept
 bool TerminalSession::createSession()
 {
     if (this->sessionCreated) {
-        fmt::print(stderr, "Сессия уже создана\n");
+        fmt::print(stderr, "Session already created\n");
         return false;
     }
 
-    // Создаем PTY
+    // Create PTY
     this->childPid = forkpty(&this->ptyFd, nullptr, nullptr, nullptr);
     
     if (this->childPid < 0) {
-        fmt::print(stderr, "Ошибка forkpty: {}\n", strerror(errno));
+        fmt::print(stderr, "forkpty error: {}\n", strerror(errno));
         return false;
     }
     
     if (this->childPid == 0) {
-        // Дочерний процесс
-        // Устанавливаем пустой промпт чтобы убрать "bash-3.2$"
+        // Child process
+        // Set empty prompt to remove "bash-3.2$"
         setenv("PS1", "", 1);
-        // Убираем системный баннер о переходе на zsh
+        // Suppress system banner about switching to zsh
         setenv("BASH_SILENCE_DEPRECATION_WARNING", "1", 1);
 
-        // Отключаем локальное эхо в slave TTY, чтобы введённые команды не дублировались в вывод
+        // Disable local echo in slave TTY to avoid command duplication in output
         struct termios tio;
         if (tcgetattr(STDIN_FILENO, &tio) == 0) {
-            tio.c_lflag &= ~ECHO; // оставляем канонический режим, убираем только эхо
+            tio.c_lflag &= ~ECHO; // keep canonical mode, remove only echo
             tcsetattr(STDIN_FILENO, TCSANOW, &tio);
         }
 
-        // Создаём временный rcfile с OSC 133 хуками (как у Warp/iTerm2/VS Code)
-        // Формат маркеров:
-        //  \033]133;A;cwd=<path>\007        — начало команды (preexec) с текущей директорией
-        //  \033]133;B;exit=<code>;cwd=<path>\007 — конец команды (precmd) с кодом выхода и директорией
+        // Create temporary rcfile with OSC 133 hooks (like Warp/iTerm2/VS Code)
+        // Marker format:
+        //  \033]133;A;cwd=<path>\007        — command start (preexec) with current directory
+        //  \033]133;B;exit=<code>;cwd=<path>\007 — command end (precmd) with exit code and directory
         char rcTemplate[] = "/tmp/termihui_bashrc_XXXXXX";
         int rcFd = mkstemp(rcTemplate);
         if (rcFd >= 0) {
             std::string rcContent;
             rcContent.append("# TermiHUI shell integration (bash)\n");
             rcContent.append("export PS1=\"\"\n");
-            // precmd: печатаем OSC 133;B с кодом завершения предыдущей команды и cwd
+            // precmd: print OSC 133;B with previous command exit code and cwd
             rcContent.append("__termihui_precmd() { local ec=$?; printf '\\033]133;B;exit=%s;cwd=%s\\007' \"$ec\" \"$PWD\"; }\n");
-            // wrapper для PROMPT_COMMAND: ставит guard на время precmd, чтобы DEBUG-trap не дал лишний A
+            // wrapper for PROMPT_COMMAND: sets guard during precmd so DEBUG-trap doesn't trigger extra A
             rcContent.append("__termihui_precmd_wrapper() { local ec=$?; __TERMIHUI_IN_PRECMD=1; __termihui_precmd \"$ec\"; unset __TERMIHUI_IN_PRECMD; }\n");
-            // preexec: печатаем OSC 133;A перед пользовательской командой с текущей cwd, но НЕ перед PROMPT_COMMAND
+            // preexec: print OSC 133;A before user command with current cwd, but NOT before PROMPT_COMMAND
             rcContent.append("__termihui_preexec() { if [[ -n \"$__TERMIHUI_IN_PRECMD\" ]]; then return; fi; if [[ \"$BASH_COMMAND\" == \"__termihui_precmd_wrapper\" || \"$BASH_COMMAND\" == \"__termihui_precmd\" ]]; then return; fi; printf '\\033]133;A;cwd=%s\\007' \"$PWD\"; }\n");
-            // В bash используем trap DEBUG как аналог preexec
+            // In bash use trap DEBUG as preexec equivalent
             rcContent.append("trap '__termihui_preexec' DEBUG\n");
-            // PROMPT_COMMAND выполняется перед выводом приглашения — аналог precmd
+            // PROMPT_COMMAND executes before printing prompt — precmd equivalent
             rcContent.append("PROMPT_COMMAND='__termihui_precmd_wrapper'\n");
 
-            // Записываем файл и закрываем
+            // Write file and close
             ssize_t ignored = write(rcFd, rcContent.data(), rcContent.size());
             (void)ignored;
             close(rcFd);
 
-            // Запускаем bash с нашим rcfile. --noprofile чтобы не мешали чужие профили
+            // Start bash with our rcfile. --noprofile to avoid interference from other profiles
             execl("/bin/bash", "bash", "--noprofile", "--rcfile", rcTemplate, "-i", nullptr);
         }
 
-        // Fallback: если не удалось создать rcfile — запускаем обычный bash
+        // Fallback: if rcfile creation failed — start regular bash
         execl("/bin/bash", "bash", "-i", nullptr);
         
-        // Если execl не сработал
-        fmt::print(stderr, "Ошибка execl: {}\n", strerror(errno));
+        // If execl failed
+        fmt::print(stderr, "execl error: {}\n", strerror(errno));
         _exit(1);
     }
     
-    // Родительский процесс
+    // Parent process
     this->setupNonBlocking();
     this->running = true;
     this->sessionCreated = true;
     
-    fmt::print("Интерактивная bash-сессия создана (PID: {})\n", this->childPid);
+    fmt::print("Interactive bash session created (PID: {})\n", this->childPid);
     
     return true;
 }
@@ -156,20 +156,20 @@ bool TerminalSession::createSession()
 bool TerminalSession::executeCommand(const std::string& command)
 {
     if (!this->sessionCreated || !this->running) {
-        fmt::print(stderr, "Сессия не создана или не активна\n");
+        fmt::print(stderr, "Session not created or inactive\n");
         return false;
     }
     
-    // Отправляем команду + перенос строки в интерактивный bash
+    // Send command + newline to interactive bash
     std::string cmd = command + "\n";
     ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
     
     if (bytesWritten < 0) {
-        fmt::print(stderr, "Ошибка отправки команды: {}\n", strerror(errno));
+        fmt::print(stderr, "Command send error: {}\n", strerror(errno));
         return false;
     }
     
-    fmt::print("Команда отправлена: {}\n", command);
+    fmt::print("Command sent: {}\n", command);
     return true;
 }
 
@@ -181,7 +181,7 @@ ssize_t TerminalSession::sendInput(std::string_view input)
     
     ssize_t bytesWritten = write(this->ptyFd, input.data(), input.length());
     if (bytesWritten < 0) {
-        fmt::print(stderr, "Ошибка записи в PTY: {}\n", strerror(errno));
+        fmt::print(stderr, "PTY write error: {}\n", strerror(errno));
     }
     
     return bytesWritten;
@@ -195,28 +195,28 @@ std::string TerminalSession::readOutput()
     
     std::string output;
     
-    // Читаем все доступные данные
+    // Read all available data
     while (this->hasData(0)) {
         ssize_t bytesRead = read(this->ptyFd, this->buffer.data(), this->bufferSize);
         
         if (bytesRead > 0) {
             output.append(this->buffer.data(), bytesRead);
         } else if (bytesRead == 0) {
-            // EOF - процесс завершился
+            // EOF - process terminated
             this->checkChildStatus();
             break;
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // Нет данных для чтения
+                // No data to read
                 break;
             } else {
-                fmt::print(stderr, "Ошибка чтения из PTY: {}\n", strerror(errno));
+                fmt::print(stderr, "PTY read error: {}\n", strerror(errno));
                 break;
             }
         }
     }
     
-    // Проверяем статус дочернего процесса
+    // Check child process status
     this->checkChildStatus();
     
     return output;
@@ -235,13 +235,13 @@ pid_t TerminalSession::getChildPid() const
 void TerminalSession::terminate()
 {
     if (this->running && this->childPid > 0) {
-        // Сначала пробуем мягкое завершение
+        // First try graceful termination
         kill(this->childPid, SIGTERM);
         
-        // Ждем немного
+        // Wait a bit
         usleep(100000); // 100ms
         
-        // Если процесс еще работает, принудительно завершаем
+        // If process still running, force terminate
         if (this->running) {
             kill(this->childPid, SIGKILL);
         }
@@ -293,7 +293,7 @@ void TerminalSession::cleanup()
     }
     
     if (this->childPid > 0) {
-        // Ожидаем завершения дочернего процесса
+        // Wait for child process termination
         int status;
         waitpid(this->childPid, &status, WNOHANG);
         this->childPid = -1;
@@ -313,37 +313,37 @@ void TerminalSession::checkChildStatus()
     pid_t result = waitpid(this->childPid, &status, WNOHANG);
     
     if (result > 0) {
-        // Дочерний процесс завершился
+        // Child process terminated
         this->running = false;
         this->childPid = -1;
         
-        // TODO: В будущем можно добавить коллбэк для обработки завершения
+        // TODO: In the future can add callback for termination handling
         // if (this->onProcessExit) {
         //     this->onProcessExit(status, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
         // }
     } else if (result < 0 && errno != ECHILD) {
-        fmt::print(stderr, "Ошибка waitpid: {}\n", strerror(errno));
+        fmt::print(stderr, "waitpid error: {}\n", strerror(errno));
     }
 }
 
 std::vector<std::string> TerminalSession::getCompletions(const std::string& text, int cursorPosition) const
 {
-    // Сначала пробуем использовать lastKnownCwd из OSC маркеров (самый надёжный)
+    // First try using lastKnownCwd from OSC markers (most reliable)
     std::string currentDir = lastKnownCwd;
     
-    // Если lastKnownCwd пуст — fallback на lsof
+    // If lastKnownCwd is empty — fallback to lsof
     if (currentDir.empty()) {
         currentDir = getCurrentWorkingDirectory();
     }
     
     if (currentDir.empty()) {
-        fmt::print(stderr, "Не удалось получить текущую директорию, используем '.'\n");
+        fmt::print(stderr, "Failed to get current directory, using '.'\n");
         currentDir = ".";
     }
     
-    fmt::print("Текущая рабочая директория bash: '{}'\n", currentDir);
+    fmt::print("Current bash working directory: '{}'\n", currentDir);
     
-    // Делегируем работу CompletionManager с правильной директорией
+    // Delegate to CompletionManager with correct directory
     return completionManager.getCompletions(text, cursorPosition, currentDir);
 }
 
@@ -351,7 +351,7 @@ void TerminalSession::setLastKnownCwd(const std::string& cwd)
 {
     if (!cwd.empty()) {
         lastKnownCwd = cwd;
-        fmt::print("Обновлён lastKnownCwd: '{}'\n", lastKnownCwd);
+        fmt::print("Updated lastKnownCwd: '{}'\n", lastKnownCwd);
     }
 }
 
@@ -367,40 +367,40 @@ std::string TerminalSession::getCurrentWorkingDirectory() const
     }
     
 #ifdef __APPLE__
-    // На macOS нужно найти реальный bash-процесс, который может быть дочерним процессом
-    // Сначала пробуем найти bash-процесс среди дочерних процессов
+    // On macOS need to find actual bash process which may be a child process
+    // First try to find bash process among child processes
     std::string findBashCommand = "pgrep -P " + std::to_string(childPid) + " bash 2>/dev/null | head -1";
     
-    fmt::print("Ищем bash-процесс: {}\n", findBashCommand);
+    fmt::print("Searching for bash process: {}\n", findBashCommand);
     
     FILE* bashPipe = popen(findBashCommand.c_str(), "r");
-    pid_t bashPid = childPid; // По умолчанию используем исходный PID
+    pid_t bashPid = childPid; // Default to original PID
     
     if (bashPipe) {
         char buffer[32];
         if (fgets(buffer, sizeof(buffer), bashPipe) != nullptr) {
             bashPid = std::atoi(buffer);
-            fmt::print("Найден bash-процесс с PID: {}\n", bashPid);
+            fmt::print("Found bash process with PID: {}\n", bashPid);
         }
         pclose(bashPipe);
     }
     
-    // Теперь получаем cwd для найденного bash-процесса
+    // Now get cwd for found bash process
     std::string command = "lsof -p " + std::to_string(bashPid) + " -d cwd -Fn 2>/dev/null | grep '^n' | cut -c2-";
     
-    fmt::print("Выполняем команду: {}\n", command);
+    fmt::print("Executing command: {}\n", command);
     
     FILE* pipe = popen(command.c_str(), "r");
     if (pipe) {
         char buffer[PATH_MAX];
         if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
             pclose(pipe);
-            // Удаляем символ новой строки в конце
+            // Remove trailing newline
             std::string result(buffer);
             if (!result.empty() && result.back() == '\n') {
                 result.pop_back();
             }
-            fmt::print("lsof вернул: '{}'\n", result);
+            fmt::print("lsof returned: '{}'\n", result);
             if (!result.empty() && result != "/") {
                 return result;
             }
@@ -408,19 +408,19 @@ std::string TerminalSession::getCurrentWorkingDirectory() const
         pclose(pipe);
     }
     
-    fmt::print("lsof не сработал, используем fallback директорию\n");
+    fmt::print("lsof failed, using fallback directory\n");
     
-    // Fallback - используем домашнюю директорию пользователя
+    // Fallback - use user's home directory
     const char* home = getenv("HOME");
     if (home) {
         return std::string(home);
     }
     
-    // Последний fallback - текущая директория сервера
+    // Last fallback - server's current directory
     return ".";
     
 #else
-    // На Linux используем /proc/{pid}/cwd
+    // On Linux use /proc/{pid}/cwd
     std::string procPath = "/proc/" + std::to_string(childPid) + "/cwd";
     
     char buffer[PATH_MAX];
@@ -432,7 +432,7 @@ std::string TerminalSession::getCurrentWorkingDirectory() const
     }
 #endif
     
-    fmt::print(stderr, "Не удалось получить текущую директорию процесса {}\n", childPid);
+    fmt::print(stderr, "Failed to get current directory for process {}\n", childPid);
     return "";
 }
 

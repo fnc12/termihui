@@ -16,6 +16,21 @@
 
 std::atomic<bool> shouldExit{false};
 
+// Structure for storing command history
+struct CommandRecord {
+    std::string command;
+    std::string output;
+    int exitCode = 0;
+    std::string cwdStart;
+    std::string cwdEnd;
+    bool isFinished = false;
+};
+
+// Command history (persisted while server is running)
+std::vector<CommandRecord> commandHistory;
+int currentCommandIndex = -1; // Index of the current unfinished command
+std::string pendingCommand;   // Command waiting for command_start event
+
 void signalHandler(int signal)
 {
     if (signal == SIGINT || signal == SIGTERM) {
@@ -25,7 +40,7 @@ void signalHandler(int signal)
 
 using json = nlohmann::json;
 
-// Вспомогательные функции для работы с JSON
+// Helper functions for JSON manipulation
 class JsonHelper {
 public:
     static std::string createResponse(const std::string& type, const std::string& data = "", int exitCode = 0, bool running = false) {
@@ -52,49 +67,49 @@ public:
 
 int main(int argc, char* argv[])
 {
-    // Отключаем автоматические логи libhv
+    // Disable automatic libhv logs
     hlog_disable();
     
-    // Устанавливаем обработчик сигналов
+    // Set up signal handlers
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     
     fmt::print("=== TermiHUI Server ===\n");
-    fmt::print("Сервер готов к работе\n");
-    fmt::print("Порт: 37854 (WebSocket)\n");
-    fmt::print("Для остановки нажмите Ctrl+C\n\n");
+    fmt::print("Server ready\n");
+    fmt::print("Port: 37854 (WebSocket)\n");
+    fmt::print("Press Ctrl+C to stop\n\n");
     
-    // Создаем единственную терминальную сессию
+    // Create single terminal session
     auto terminalSession = std::make_unique<TerminalSession>();
     
-    // Создаем интерактивную bash-сессию
+    // Create interactive bash session
     if (!terminalSession->createSession()) {
-        fmt::print(stderr, "Не удалось создать терминальную сессию\n");
+        fmt::print(stderr, "Failed to create terminal session\n");
         return 1;
     }
     
-    // Создаем и запускаем WebSocket сервер
+    // Create and start WebSocket server
     WebSocketServer wsServer(37854);
     if (!wsServer.start()) {
-        fmt::print(stderr, "Не удалось запустить WebSocket сервер\n");
+        fmt::print(stderr, "Failed to start WebSocket server\n");
         return 1;
     }
     
-    fmt::print("Сервер запущен! Ожидание подключений...\n\n");
+    fmt::print("Server started! Waiting for connections...\n\n");
     
-    // Основной цикл сервера
+    // Main server loop
     while (!shouldExit) {
-        // Получаем события от WebSocket сервера
+        // Get events from WebSocket server
         std::vector<WebSocketServer::IncomingMessage> incomingMessages;
         std::vector<WebSocketServer::ConnectionEvent> connectionEvents;
         
         wsServer.update(incomingMessages, connectionEvents);
         
-        // Обрабатываем события подключения/отключения
+        // Handle connection/disconnection events
         for (const auto& event : connectionEvents) {
             if (event.connected) {
-                fmt::print("Клиент подключился: {}\n", event.clientId);
-                // Отправляем приветственное сообщение с текущим cwd
+                fmt::print("Client connected: {}\n", event.clientId);
+                // Send welcome message with current cwd
                 json welcomeMsg;
                 welcomeMsg["type"] = "connected";
                 welcomeMsg["server_version"] = "1.0.0";
@@ -103,14 +118,34 @@ int main(int argc, char* argv[])
                     welcomeMsg["cwd"] = cwd;
                 }
                 wsServer.sendMessage(event.clientId, welcomeMsg.dump());
+                
+                // Send command history
+                if (!commandHistory.empty()) {
+                    json historyMsg;
+                    historyMsg["type"] = "history";
+                    json commands = json::array();
+                    for (const auto& record : commandHistory) {
+                        json cmd;
+                        cmd["command"] = record.command;
+                        cmd["output"] = record.output;
+                        cmd["exit_code"] = record.exitCode;
+                        cmd["cwd_start"] = record.cwdStart;
+                        cmd["cwd_end"] = record.cwdEnd;
+                        cmd["is_finished"] = record.isFinished;
+                        commands.push_back(cmd);
+                    }
+                    historyMsg["commands"] = commands;
+                    wsServer.sendMessage(event.clientId, historyMsg.dump());
+                    fmt::print("Sent history: {} commands\n", commandHistory.size());
+                }
             } else {
-                fmt::print("Клиент отключился: {}\n", event.clientId);
+                fmt::print("Client disconnected: {}\n", event.clientId);
             }
         }
         
-        // Обрабатываем входящие сообщения
+        // Handle incoming messages
         for (const auto& msg : incomingMessages) {
-            fmt::print("Обработка сообщения от {}: {}\n", msg.clientId, msg.message);
+            fmt::print("Processing message from {}: {}\n", msg.clientId, msg.message);
             
             try {
                 json msgJson = json::parse(msg.message);
@@ -119,8 +154,11 @@ int main(int argc, char* argv[])
                 if (type == "execute") {
                     std::string command = msgJson.value("command", "");
                     if (!command.empty()) {
+                        // Save command for history recording on command_start
+                        pendingCommand = command;
+                        
                         if (terminalSession->executeCommand(command)) {
-                            fmt::print("Выполнена команда: {}\n", command);
+                            fmt::print("Executed command: {}\n", command);
                         } else {
                             std::string error = JsonHelper::createResponse("error", "Failed to execute command");
                             wsServer.sendMessage(msg.clientId, error);
@@ -148,12 +186,12 @@ int main(int argc, char* argv[])
                     std::string text = msgJson.value("text", "");
                     int cursorPosition = msgJson.value("cursor_position", 0);
                     
-                    fmt::print("Запрос автодополнения: '{}' (позиция: {})\n", text, cursorPosition);
+                    fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
                     
-                    // Получаем варианты автодополнения
+                    // Get completion options
                     auto completions = terminalSession->getCompletions(text, cursorPosition);
                     
-                    // Создаем JSON ответ с вариантами
+                    // Create JSON response with options
                     json response;
                     response["type"] = "completion_result";
                     response["completions"] = completions;
@@ -166,48 +204,60 @@ int main(int argc, char* argv[])
                     wsServer.sendMessage(msg.clientId, error);
                 }
             } catch (const json::exception& e) {
-                fmt::print(stderr, "Ошибка парсинга JSON: {}\n", e.what());
+                fmt::print(stderr, "JSON parsing error: {}\n", e.what());
                 std::string error = JsonHelper::createResponse("error", "Invalid JSON format");
                 wsServer.sendMessage(msg.clientId, error);
             }
         }
         
-        // Проверяем вывод терминальной сессии
+        // Check terminal session output
         if (terminalSession->hasData(0)) {
             std::string output = terminalSession->readOutput();
             if (!output.empty()) {
-                // Стриминговый парсинг: сохраняем порядок «текст → событие → текст»
+                // Streaming parser: preserve order "text → event → text"
                 size_t i = 0;
                 while (true) {
                     size_t oscPos = output.find("\x1b]133;", i);
                     if (oscPos == std::string::npos) {
-                        // Остаток как обычный вывод
+                        // Remainder as regular output
                         if (i < output.size()) {
                             std::string chunk = output.substr(i);
                             if (!chunk.empty()) {
-                                fmt::print("Вывод терминала: *{}*\n", chunk);
+                                fmt::print("Terminal output: *{}*\n", chunk);
+                                // Add to current history record
+                                if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
+                                    commandHistory[currentCommandIndex].output += chunk;
+                                }
                                 wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                             }
                         }
                         break;
                     }
 
-                    // Отправляем текст до маркера
+                    // Send text before marker
                     if (oscPos > i) {
                         std::string chunk = output.substr(i, oscPos - i);
                         if (!chunk.empty()) {
-                            fmt::print("Вывод терминала: *{}*\n", chunk);
+                            fmt::print("Terminal output: *{}*\n", chunk);
+                            // Add to current history record
+                            if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
+                                commandHistory[currentCommandIndex].output += chunk;
+                            }
                             wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                         }
                     }
 
-                    // Находим конец OSC (BEL)
+                    // Find OSC end (BEL)
                     size_t oscEnd = output.find('\x07', oscPos);
                     if (oscEnd == std::string::npos) {
-                        // Неполный маркер — считаем остальное обычным текстом
+                        // Incomplete marker — treat rest as regular text
                         std::string chunk = output.substr(oscPos);
                         if (!chunk.empty()) {
-                            fmt::print("Вывод терминала: *{}*\n", chunk);
+                            fmt::print("Terminal output: *{}*\n", chunk);
+                            // Add to current history record
+                            if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
+                                commandHistory[currentCommandIndex].output += chunk;
+                            }
                             wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                         }
                         break;
@@ -215,7 +265,7 @@ int main(int argc, char* argv[])
 
                     std::string osc = output.substr(oscPos, oscEnd - oscPos + 1);
                     
-                    // Вспомогательная лямбда для извлечения значения параметра из OSC строки
+                    // Helper lambda to extract parameter value from OSC string
                     auto extractParam = [&osc](const std::string& key) -> std::string {
                         auto pos = osc.find(key + "=");
                         if (pos == std::string::npos) return "";
@@ -225,78 +275,106 @@ int main(int argc, char* argv[])
                         return osc.substr(start, end - start);
                     };
                     
-                    // Обрабатываем событие
+                    // Process event
                     if (osc.rfind("\x1b]133;A", 0) == 0) {
-                        json ev;
-                        ev["type"] = "command_start";
                         std::string cwd = extractParam("cwd");
                         if (!cwd.empty()) {
-                            ev["cwd"] = cwd;
-                            terminalSession->setLastKnownCwd(cwd); // Обновляем cwd для автодополнения
+                            terminalSession->setLastKnownCwd(cwd); // Update cwd for tab completion
                         }
-                        wsServer.broadcastMessage(ev.dump());
+                        
+                        // Create record and send event only if there's a pending command
+                        // Otherwise it's just shell prompt on startup
+                        if (!pendingCommand.empty()) {
+                            json ev;
+                            ev["type"] = "command_start";
+                            if (!cwd.empty()) {
+                                ev["cwd"] = cwd;
+                            }
+                            
+                            // Create new history record
+                            CommandRecord record;
+                            record.command = pendingCommand;
+                            record.cwdStart = cwd;
+                            commandHistory.push_back(record);
+                            currentCommandIndex = static_cast<int>(commandHistory.size()) - 1;
+                            pendingCommand.clear();
+                            
+                            wsServer.broadcastMessage(ev.dump());
+                        }
                     } else if (osc.rfind("\x1b]133;B", 0) == 0) {
                         int exitCode = 0;
                         auto k = osc.find("exit=");
                         if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
                         std::string cwd = extractParam("cwd");
-                        json ev;
-                        ev["type"] = "command_end";
-                        ev["exit_code"] = exitCode;
                         if (!cwd.empty()) {
-                            ev["cwd"] = cwd;
-                            terminalSession->setLastKnownCwd(cwd); // Обновляем cwd для автодополнения
+                            terminalSession->setLastKnownCwd(cwd); // Update cwd for tab completion
                         }
-                        wsServer.broadcastMessage(ev.dump());
+                        
+                        // Finish current history record and send event
+                        // only if there's an active block
+                        if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
+                            commandHistory[currentCommandIndex].exitCode = exitCode;
+                            commandHistory[currentCommandIndex].cwdEnd = cwd;
+                            commandHistory[currentCommandIndex].isFinished = true;
+                            currentCommandIndex = -1; // Reset pointer
+                            
+                            json ev;
+                            ev["type"] = "command_end";
+                            ev["exit_code"] = exitCode;
+                            if (!cwd.empty()) {
+                                ev["cwd"] = cwd;
+                            }
+                            wsServer.broadcastMessage(ev.dump());
+                        }
                     } else if (osc.rfind("\x1b]133;C", 0) == 0) {
                         json ev; ev["type"] = "prompt_start"; wsServer.broadcastMessage(ev.dump());
                     } else if (osc.rfind("\x1b]133;D", 0) == 0) {
                         json ev; ev["type"] = "prompt_end"; wsServer.broadcastMessage(ev.dump());
                     }
 
-                    // Продолжаем после маркера
+                    // Continue after marker
                     i = oscEnd + 1;
                 }
             }
         }
         
-        // Проверяем статус сессии и отправляем уведомление о завершении
+        // Check session status and send completion notification
         static bool wasRunning = false;
         bool currentlyRunning = terminalSession->isRunning();
         if (wasRunning && !currentlyRunning) {
-            fmt::print("Команда завершена\n");
+            fmt::print("Command completed\n");
             std::string status = JsonHelper::createResponse("status", "", 0, false);
             wsServer.broadcastMessage(status);
         }
         wasRunning = currentlyRunning;
         
-        // Выводим статистику каждые 30 секунд
+        // Print statistics every 30 seconds
         static auto lastStatsTime = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
         if (now - lastStatsTime > std::chrono::seconds(30)) {
             size_t connectedClients = wsServer.getConnectedClients();
-            fmt::print("Подключенных клиентов: {}\n", connectedClients);
-            fmt::print("Терминальная сессия активна: {}\n", (terminalSession->isRunning() ? "да" : "нет"));
+            fmt::print("Connected clients: {}\n", connectedClients);
+            fmt::print("Terminal session active: {}\n", (terminalSession->isRunning() ? "yes" : "no"));
             lastStatsTime = now;
         }
         
-        // Небольшая пауза чтобы не нагружать CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Уменьшено до 10ms для лучшей отзывчивости
+        // Small pause to avoid CPU overload
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Reduced to 10ms for better responsiveness
     }
     
-    fmt::print("\n=== Завершение сервера ===\n");
+    fmt::print("\n=== Server shutdown ===\n");
     wsServer.stop();
-    fmt::print("Сервер остановлен\n");
+    fmt::print("Server stopped\n");
     return 0;
 }
 
-// TODO: Будущие улучшения:
-// 1. Реализовать обработку resize-событий от клиента
-// 2. Добавить поддержку множественных сессий (вкладки)
-// 3. Интегрировать с AI-агентом для анализа команд и вывода
-// 4. Добавить аутентификацию и авторизацию
-// 5. Реализовать логирование всех операций
-// 6. Добавить настройки безопасности (chroot, ограничения команд)
-// 7. Поддержка цепочки команд с sudo
-// 8. Интеграция с системой мониторинга
-// 9. Добавить поддержку сохранения истории команд 
+// TODO: Future improvements:
+// 1. Implement resize event handling from client
+// 2. Add support for multiple sessions (tabs)
+// 3. Integrate with AI agent for command and output analysis
+// 4. Add authentication and authorization
+// 5. Implement logging of all operations
+// 6. Add security settings (chroot, command restrictions)
+// 7. Support for command chains with sudo
+// 8. Integration with monitoring system
+// 9. Add support for persistent command history 

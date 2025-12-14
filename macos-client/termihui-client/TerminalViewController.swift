@@ -1,7 +1,7 @@
 import Cocoa
 import SnapKit
 
-/// Основной экран терминала
+/// Main terminal screen
 class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - UI Components
@@ -19,7 +19,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
     private var inputUnderlineView: NSView!
     
-    // Текущая рабочая директория
+    // Current working directory
     private var currentCwd: String = ""
     
     // MARK: - Properties
@@ -36,12 +36,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         var output: String
         var isFinished: Bool
         var exitCode: Int?
-        var cwdStart: String?   // cwd при запуске команды
-        var cwdEnd: String?     // cwd после завершения команды (может измениться, например cd)
+        var cwdStart: String?   // cwd when command started
+        var cwdEnd: String?     // cwd after command finished (can change, e.g. cd)
     }
     private var commandBlocks: [CommandBlock] = []
     
-    // Указатель на текущий незавершённый блок (индекс в массиве)
+    // Pointer to current unfinished block (array index)
     private var currentBlockIndex: Int? = nil
 
     // MARK: - Global Document for unified selection (model only)
@@ -49,7 +49,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private struct GlobalSegment {
         let blockIndex: Int
         let kind: SegmentKind
-        var range: NSRange // глобальный диапазон в общем документе
+        var range: NSRange // global range in combined document
     }
     private struct GlobalDocument {
         var totalLength: Int = 0
@@ -59,8 +59,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
 
     // MARK: - Selection state (global)
     private var isSelecting: Bool = false
-    private var selectionAnchor: Int? = nil // глобальный индекс начала выделения
-    private var selectionRange: NSRange? = nil // текущий глобальный диапазон
+    private var selectionAnchor: Int? = nil // global index of selection start
+    private var selectionRange: NSRange? = nil // current global range
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -72,19 +72,19 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     override func viewDidAppear() {
         super.viewDidAppear()
         
-        // Принудительно обновляем layout родительского view
+        // Force update parent view layout
         view.superview?.layoutSubtreeIfNeeded()
         view.layoutSubtreeIfNeeded()
         
-        print("🔧 viewDidAppear: Parent view размер: \(view.frame)")
-        print("🔧 viewDidAppear: ScrollView размер после layout: \(terminalScrollView.frame)")
+        print("🔧 viewDidAppear: Parent view size: \(view.frame)")
+        print("🔧 viewDidAppear: ScrollView size after layout: \(terminalScrollView.frame)")
         
-        // Небольшая задержка чтобы layout точно завершился
+        // Small delay to ensure layout is complete
         DispatchQueue.main.async {
-            // ПЕРЕСОЗДАЁМ NSTextView ПОСЛЕ того как layout завершён
+            // RECREATE NSTextView AFTER layout is complete
             self.recreateTextViewWithCorrectSize()
             
-            // Устанавливаем фокус на поле ввода команд
+            // Set focus on command input field
             self.view.window?.makeFirstResponder(self.commandTextField)
         }
     }
@@ -92,7 +92,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     override func viewDidLayout() {
         super.viewDidLayout()
         
-        // При изменении размера view обновляем frame NSTextView
+        // Update NSTextView frame when view size changes
         updateTextViewFrame()
     }
     
@@ -153,12 +153,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
 
         terminalScrollView.documentView = collectionView
 
-        // Устанавливаем стартовый frame коллекции вручную под текущий contentSize scrollView
+        // Set initial collection frame manually to current scrollView contentSize
         collectionView.frame = NSRect(origin: .zero, size: terminalScrollView.contentSize)
 
-        print("🔧 CollectionView включён. TerminalScrollView размер: \(terminalScrollView.frame)")
+        print("🔧 CollectionView enabled. TerminalScrollView size: \(terminalScrollView.frame)")
 
-        // Жесты для сквозного выделения
+        // Gestures for unified selection
         setupSelectionGestures()
     }
     
@@ -246,7 +246,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     private func setupLayout() {
-        print("🔧 setupLayout: Размеры до constraints:")
+        print("🔧 setupLayout: Sizes before constraints:")
         print("   View: \(view.frame)")
         print("   ScrollView: \(terminalScrollView.frame)")
         print("   InputContainer: \(inputContainerView.frame)")
@@ -279,9 +279,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.greaterThanOrEqualTo(200)
         }
         
-        print("🔧 Terminal constraints установлены на весь размер: \(view.frame)")
+        print("🔧 Terminal constraints set to full size: \(view.frame)")
         
-        print("🔧 Terminal constraints установлены с минимальной высотой 200")
+        print("🔧 Terminal constraints set with minimum height 200")
         
         // Input container
         inputContainerView.snp.makeConstraints { make in
@@ -319,7 +319,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.equalTo(1)
         }
         
-        print("🔧 setupLayout завершён: все constraints установлены")
+        print("🔧 setupLayout completed: all constraints set")
     }
     
     private func setupActions() {
@@ -333,7 +333,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     func appendOutput(_ output: String) {
-        print("📺 TerminalViewController.appendOutput вызван с: *\(output)*")
+        print("📺 TerminalViewController.appendOutput called with: *\(output)*")
         // Копим вывод в текущем блоке (если есть незавершённый)
         if let idx = currentBlockIndex {
             commandBlocks[idx].output.append(output)
@@ -366,7 +366,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             displayCwd = cwd
         }
         cwdLabel.stringValue = displayCwd
-        print("📂 CWD обновлён: \(displayCwd)")
+        print("📂 CWD updated: \(displayCwd)")
     }
     
     /// Возвращает реальный home directory пользователя (не sandboxed контейнер)
@@ -408,9 +408,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
 // MARK: - TabHandlingTextFieldDelegate
 extension TerminalViewController: TabHandlingTextFieldDelegate {
     func tabHandlingTextField(_ textField: TabHandlingTextField, didPressTabWithText text: String, cursorPosition: Int) {
-        print("🎯 TerminalViewController получил Tab событие:")
-        print("   Текст: '\(text)'")
-        print("   Позиция курсора: \(cursorPosition)")
+        print("🎯 TerminalViewController received Tab event:")
+        print("   Text: '\(text)'")
+        print("   Cursor position: \(cursorPosition)")
         
         // Отправляем запрос автодополнения на сервер
         webSocketManager?.requestCompletion(for: text, cursorPosition: cursorPosition)
@@ -439,7 +439,7 @@ extension TerminalViewController {
     }
     // Пока просто фиксация событий, без изменения текста.
     func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
-        print("🧱 Начат блок команды: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
+        print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
         let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
@@ -448,7 +448,7 @@ extension TerminalViewController {
     }
     
     func didFinishCommandBlock(exitCode: Int, cwd: String? = nil) {
-        print("🏁 Завершён блок команды (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
+        print("🏁 Finished command block (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
         if let idx = currentBlockIndex {
             commandBlocks[idx].isFinished = true
             commandBlocks[idx].exitCode = exitCode
@@ -463,12 +463,62 @@ extension TerminalViewController {
         }
     }
     
-    /// Обрабатывает результаты автодополнения и применяет их к полю ввода
+    /// Loads command history from server
+    func loadHistory(_ history: [CommandHistoryRecord]) {
+        print("📜 Loading history: \(history.count) commands")
+        
+        // Clear current blocks
+        commandBlocks.removeAll()
+        currentBlockIndex = nil
+        globalDocument = GlobalDocument()
+        selectionRange = nil
+        selectionAnchor = nil
+        
+        // Reload collectionView
+        collectionView.reloadData()
+        
+        // Create blocks from history
+        for record in history {
+            let block = CommandBlock(
+                id: UUID(),
+                command: record.command.isEmpty ? nil : record.command,
+                output: record.output,
+                isFinished: record.isFinished,
+                exitCode: record.exitCode,
+                cwdStart: record.cwdStart.isEmpty ? nil : record.cwdStart,
+                cwdEnd: record.cwdEnd.isEmpty ? nil : record.cwdEnd
+            )
+            commandBlocks.append(block)
+        }
+        
+        // Insert all blocks and update collectionView
+        if !commandBlocks.isEmpty {
+            let indexPaths = (0..<commandBlocks.count).map { IndexPath(item: $0, section: 0) }
+            collectionView.insertItems(at: Set(indexPaths))
+            rebuildGlobalDocument(startingAt: 0)
+            
+            // Update CWD from last finished block
+            if let lastBlock = commandBlocks.last {
+                if let cwd = lastBlock.cwdEnd ?? lastBlock.cwdStart {
+                    updateCurrentCwd(cwd)
+                }
+            }
+            
+            // Scroll to bottom
+            DispatchQueue.main.async {
+                self.scrollToBottom()
+            }
+        }
+        
+        print("📜 History loaded")
+    }
+    
+    /// Handles completion results and applies them to input field
     func handleCompletionResults(_ completions: [String], originalText: String, cursorPosition: Int) {
-        print("🎯 Обработка автодополнения:")
-        print("   Исходный текст: '\(originalText)'")
-        print("   Позиция курсора: \(cursorPosition)")
-        print("   Варианты: \(completions)")
+        print("🎯 Processing completion:")
+        print("   Original text: '\(originalText)'")
+        print("   Cursor position: \(cursorPosition)")
+        print("   Options: \(completions)")
         
         switch completions.count {
         case 0:
@@ -485,75 +535,75 @@ extension TerminalViewController {
         }
     }
     
-    /// Обрабатывает случай когда нет вариантов автодополнения
+    /// Handles case when there are no completion options
     private func handleNoCompletions() {
-        print("❌ Нет вариантов автодополнения")
-        // Воспроизводим системный звук ошибки
+        print("❌ No completion options")
+        // Play system error sound
         NSSound.beep()
         
-        // Можно также показать временное сообщение
-        showTemporaryMessage("Нет вариантов автодополнения")
+        // Can also show temporary message
+        showTemporaryMessage("No completion options")
     }
     
-    /// Обрабатывает случай с одним вариантом автодополнения
+    /// Handles case with single completion option
     private func handleSingleCompletion(_ completion: String, originalText: String, cursorPosition: Int) {
-        print("✅ Единственный вариант: '\(completion)'")
+        print("✅ Single option: '\(completion)'")
         
-        // Применяем автодополнение к полю ввода
+        // Apply completion to input field
         applyCompletion(completion, originalText: originalText, cursorPosition: cursorPosition)
         
-        showTemporaryMessage("Дополнено до: \(completion)")
+        showTemporaryMessage("Completed to: \(completion)")
     }
     
-    /// Обрабатывает случай с несколькими вариантами автодополнения
+    /// Handles case with multiple completion options
     private func handleMultipleCompletions(_ completions: [String], originalText: String, cursorPosition: Int) {
-        print("🔄 Несколько вариантов (\(completions.count))")
+        print("🔄 Multiple options (\(completions.count))")
         
-        // Ищем общий префикс среди всех вариантов
+        // Find common prefix among all options
         let commonPrefix = findCommonPrefix(completions)
         let currentWord = extractCurrentWord(originalText, cursorPosition: cursorPosition)
         
-        print("   Текущее слово: '\(currentWord)'")
-        print("   Общий префикс: '\(commonPrefix)'")
+        print("   Current word: '\(currentWord)'")
+        print("   Common prefix: '\(commonPrefix)'")
         
         if commonPrefix.count > currentWord.count {
-            // Есть общий префикс длиннее текущего слова - дополняем до него
-            print("✅ Дополняем до общего префикса: '\(commonPrefix)'")
+            // There's a common prefix longer than current word - complete to it
+            print("✅ Completing to common prefix: '\(commonPrefix)'")
             applyCompletion(commonPrefix, originalText: originalText, cursorPosition: cursorPosition)
-            showTemporaryMessage("Дополнено до общего префикса")
+            showTemporaryMessage("Completed to common prefix")
         } else {
-            // Нет общего префикса - показываем список вариантов
-            print("📋 Показываем список вариантов")
+            // No common prefix - show list of options
+            print("📋 Showing options list")
             showCompletionList(completions)
         }
     }
     
-    /// Применяет автодополнение к полю ввода
+    /// Applies completion to input field
     private func applyCompletion(_ completion: String, originalText: String, cursorPosition: Int) {
-        // Извлекаем текущее слово для замены
+        // Extract current word to replace
         let currentWord = extractCurrentWord(originalText, cursorPosition: cursorPosition)
         let wordStart = findWordStart(originalText, cursorPosition: cursorPosition)
         
-        // Создаем новый текст с заменой
+        // Create new text with replacement
         let beforeWord = String(originalText.prefix(wordStart))
         let afterCursor = String(originalText.suffix(originalText.count - cursorPosition))
         let newText = beforeWord + completion + afterCursor
         
-        print("🔄 Применяем автодополнение:")
-        print("   До слова: '\(beforeWord)'")
-        print("   Заменяем: '\(currentWord)' → '\(completion)'")
-        print("   После курсора: '\(afterCursor)'")
-        print("   Результат: '\(newText)'")
+        print("🔄 Applying completion:")
+        print("   Before word: '\(beforeWord)'")
+        print("   Replacing: '\(currentWord)' → '\(completion)'")
+        print("   After cursor: '\(afterCursor)'")
+        print("   Result: '\(newText)'")
         
-        // Обновляем поле ввода
+        // Update input field
         commandTextField.stringValue = newText
         
-        // Устанавливаем курсор в конец дополненного слова
+        // Set cursor at end of completed word
         let newCursorPosition = beforeWord.count + completion.count
         setCursorPosition(newCursorPosition)
     }
     
-    /// Извлекает текущее слово под курсором
+    /// Extracts current word under cursor
     private func extractCurrentWord(_ text: String, cursorPosition: Int) -> String {
         let wordStart = findWordStart(text, cursorPosition: cursorPosition)
         let wordEnd = cursorPosition
@@ -567,7 +617,7 @@ extension TerminalViewController {
         return ""
     }
     
-    /// Находит начало текущего слова
+    /// Finds start of current word
     private func findWordStart(_ text: String, cursorPosition: Int) -> Int {
         var start = cursorPosition - 1
         
@@ -584,7 +634,7 @@ extension TerminalViewController {
         return start + 1
     }
     
-    /// Находит общий префикс среди всех вариантов автодополнения
+    /// Finds common prefix among all completion options
     private func findCommonPrefix(_ completions: [String]) -> String {
         guard !completions.isEmpty else { return "" }
         guard completions.count > 1 else { return completions[0] }
@@ -613,7 +663,7 @@ extension TerminalViewController {
         return String(first.prefix(commonLength))
     }
     
-    /// Устанавливает позицию курсора в поле ввода
+    /// Sets cursor position in input field
     private func setCursorPosition(_ position: Int) {
         if let fieldEditor = commandTextField.currentEditor() {
             let range = NSRange(location: position, length: 0)
@@ -621,13 +671,13 @@ extension TerminalViewController {
         }
     }
     
-    /// Показывает список вариантов автодополнения в терминале
+    /// Shows list of completion options in terminal
     private func showCompletionList(_ completions: [String]) {
-        let completionText = "💡 Варианты автодополнения:\n" + completions.map { "  \($0)" }.joined(separator: "\n") + "\n"
+        let completionText = "💡 Completion options:\n" + completions.map { "  \($0)" }.joined(separator: "\n") + "\n"
         appendOutput(completionText)
     }
     
-    /// Показывает временное сообщение в статус баре
+    /// Shows temporary message in status bar
     private func showTemporaryMessage(_ message: String) {
         let originalStatus = statusLabel.stringValue
         statusLabel.stringValue = message
@@ -641,8 +691,8 @@ extension TerminalViewController {
 
 // MARK: - Global Document rebuild
 extension TerminalViewController {
-    /// Полностью перестраивает глобальную карту сегментов, начиная с указанного индекса блока.
-    /// Для простоты пока пересчитываем весь документ.
+    /// Completely rebuilds global segment map starting from specified block index.
+    /// For simplicity, currently recalculating entire document.
     fileprivate func rebuildGlobalDocument(startingAt _: Int) {
         var segments: [GlobalSegment] = []
         var offset = 0
@@ -678,7 +728,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
         blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart)
-        // применяем подсветку для текущего выделения, если оно попадает в этот блок
+        // apply highlight for current selection if it intersects this block
         applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem
     }
@@ -758,7 +808,7 @@ extension TerminalViewController {
     }
 
     override func keyDown(with event: NSEvent) {
-        // Cmd+C — копирование выделенного текста
+        // Cmd+C — copy selected text
         if event.modifierFlags.contains(.command), let chars = event.charactersIgnoringModifiers, chars.lowercased() == "c" {
             copySelectionToPasteboard()
             return
@@ -766,22 +816,22 @@ extension TerminalViewController {
         super.keyDown(with: event)
     }
 
-    /// Конвертирует координату клика в глобальный индекс символа, если попадает в текст
+    /// Converts click coordinate to global character index if it hits text
     private func hitTestGlobalIndex(at pointInRoot: NSPoint) -> (blockIndex: Int, globalIndex: Int)? {
-        // Пройдёмся по видимым item-ам
+        // Iterate through visible items
         let visible = collectionView.visibleItems()
         for case let item as CommandBlockItem in visible {
             guard let indexPath = collectionView.indexPath(for: item) else { continue }
-            // Конвертируем точку в координаты item
+            // Convert point to item coordinates
             let pointInItem = item.view.convert(pointInRoot, from: view)
             if !item.view.bounds.contains(pointInItem) { continue }
 
-            // Проверяем заголовок
+            // Check header
             if let hIdx = item.headerCharacterIndex(at: pointInItem) {
                 let global = mapLocalToGlobal(blockIndex: indexPath.item, kind: .header, localIndex: hIdx)
                 return (indexPath.item, global)
             }
-            // Проверяем тело
+            // Check body
             if let bIdx = item.bodyCharacterIndex(at: pointInItem) {
                 let global = mapLocalToGlobal(blockIndex: indexPath.item, kind: .output, localIndex: bIdx)
                 return (indexPath.item, global)
@@ -790,21 +840,21 @@ extension TerminalViewController {
         return nil
     }
 
-    /// Преобразует локальный индекс символа внутри блока в глобальный индекс по документу
+    /// Converts local character index within block to global document index
     private func mapLocalToGlobal(blockIndex: Int, kind: SegmentKind, localIndex: Int) -> Int {
         for seg in globalDocument.segments {
             if seg.blockIndex == blockIndex && seg.kind == kind {
                 return seg.range.location + min(localIndex, seg.range.length)
             }
         }
-        // если сегмент не найден — возвращаем конец документа
+        // if segment not found — return end of document
         return globalDocument.totalLength
     }
 
-    /// Подсвечивает актуальный selection во всех видимых ячейках
+    /// Highlights current selection in all visible cells
     private func updateSelectionHighlight() {
         guard let sel = selectionRange else {
-            // сбрасываем подсветку
+            // clear highlight
             for case let item as CommandBlockItem in collectionView.visibleItems() {
                 item.clearSelectionHighlight()
             }
@@ -818,7 +868,7 @@ extension TerminalViewController {
         }
     }
 
-    /// Возвращает локальный диапазон внутри указанного сегмента для глобального диапазона selection
+    /// Returns local range within specified segment for global selection range
     private func localRange(for global: NSRange, blockIndex: Int, kind: SegmentKind) -> NSRange? {
         guard let seg = globalDocument.segments.first(where: { $0.blockIndex == blockIndex && $0.kind == kind }) else { return nil }
         let inter = intersection(of: global, and: seg.range)
@@ -832,7 +882,7 @@ extension TerminalViewController {
         return end > start ? NSRange(location: start, length: end - start) : NSRange(location: 0, length: 0)
     }
 
-    /// Применяет подсветку при конфигурации ячейки
+    /// Applies highlight when configuring cell
     fileprivate func applySelectionHighlightIfNeeded(to item: CommandBlockItem, at blockIndex: Int) {
         guard let sel = selectionRange else {
             item.clearSelectionHighlight(); return

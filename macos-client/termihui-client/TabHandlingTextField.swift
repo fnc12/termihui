@@ -1,6 +1,6 @@
 import Cocoa
 
-/// Кастомный NSTextField с поддержкой перехвата Tab для автодополнения
+/// Custom NSTextField with Tab interception support for autocomplete
 class TabHandlingTextField: NSTextField {
     
     weak var tabDelegate: TabHandlingTextFieldDelegate?
@@ -21,43 +21,43 @@ class TabHandlingTextField: NSTextField {
     }
     
     private func setupTextField() {
-        // Создаем кастомный field editor для перехвата Tab
-        print("🔧 TabHandlingTextField инициализирован")
+        // Create custom field editor to intercept Tab
+        print("🔧 TabHandlingTextField initialized")
     }
     
-    // Переопределяем textShouldBeginEditing для установки делегата field editor
+    // Override textShouldBeginEditing to set field editor delegate
     override func textShouldBeginEditing(_ textObject: NSText) -> Bool {
-        print("🔧 textShouldBeginEditing вызван")
+        print("🔧 textShouldBeginEditing called")
         
-        // Устанавливаем себя как делегат для field editor
+        // Set ourselves as delegate for field editor
         if let textView = textObject as? NSTextView {
             textView.delegate = self
-            print("🔧 Делегат field editor установлен")
+            print("🔧 Field editor delegate set")
         }
         
         return super.textShouldBeginEditing(textObject)
     }
 }
 
-// MARK: - NSTextViewDelegate для перехвата клавиш в field editor
+// MARK: - NSTextViewDelegate for key interception in field editor
 extension TabHandlingTextField: NSTextViewDelegate {
     
     func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-        print("🔧 doCommandBy вызван с селектором: \(commandSelector)")
+        print("🔧 doCommandBy called with selector: \(commandSelector)")
         
-        // Проверяем команду Tab
+        // Check for Tab command
         if commandSelector == #selector(NSResponder.insertTab(_:)) {
-            print("🔧 Tab перехвачен через field editor!")
-            print("🔧 Текущий текст: '\(self.stringValue)'")
-            print("🔧 Позиция курсора: \(textView.selectedRange().location)")
+            print("🔧 Tab intercepted via field editor!")
+            print("🔧 Current text: '\(self.stringValue)'")
+            print("🔧 Cursor position: \(textView.selectedRange().location)")
             
-            // Уведомляем делегата о нажатии Tab
+            // Notify delegate about Tab press
             tabDelegate?.tabHandlingTextField(self, didPressTabWithText: self.stringValue, cursorPosition: textView.selectedRange().location)
             
-            return true // Обрабатываем событие сами, не передаем дальше
+            return true // Handle event ourselves, don't pass further
         }
         
-        // Для всех остальных команд - стандартное поведение
+        // For all other commands - standard behavior
         return false
     }
 }

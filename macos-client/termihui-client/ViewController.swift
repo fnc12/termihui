@@ -1,7 +1,7 @@
 import Cocoa
 import SnapKit
 
-/// Корневой контроллер приложения, управляющий навигацией между экранами
+/// Root application controller managing navigation between screens
 class ViewController: NSViewController {
     
     // MARK: - Child View Controllers
@@ -35,34 +35,34 @@ class ViewController: NSViewController {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         
-        // Не устанавливаем фиксированный размер - позволяем окну быть изменяемым
-        // view.frame и preferredContentSize убираем для гибкости
+        // Don't set fixed size - allow window to be resizable
+        // Remove view.frame and preferredContentSize for flexibility
     }
     
     private func setupWindow() {
         guard let window = view.window else { return }
         
-        // Делаем окно изменяемым по размеру
+        // Make window resizable
         window.styleMask.insert(.resizable)
         
-        // Добавляем поддержку полноэкранного режима
+        // Add fullscreen support
         window.collectionBehavior = [.fullScreenPrimary]
         
-        // Устанавливаем начальный размер и минимальные размеры
+        // Set initial and minimum sizes
         window.setContentSize(NSSize(width: 800, height: 600))
         window.minSize = NSSize(width: 400, height: 300)
         
-        // Центрируем окно на экране
+        // Center window on screen
         window.center()
         
-        // Управляем размером ViewController.view вручную через frame
+        // Manually manage ViewController.view size via frame
         if let contentView = window.contentView {
-            view.translatesAutoresizingMaskIntoConstraints = true // Включаем autoresizing
+            view.translatesAutoresizingMaskIntoConstraints = true // Enable autoresizing
             view.frame = contentView.bounds
-            print("🔧 Установили начальный frame ViewController: \(view.frame)")
+            print("🔧 Set initial ViewController frame: \(view.frame)")
         }
         
-        print("🔧 Окно настроено: изменяемый размер, минимум 400x300, поддержка полного экрана")
+        print("🔧 Window configured: resizable, minimum 400x300, fullscreen support")
     }
     
     private func setupDelegates() {
@@ -85,18 +85,18 @@ class ViewController: NSViewController {
         guard let window = notification.object as? NSWindow,
               window == view.window else { return }
         
-        print("🔧 Окно изменило размер: \(window.frame.size)")
+        print("🔧 Window resized: \(window.frame.size)")
         
-        // ПРИНУДИТЕЛЬНО устанавливаем frame ViewController под размер окна
+        // FORCE set ViewController frame to window size
         if let contentView = window.contentView {
             view.frame = contentView.bounds
-            print("🔧 Установили frame ViewController: \(view.frame)")
+            print("🔧 Set ViewController frame: \(view.frame)")
         }
         
-        // Обновляем frame дочерних view controllers
+        // Update child view controllers frame
         updateChildViewFrame()
         
-        // Принудительно обновляем layout всех дочерних контроллеров
+        // Force update layout of all child controllers
         DispatchQueue.main.async {
             self.view.layoutSubtreeIfNeeded()
             self.children.forEach { child in
@@ -106,10 +106,10 @@ class ViewController: NSViewController {
     }
     
     private func updateChildViewFrame() {
-        // Устанавливаем frame всех дочерних view controllers = размеру parent view
+        // Set frame of all child view controllers to parent view size
         children.forEach { child in
             child.view.frame = view.bounds
-            print("🔧 Обновили frame дочернего контроллера: \(child.view.frame)")
+            print("🔧 Updated child controller frame: \(child.view.frame)")
         }
     }
     
@@ -118,11 +118,11 @@ class ViewController: NSViewController {
     }
     
     private func determineInitialState() {
-        // Если есть сохраненный адрес, сразу пытаемся подключиться
+        // If saved address exists, try connecting immediately
         if AppSettings.shared.hasServerAddress {
             let serverAddress = AppSettings.shared.serverAddress
             currentState = .connecting(serverAddress: serverAddress)
-            // Автоматически инициируем подключение
+            // Automatically initiate connection
             webSocketManager.connect(to: serverAddress)
         } else {
             currentState = .welcome
@@ -131,10 +131,10 @@ class ViewController: NSViewController {
     
     // MARK: - Navigation Methods
     private func updateUIForState(_ state: AppState) {
-        // Удаляем текущий дочерний контроллер
+        // Remove current child controller
         removeCurrentChildController()
         
-        // Добавляем новый контроллер в зависимости от состояния
+        // Add new controller based on state
         switch state {
         case .welcome:
             showWelcomeScreen()
@@ -151,7 +151,7 @@ class ViewController: NSViewController {
     }
     
     private func removeCurrentChildController() {
-        // Удаляем все дочерние контроллеры
+        // Remove all child controllers
         children.forEach { child in
             child.view.removeFromSuperview()
             child.removeFromParent()
@@ -170,13 +170,13 @@ class ViewController: NSViewController {
         view.addSubview(connectingViewController.view)
         updateChildViewFrame()
         
-        // Подключение инициируется в determineInitialState() или при нажатии кнопки в welcome
-        // Здесь только показываем UI
+        // Connection initiated in determineInitialState() or on button press in welcome
+        // Here we only show UI
     }
     
     private func showTerminalScreen(serverAddress: String) {
-        print("🔧 showTerminalScreen: Parent view размер: \(view.frame)")
-        print("🔧 showTerminalScreen: Window размер: \(view.window?.frame.size ?? CGSize.zero)")
+        print("🔧 showTerminalScreen: Parent view size: \(view.frame)")
+        print("🔧 showTerminalScreen: Window size: \(view.window?.frame.size ?? CGSize.zero)")
         
         terminalViewController.configure(serverAddress: serverAddress)
         terminalViewController.webSocketManager = webSocketManager
@@ -184,7 +184,7 @@ class ViewController: NSViewController {
         view.addSubview(terminalViewController.view)
         updateChildViewFrame()
         
-        print("🔧 showTerminalScreen: Terminal view добавлен с frame")
+        print("🔧 showTerminalScreen: Terminal view added with frame")
     }
     
     private func showErrorAndReturnToWelcome(message: String) {
@@ -209,7 +209,7 @@ class ViewController: NSViewController {
 extension ViewController: WelcomeViewControllerDelegate {
     func welcomeViewController(_ controller: WelcomeViewController, didRequestConnectionTo serverAddress: String) {
         currentState = .connecting(serverAddress: serverAddress)
-        // Инициируем подключение при ручном вводе адреса
+        // Initiate connection on manual address entry
         webSocketManager.connect(to: serverAddress)
     }
 }
@@ -224,7 +224,7 @@ extension ViewController: ConnectingViewControllerDelegate {
 // MARK: - TerminalViewControllerDelegate
 extension ViewController: TerminalViewControllerDelegate {
     func terminalViewController(_ controller: TerminalViewController, didSendCommand command: String) {
-        // Отправляем команду через WebSocketManager
+        // Send command through WebSocketManager
         webSocketManager.sendCommand(command)
     }
     
@@ -239,9 +239,9 @@ extension ViewController: WebSocketManagerDelegate {
     func webSocketManagerDidConnect(_ manager: WebSocketManager, initialCwd: String?) {
         DispatchQueue.main.async {
             if case .connecting(let serverAddress) = self.currentState {
-                // Сначала показываем терминал, потом передаём cwd
+                // First show terminal, then pass cwd
                 self.currentState = .connected(serverAddress: serverAddress)
-                // Теперь TerminalViewController уже добавлен — передаём cwd
+                // Now TerminalViewController is added — pass cwd
                 if let cwd = initialCwd,
                    let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                     terminalVC.updateCurrentCwd(cwd)
@@ -264,25 +264,25 @@ extension ViewController: WebSocketManagerDelegate {
     }
     
     func webSocketManager(_ manager: WebSocketManager, didReceiveOutput output: String) {
-        print("🎯 ViewController получил output: \(output)")
-        // Обработка вывода от сервера в терминале
+        print("🎯 ViewController received output: \(output)")
+        // Handle server output in terminal
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                print("✅ Найден TerminalViewController, вызываем appendOutput")
+                print("✅ Found TerminalViewController, calling appendOutput")
                 terminalVC.appendOutput(output)
             } else {
-                print("❌ TerminalViewController не найден в children")
-                print("🔍 Текущие children: \(self.children)")
+                print("❌ TerminalViewController not found in children")
+                print("🔍 Current children: \(self.children)")
             }
         }
     }
     
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int) {
-        // Обработка изменений статуса процесса
+        // Handle process status changes
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                 if !running && exitCode != 0 {
-                    // Показываем сообщение об ошибке только при неудачном завершении
+                    // Show error message only on unsuccessful completion
                     terminalVC.appendOutput("❌ Process exited with code \(exitCode)\n")
                 }
             }
@@ -290,12 +290,12 @@ extension ViewController: WebSocketManagerDelegate {
     }
     
     func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int) {
-        print("🎯 ViewController получил варианты автодополнения:")
-        print("   Исходный текст: '\(originalText)'")
-        print("   Позиция курсора: \(cursorPosition)")
-        print("   Варианты: \(completions)")
+        print("🎯 ViewController received completion options:")
+        print("   Original text: '\(originalText)'")
+        print("   Cursor position: \(cursorPosition)")
+        print("   Options: \(completions)")
         
-        // Передаем варианты автодополнения в TerminalViewController для обработки
+        // Pass completion options to TerminalViewController for handling
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                 terminalVC.handleCompletionResults(completions, originalText: originalText, cursorPosition: cursorPosition)
@@ -305,7 +305,7 @@ extension ViewController: WebSocketManagerDelegate {
 
     // MARK: - Command events
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?) {
-        // Передаем команду и cwd как заголовок блока (если есть)
+        // Pass command and cwd as block header (if available)
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                 if let cmd = command, !cmd.isEmpty {
@@ -318,10 +318,19 @@ extension ViewController: WebSocketManagerDelegate {
     }
     
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?) {
-        // Уведомляем TerminalViewController о завершении блока с cwd
+        // Notify TerminalViewController of block completion with cwd
         DispatchQueue.main.async {
             if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
                 terminalVC.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
+            }
+        }
+    }
+    
+    func webSocketManager(_ manager: WebSocketManager, didReceiveHistory history: [CommandHistoryRecord]) {
+        // Pass command history to TerminalViewController
+        DispatchQueue.main.async {
+            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                terminalVC.loadHistory(history)
             }
         }
     }

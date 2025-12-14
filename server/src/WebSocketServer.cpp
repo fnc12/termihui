@@ -17,11 +17,11 @@ WebSocketServer::~WebSocketServer()
 bool WebSocketServer::start()
 {
     if (this->running.exchange(true)) {
-        return false; // Уже запущен
+        return false; // Already running
     }
     
     try {
-        // Настраиваем callback'и - они будут вызываться в фоновом потоке libhv
+        // Setup callbacks - they will be called in libhv background thread
         this->wsService.onopen = [this](const WebSocketChannelPtr& channel, const HttpRequestPtr& request) {
             this->onConnection(channel);
         };
@@ -34,21 +34,21 @@ bool WebSocketServer::start()
             this->onClose(channel);
         };
         
-        // Настраиваем сервер
+        // Setup server
         this->wsServer.ws = &this->wsService;
         this->wsServer.port = this->port;
         
-        // Запускаем сервер в отдельном потоке
+        // Start server in separate thread
         this->serverThread = std::make_unique<std::thread>([this]() {
-            fmt::print("Запуск WebSocket сервера на порту {}\n", this->port);
-            this->wsServer.run(false); // false = не блокировать поток
+            fmt::print("Starting WebSocket server on port {}\n", this->port);
+            this->wsServer.run(false); // false = don't block thread
         });
         
-        fmt::print("WebSocket сервер запущен на порту {}\n", this->port);
+        fmt::print("WebSocket server started on port {}\n", this->port);
         return true;
         
     } catch (const std::exception& e) {
-        fmt::print(stderr, "Ошибка запуска WebSocket сервера: {}\n", e.what());
+        fmt::print(stderr, "WebSocket server start error: {}\n", e.what());
         this->running = false;
         return false;
     }
@@ -57,32 +57,32 @@ bool WebSocketServer::start()
 void WebSocketServer::stop()
 {
     if (!this->running.exchange(false)) {
-        return; // Уже остановлен
+        return; // Already stopped
     }
     
-    // Закрываем все соединения
+    // Close all connections
     {
         std::lock_guard<std::mutex> lock(this->clientsMutex);
         for (auto& [clientId, channel] : this->clients) {
             try {
                 channel->close();
             } catch (const std::exception& e) {
-                fmt::print(stderr, "Ошибка закрытия соединения {}: {}\n", clientId, e.what());
+                fmt::print(stderr, "Connection {} close error: {}\n", clientId, e.what());
             }
         }
         this->clients.clear();
         this->channelToClientId.clear();
     }
     
-    // Останавливаем сервер
+    // Stop server
     this->wsServer.stop();
     
-    // Ждем завершения серверного потока
+    // Wait for server thread to finish
     if (this->serverThread && this->serverThread->joinable()) {
         this->serverThread->join();
     }
     
-    // Очищаем все очереди
+    // Clear all queues
     {
         std::lock_guard<std::mutex> lock(this->incomingMutex);
         std::queue<IncomingMessage> empty;
@@ -101,7 +101,7 @@ void WebSocketServer::stop()
         this->outgoingQueue.swap(empty);
     }
     
-    fmt::print("WebSocket сервер остановлен\n");
+    fmt::print("WebSocket server stopped\n");
 }
 
 bool WebSocketServer::isRunning() const
@@ -112,7 +112,7 @@ bool WebSocketServer::isRunning() const
 void WebSocketServer::update(std::vector<IncomingMessage>& incomingMessages,
                            std::vector<ConnectionEvent>& connectionEvents)
 {
-    // Забираем все входящие сообщения
+    // Get all incoming messages
     {
         std::lock_guard<std::mutex> lock(this->incomingMutex);
         while (!this->incomingQueue.empty()) {
@@ -121,7 +121,7 @@ void WebSocketServer::update(std::vector<IncomingMessage>& incomingMessages,
         }
     }
     
-    // Забираем все события подключения
+    // Get all connection events
     {
         std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
         while (!this->connectionEventsQueue.empty()) {
@@ -130,7 +130,7 @@ void WebSocketServer::update(std::vector<IncomingMessage>& incomingMessages,
         }
     }
     
-    // Обрабатываем исходящие сообщения
+    // Process outgoing messages
     this->processOutgoingMessages();
 }
 
@@ -143,7 +143,7 @@ void WebSocketServer::sendMessage(int clientId, const std::string& message)
 void WebSocketServer::broadcastMessage(const std::string& message)
 {
     std::lock_guard<std::mutex> lock(this->outgoingMutex);
-    this->outgoingQueue.push({0, message}); // 0 = broadcast всем
+    this->outgoingQueue.push({0, message}); // 0 = broadcast to all
 }
 
 size_t WebSocketServer::getConnectedClients() const
@@ -173,19 +173,19 @@ int WebSocketServer::generateClientId()
 
 void WebSocketServer::onConnection(const WebSocketChannelPtr& channel)
 {
-    // Генерируем ID для нового клиента    
+    // Generate ID for new client
     int clientId = this->generateClientId();
     
-    // Сохраняем соединение
+    // Save connection
     {
         std::lock_guard<std::mutex> lock(this->clientsMutex);
         this->clients[clientId] = channel;
         this->channelToClientId[channel] = clientId;
     }
     
-    fmt::print("WebSocket подключение: {} (адрес: {})\n", clientId, channel->peeraddr());
+    fmt::print("WebSocket connection: {} (address: {})\n", clientId, channel->peeraddr());
     
-    // Добавляем событие в очередь для обработки в главном потоке
+    // Add event to queue for processing in main thread
     {
         std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
         this->connectionEventsQueue.push({clientId, true});
@@ -194,21 +194,21 @@ void WebSocketServer::onConnection(const WebSocketChannelPtr& channel)
 
 void WebSocketServer::onMessage(const WebSocketChannelPtr& channel, const std::string& message)
 {
-    // Получаем ID клиента
+    // Get client ID
     int clientId;
     {
         std::lock_guard<std::mutex> lock(this->clientsMutex);
         auto it = this->channelToClientId.find(channel);
         if (it == this->channelToClientId.end()) {
-            fmt::print(stderr, "Получено сообщение от неизвестного клиента\n");
+            fmt::print(stderr, "Received message from unknown client\n");
             return;
         }
         clientId = it->second;
     }
     
-    fmt::print("Получено сообщение от {}: {}\n", clientId, message);
+    fmt::print("Received message from {}: {}\n", clientId, message);
     
-    // Добавляем сообщение в очередь для обработки в главном потоке
+    // Add message to queue for processing in main thread
     {
         std::lock_guard<std::mutex> lock(this->incomingMutex);
         this->incomingQueue.push({clientId, message});
@@ -217,7 +217,7 @@ void WebSocketServer::onMessage(const WebSocketChannelPtr& channel, const std::s
 
 void WebSocketServer::onClose(const WebSocketChannelPtr& channel)
 {
-    // Получаем ID клиента
+    // Get client ID
     int clientId = 0;
     bool found = false;
     {
@@ -232,9 +232,9 @@ void WebSocketServer::onClose(const WebSocketChannelPtr& channel)
     }
     
     if (found) {
-        fmt::print("WebSocket отключение: {}\n", clientId);
+        fmt::print("WebSocket disconnect: {}\n", clientId);
         
-        // Добавляем событие в очередь для обработки в главном потоке
+        // Add event to queue for processing in main thread
         {
             std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
             this->connectionEventsQueue.push({clientId, false});
@@ -246,7 +246,7 @@ void WebSocketServer::processOutgoingMessages()
 {
     std::vector<OutgoingMessage> messages;
     
-    // Забираем все исходящие сообщения
+    // Get all outgoing messages
     {
         std::lock_guard<std::mutex> lock(this->outgoingMutex);
         while (!this->outgoingQueue.empty()) {
@@ -255,29 +255,29 @@ void WebSocketServer::processOutgoingMessages()
         }
     }
     
-    // Отправляем сообщения
+    // Send messages
     std::lock_guard<std::mutex> clientsLock(this->clientsMutex);
     for (const auto& msg : messages) {
         if (msg.clientId == 0) {
-            // Broadcast всем клиентам
+            // Broadcast to all clients
             for (const auto& [clientId, channel] : this->clients) {
                 try {
                     channel->send(msg.message);
                 } catch (const std::exception& e) {
-                    fmt::print(stderr, "Ошибка отправки broadcast сообщения клиенту {}: {}\n", clientId, e.what());
+                    fmt::print(stderr, "Broadcast message send error to client {}: {}\n", clientId, e.what());
                 }
             }
         } else {
-            // Отправляем конкретному клиенту
+            // Send to specific client
             auto it = this->clients.find(msg.clientId);
             if (it != this->clients.end()) {
                 try {
                     it->second->send(msg.message);
                 } catch (const std::exception& e) {
-                    fmt::print(stderr, "Ошибка отправки сообщения клиенту {}: {}\n", msg.clientId, e.what());
+                    fmt::print(stderr, "Message send error to client {}: {}\n", msg.clientId, e.what());
                 }
             } else {
-                fmt::print(stderr, "Клиент {} не найден для отправки сообщения\n", msg.clientId);
+                fmt::print(stderr, "Client {} not found to send message\n", msg.clientId);
             }
         }
     }

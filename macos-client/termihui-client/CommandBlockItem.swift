@@ -9,7 +9,7 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let container = NSView()
     private let separatorView = NSView()
     
-    // Текущее состояние подсветки (для сброса)
+    // Current highlight state (for reset)
     private var lastHeaderHighlight: NSRange?
     private var hasBodyHighlight: Bool = false
     
@@ -23,7 +23,7 @@ final class CommandBlockItem: NSCollectionViewItem {
     }
     
     func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?, cwdStart: String?) {
-        // CWD лейбл — серый, над командой
+        // CWD label — gray, above command
         if let cwd = cwdStart, !cwd.isEmpty {
             cwdLabel.stringValue = shortenHomePath(cwd)
             cwdLabel.isHidden = false
@@ -44,7 +44,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         clearSelectionHighlight()
     }
     
-    /// Сокращает home directory до ~
+    /// Shortens home directory to ~
     private func shortenHomePath(_ path: String) -> String {
         if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
             let homeDir = String(cString: home)
@@ -59,7 +59,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.black.cgColor
         
-        // CWD лейбл — серый, маленький
+        // CWD label — gray, small
         cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
         cwdLabel.textColor = NSColor.gray
         cwdLabel.lineBreakMode = .byTruncatingHead
@@ -71,7 +71,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         headerLabel.maximumNumberOfLines = 0
         
         bodyTextView.isEditable = false
-        // Отключаем нативное выделение, чтобы сквозное шло через контроллер
+        // Disable native selection so unified selection goes through controller
         bodyTextView.isSelectable = false
         bodyTextView.drawsBackground = false
         bodyTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -92,12 +92,12 @@ final class CommandBlockItem: NSCollectionViewItem {
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            // CWD сверху
+            // CWD at top
             cwdLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
             cwdLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             cwdLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
             
-            // Команда под cwd
+            // Command below cwd
             headerLabel.topAnchor.constraint(equalTo: cwdLabel.bottomAnchor, constant: 2),
             headerLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             headerLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
@@ -120,9 +120,9 @@ final class CommandBlockItem: NSCollectionViewItem {
         
         var total: CGFloat = 16 // vertical insets
         
-        // CWD лейбл
+        // CWD label
         if let cwd = cwdStart, !cwd.isEmpty {
-            total += 14 // высота cwd лейбла + отступ
+            total += 14 // cwd label height + spacing
         }
         
         if let cmd = command, !cmd.isEmpty {
@@ -134,7 +134,7 @@ final class CommandBlockItem: NSCollectionViewItem {
             )
             total += ceil(rect.height) + 4
         }
-        // Грубая оценка высоты тела
+        // Rough estimate of body height
         let bodyRect = (output as NSString).boundingRect(
             with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
@@ -146,13 +146,13 @@ final class CommandBlockItem: NSCollectionViewItem {
 
     // MARK: - Selection Highlight API
     func clearSelectionHighlight() {
-        // Сбрасываем заголовок
+        // Reset header
         if let last = lastHeaderHighlight, last.length > 0 {
             let attr = NSMutableAttributedString(string: headerLabel.stringValue)
             headerLabel.attributedStringValue = attr
             lastHeaderHighlight = nil
         }
-        // Сбрасываем тело
+        // Reset body
         if hasBodyHighlight, let storage = bodyTextView.textStorage {
             storage.removeAttribute(.backgroundColor, range: NSRange(location: 0, length: storage.length))
             hasBodyHighlight = false
@@ -162,15 +162,15 @@ final class CommandBlockItem: NSCollectionViewItem {
     func setSelectionHighlight(headerRange: NSRange?, bodyRange: NSRange?) {
         clearSelectionHighlight()
         if let hr = headerRange, hr.length > 0, !headerLabel.isHidden {
-            let cmdText = headerLabel.stringValue // теперь содержит "$ " + cmd
-            // Полный заголовок в глобальном документе выглядит как "$ <cmd>\n"
-            // Контентная часть заголовка (без завершающего "\n") начинается с 0 (у нас уже есть "$ ")
+            let cmdText = headerLabel.stringValue // now contains "$ " + cmd
+            // Full header in global document looks like "$ <cmd>\n"
+            // Content part of header (without trailing "\n") starts at 0 (we already have "$ ")
             let contentStart = 0
-            let contentLength = cmdText.count // без \n
+            let contentLength = cmdText.count // without \n
             let contentInFull = NSRange(location: contentStart, length: contentLength)
             let inter = NSIntersectionRange(hr, contentInFull)
             if inter.length > 0 {
-                // Прямое отображение в координаты label
+                // Direct mapping to label coordinates
                 let mapped = inter
                 let attr = NSMutableAttributedString(string: cmdText)
                 attr.addAttribute(.backgroundColor, value: NSColor.selectedTextBackgroundColor, range: mapped)
@@ -182,11 +182,11 @@ final class CommandBlockItem: NSCollectionViewItem {
             }
         }
         if let br = bodyRange, br.length > 0, let storage = bodyTextView.textStorage {
-            // Ограничиваем диапазон UTF-16 длиной текста
+            // Clamp range to UTF-16 text length
             let utf16Len = (storage.string as NSString).length
             let safeLocation = max(0, min(br.location, utf16Len))
             var safeLength = max(0, min(br.length, utf16Len - safeLocation))
-            // Если выделение заканчивается ровно на границе строки, расширим на перевод строки (\n или \r\n)
+            // If selection ends exactly at line boundary, extend to include newline (\n or \r\n)
             if safeLocation + safeLength < utf16Len {
                 let nsString = storage.string as NSString
                 let end = safeLocation + safeLength
@@ -210,7 +210,7 @@ final class CommandBlockItem: NSCollectionViewItem {
     }
 
     // MARK: - Hit Testing to character index
-    /// Возвращает индекс символа в bodyTextView для точки в координатах item.view
+    /// Returns character index in bodyTextView for point in item.view coordinates
     func bodyCharacterIndex(at pointInItem: NSPoint) -> Int? {
         let ptInBody = bodyTextView.convert(pointInItem, from: self.view)
         if !bodyTextView.bounds.contains(ptInBody) { return nil }
@@ -221,7 +221,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         return idx
     }
 
-    /// Грубая оценка индекса символа в заголовке (монопространный шрифт)
+    /// Rough estimate of character index in header (monospaced font)
     func headerCharacterIndex(at pointInItem: NSPoint) -> Int? {
         if headerLabel.isHidden { return nil }
         let frame = headerLabel.frame

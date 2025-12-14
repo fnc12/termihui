@@ -12,13 +12,13 @@
 #include <chrono>
 
 /**
- * Менеджер терминальных сессий
+ * Terminal session manager
  * 
- * Особенности:
- * - Управление множественными сессиями (вкладками)
- * - Потокобезопасные операции
- * - Неблокирующее чтение всех сессий
- * - Автоматическая очистка завершенных сессий
+ * Features:
+ * - Managing multiple sessions (tabs)
+ * - Thread-safe operations
+ * - Non-blocking reading of all sessions
+ * - Automatic cleanup of finished sessions
  */
 class SessionManager {
 public:
@@ -27,80 +27,80 @@ public:
     using StatusCallback = std::function<void(const SessionId&, bool isRunning)>;
     
     /**
-     * Конструктор
-     * @param pollIntervalMs интервал опроса сессий в миллисекундах
+     * Constructor
+     * @param pollIntervalMs session polling interval in milliseconds
      */
     explicit SessionManager(int pollIntervalMs = 10);
     
     /**
-     * Деструктор
+     * Destructor
      */
     ~SessionManager();
     
-    // Запрещаем копирование
+    // Disable copying
     SessionManager(const SessionManager&) = delete;
     SessionManager& operator=(const SessionManager&) = delete;
     
     /**
-     * Запуск менеджера (начинает фоновый поток)
+     * Start manager (begins background thread)
      */
     void start();
     
     /**
-     * Остановка менеджера
+     * Stop manager
      */
     void stop();
     
     /**
-     * Создание новой сессии
-     * @param sessionId уникальный идентификатор сессии
-     * @param command команда для выполнения (по умолчанию bash)
-     * @return true если сессия создана успешно
+     * Create new session
+     * @param sessionId unique session identifier
+     * @param command command to execute (default bash)
+     * @return true if session created successfully
      */
     bool createSession(const SessionId& sessionId, const std::string& command = "bash");
     
     /**
-     * Закрытие сессии
-     * @param sessionId идентификатор сессии
-     * @return true если сессия была найдена и закрыта
+     * Close session
+     * @param sessionId session identifier
+     * @return true if session was found and closed
      */
     bool closeSession(const SessionId& sessionId);
     
     /**
-     * Отправка ввода в сессию
-     * @param sessionId идентификатор сессии
-     * @param input данные для отправки
-     * @return количество отправленных байт, -1 при ошибке
+     * Send input to session
+     * @param sessionId session identifier
+     * @param input data to send
+     * @return number of bytes sent, -1 on error
      */
     ssize_t sendInput(const SessionId& sessionId, const std::string& input);
     
     /**
-     * Проверка существования сессии
-     * @param sessionId идентификатор сессии
-     * @return true если сессия существует
+     * Check if session exists
+     * @param sessionId session identifier
+     * @return true if session exists
      */
     bool hasSession(const SessionId& sessionId) const;
     
     /**
-     * Получение списка всех активных сессий
-     * @return вектор идентификаторов сессий
+     * Get list of all active sessions
+     * @return vector of session identifiers
      */
     std::vector<SessionId> getActiveSessions() const;
     
     /**
-     * Установка коллбэка для вывода
-     * @param callback функция для обработки вывода сессий
+     * Set output callback
+     * @param callback function to process session output
      */
     void setOutputCallback(OutputCallback callback);
     
     /**
-     * Установка коллбэка для изменения статуса
-     * @param callback функция для обработки изменения статуса сессий
+     * Set status change callback
+     * @param callback function to process session status changes
      */
     void setStatusCallback(StatusCallback callback);
     
     /**
-     * Получение статистики
+     * Get statistics
      */
     struct Stats {
         size_t totalSessions;
@@ -113,19 +113,19 @@ public:
 
 private:
     /**
-     * Основной цикл опроса сессий
+     * Main session polling loop
      */
     void pollLoop();
     
     /**
-     * Опрос одной сессии
-     * @param sessionId идентификатор сессии
-     * @param session указатель на сессию
+     * Poll single session
+     * @param sessionId session identifier
+     * @param session session pointer
      */
     void pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSession> session);
     
     /**
-     * Очистка завершенных сессий
+     * Cleanup finished sessions
      */
     void cleanupFinishedSessions();
 
@@ -140,14 +140,14 @@ private:
     OutputCallback outputCallback;
     StatusCallback statusCallback;
     
-    // Статистика
+    // Statistics
     mutable std::mutex statsMutex;
     Stats stats{0, 0, 0, 0.0};
     
-    // TODO: Добавить в будущем:
-    // - std::chrono::steady_clock::time_point m_lastCleanup; // Время последней очистки
-    // - size_t m_maxSessions = 100; // Лимит сессий
-    // - std::unordered_map<SessionId, std::chrono::steady_clock::time_point> m_sessionActivity; // Активность сессий
-    // - bool m_autoCleanup = true; // Автоочистка неактивных сессий
-    // - std::chrono::seconds m_sessionTimeout{3600}; // Таймаут сессий
+    // TODO: Add in future:
+    // - std::chrono::steady_clock::time_point m_lastCleanup; // Time of last cleanup
+    // - size_t m_maxSessions = 100; // Session limit
+    // - std::unordered_map<SessionId, std::chrono::steady_clock::time_point> m_sessionActivity; // Session activity
+    // - bool m_autoCleanup = true; // Auto cleanup of inactive sessions
+    // - std::chrono::seconds m_sessionTimeout{3600}; // Session timeout
 }; 

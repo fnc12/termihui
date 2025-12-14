@@ -9,22 +9,22 @@
 #include <queue>
 #include <vector>
 
-// Включаем libhv заголовки
+// Include libhv headers
 #include "hv/WebSocketServer.h"
 
 /**
- * WebSocket сервер для терминальных сессий
+ * WebSocket server for terminal sessions
  * 
- * Особенности:
- * - Обработка WebSocket соединений через libhv
- * - JSON протокол согласно docs/protocol.md
- * - Неблокирующая архитектура с очередями сообщений
- * - Обработка в главном потоке через update()
+ * Features:
+ * - WebSocket connection handling via libhv
+ * - JSON protocol according to docs/protocol.md
+ * - Non-blocking architecture with message queues
+ * - Processing in main thread via update()
  */
 class WebSocketServer {
 public:
     /**
-     * Структура входящего сообщения от клиента
+     * Structure for incoming message from client
      */
     struct IncomingMessage {
         int clientId;
@@ -32,102 +32,102 @@ public:
     };
     
     /**
-     * Структура исходящего сообщения для клиента
+     * Structure for outgoing message to client
      */
     struct OutgoingMessage {
-        int clientId;  // 0 = broadcast всем
+        int clientId;  // 0 = broadcast to all
         std::string message;
     };
     
     /**
-     * Событие подключения/отключения клиента
+     * Client connection/disconnection event
      */
     struct ConnectionEvent {
         int clientId;
-        bool connected;  // true = подключился, false = отключился
+        bool connected;  // true = connected, false = disconnected
     };
     
     /**
-     * Конструктор
-     * @param port порт для WebSocket сервера
+     * Constructor
+     * @param port port for WebSocket server
      */
     explicit WebSocketServer(int port = 37854);
     
     /**
-     * Деструктор
+     * Destructor
      */
     ~WebSocketServer();
     
-    // Запрещаем копирование
+    // Disable copying
     WebSocketServer(const WebSocketServer&) = delete;
     WebSocketServer& operator=(const WebSocketServer&) = delete;
     
     /**
-     * Запуск сервера (в фоновом потоке)
-     * @return true если сервер успешно запущен
+     * Start server (in background thread)
+     * @return true if server started successfully
      */
     bool start();
     
     /**
-     * Остановка сервера
+     * Stop server
      */
     void stop();
     
     /**
-     * Проверка работы сервера
-     * @return true если сервер работает
+     * Check if server is running
+     * @return true if server is running
      */
     bool isRunning() const;
     
     /**
-     * Обновление - обработка всех накопленных событий (вызывать из главного потока)
-     * @param incomingMessages [out] новые сообщения от клиентов 
-     * @param connectionEvents [out] события подключения/отключения
+     * Update - process all accumulated events (call from main thread)
+     * @param incomingMessages [out] new messages from clients
+     * @param connectionEvents [out] connection/disconnection events
      */
     void update(std::vector<IncomingMessage>& incomingMessages,
                 std::vector<ConnectionEvent>& connectionEvents);
     
     /**
-     * Отправка сообщения клиенту (добавляет в очередь)
-     * @param clientId идентификатор клиента
-     * @param message сообщение для отправки
+     * Send message to client (adds to queue)
+     * @param clientId client identifier
+     * @param message message to send
      */
     void sendMessage(int clientId, const std::string& message);
     
     /**
-     * Широковещательная отправка сообщения (добавляет в очередь)
-     * @param message сообщение для отправки всем клиентам
+     * Broadcast message (adds to queue)
+     * @param message message to send to all clients
      */
     void broadcastMessage(const std::string& message);
     
     /**
-     * Получение количества подключенных клиентов
-     * @return количество активных соединений
+     * Get number of connected clients
+     * @return number of active connections
      */
     size_t getConnectedClients() const;
     
     /**
-     * Получение списка подключенных клиентов
-     * @return список идентификаторов клиентов
+     * Get list of connected clients
+     * @return list of client identifiers
      */
     std::vector<int> getClientIds() const;
 
 private:
     /**
-     * Генерация уникального ID для клиента
-     * @return уникальный идентификатор
+     * Generate unique client ID
+     * @return unique identifier
      */
     int generateClientId();
     
     /**
-     * Callback'и libhv (выполняются в фоновом потоке)
+     * libhv callbacks (executed in background thread)
      */
     void onConnection(const WebSocketChannelPtr& channel);
     void onMessage(const WebSocketChannelPtr& channel, const std::string& message);
     void onClose(const WebSocketChannelPtr& channel);
     
     /**
-     * Отправка исходящих сообщений из очереди (вызывается из update)
+     * Send outgoing messages from queue (called from update)
      */
     void processOutgoingMessages();
 
@@ -136,17 +136,17 @@ private:
     std::atomic<bool> running{false};
     std::atomic<int> nextClientId{1};
     
-    // libhv компоненты
+    // libhv components
     hv::WebSocketService wsService;
     hv::WebSocketServer wsServer;
     std::unique_ptr<std::thread> serverThread;
     
-    // Управление клиентами (защищено мютексом)
+    // Client management (mutex protected)
     mutable std::mutex clientsMutex;
     std::unordered_map<int, WebSocketChannelPtr> clients;
     std::unordered_map<WebSocketChannelPtr, int> channelToClientId;
     
-    // Очереди сообщений (защищены мютексами)
+    // Message queues (mutex protected)
     std::mutex incomingMutex;
     std::queue<IncomingMessage> incomingQueue;
     
@@ -156,11 +156,11 @@ private:
     std::mutex outgoingMutex;
     std::queue<OutgoingMessage> outgoingQueue;
     
-    // TODO: Добавить в будущем:
-    // - SSL/TLS поддержка
-    // - Аутентификация клиентов
-    // - Ограничение количества соединений
-    // - Heartbeat для проверки соединений
-    // - Компрессия сообщений
-    // - Логирование соединений
+    // TODO: Add in future:
+    // - SSL/TLS support
+    // - Client authentication
+    // - Connection limit
+    // - Heartbeat for connection checks
+    // - Message compression
+    // - Connection logging
 }; 

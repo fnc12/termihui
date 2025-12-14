@@ -4,10 +4,10 @@ project(termihui-server VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Включаем FetchContent для загрузки зависимостей
+# Include FetchContent for dependency downloading
 include(FetchContent)
 
-# Подключаем Catch2 для юнит-тестов
+# Fetch Catch2 for unit tests
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
@@ -16,7 +16,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-# Подключаем libhv для WebSocket сервера
+# Fetch libhv for WebSocket server
 FetchContent_Declare(
     libhv
     GIT_REPOSITORY https://github.com/ithewei/libhv.git
@@ -25,7 +25,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(libhv)
 
-# Подключаем fmt для форматированного вывода
+# Fetch fmt for formatted output
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -34,10 +34,10 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt)
 
-# Для macOS/Linux проверяем наличие необходимых библиотек
+# For macOS/Linux check for required libraries
 if(NOT WIN32)
     find_package(Threads REQUIRED)
-    # Проверяем доступность util library для forkpty
+    # Check util library availability for forkpty
     include(CheckLibraryExists)
     check_library_exists(util forkpty "" HAVE_FORKPTY)
     if(HAVE_FORKPTY)
@@ -45,7 +45,7 @@ if(NOT WIN32)
     endif()
 endif()
 
-# Исходники основного проекта
+# Main project sources
 set(SOURCES
     src/TerminalSession.cpp
     src/WebSocketServer.cpp
@@ -59,10 +59,10 @@ set(HEADERS
     src/CompletionManager.h
 )
 
-# Создаем исполняемый файл
+# Create executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-# Настройки компилятора
+# Compiler settings
 target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall
     -Wextra
@@ -71,7 +71,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Release>:-O3>
 )
 
-# Линковка библиотек
+# Link libraries
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Threads::Threads
@@ -81,17 +81,17 @@ if(NOT WIN32)
     )
 endif()
 
-# Включаем директории для заголовочных файлов
+# Include directories for headers
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
 )
 
-# Для Debug режима добавляем больше отладочной информации
+# For Debug mode add more debug information
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG)
 endif()
 
-# Создаем исполняемый файл для юнит-тестов
+# Create executable for unit tests
 set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_interactive_session.cpp
@@ -102,7 +102,7 @@ set(TEST_SOURCES
 
 add_executable(unit_tests ${TEST_SOURCES})
 
-# Настройки компилятора для тестов
+# Compiler settings for tests
 target_compile_options(unit_tests PRIVATE
     -Wall
     -Wextra
@@ -111,7 +111,7 @@ target_compile_options(unit_tests PRIVATE
     $<$<CONFIG:Release>:-O3>
 )
 
-# Линковка библиотек для тестов
+# Link libraries for tests
 if(NOT WIN32)
     target_link_libraries(unit_tests PRIVATE
         Catch2::Catch2WithMain
@@ -121,12 +121,12 @@ if(NOT WIN32)
     )
 endif()
 
-# Включаем директории для заголовочных файлов для тестов
+# Include directories for headers for tests
 target_include_directories(unit_tests PRIVATE
     src
     tests
 )
 
-# Включаем поддержку CTest
+# Enable CTest support
 enable_testing()
 add_test(NAME unit_tests COMMAND unit_tests) 

@@ -1,7 +1,7 @@
 import Foundation
 import Cocoa
 
-/// Менеджер для управления WebSocket подключением к серверу TermiHUI
+/// Manager for WebSocket connection to TermiHUI server
 class WebSocketManager: NSObject {
     
     // MARK: - Properties
@@ -15,34 +15,34 @@ class WebSocketManager: NSObject {
     
     // MARK: - Public Methods
     
-    /// Подключение к серверу
+    /// Connect to server
     func connect(to serverAddress: String) {
-        print("🔌 Попытка подключения к: \(serverAddress)")
+        print("🔌 Connection attempt to: \(serverAddress)")
         self.serverAddress = serverAddress
         
-        // Формируем URL для WebSocket подключения
+        // Build URL for WebSocket connection
         guard let url = URL(string: "ws://\(serverAddress)") else {
-            print("❌ Некорректный URL: ws://\(serverAddress)")
+            print("❌ Invalid URL: ws://\(serverAddress)")
             delegate?.webSocketManager(self, didFailWithError: WebSocketError.invalidURL)
             return
         }
         
-        print("🌐 Создание WebSocket подключения к: \(url)")
+        print("🌐 Creating WebSocket connection to: \(url)")
         
-        // Создаем URLSession и WebSocket task
+        // Create URLSession and WebSocket task
         urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
         webSocketTask = urlSession?.webSocketTask(with: url)
         
-        // Запускаем подключение
+        // Start connection
         webSocketTask?.resume()
-        print("▶️ WebSocket задача запущена")
+        print("▶️ WebSocket task started")
         
-        // Начинаем слушать входящие сообщения
+        // Start listening for incoming messages
         receiveMessage()
-        print("👂 Начинаем слушать входящие сообщения")
+        print("👂 Starting to listen for incoming messages")
     }
     
-    /// Отключение от сервера
+    /// Disconnect from server
     func disconnect() {
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
@@ -51,23 +51,23 @@ class WebSocketManager: NSObject {
         isConnected = false
     }
     
-    /// Отправка команды на сервер
+    /// Send command to server
     func sendCommand(_ command: String) {
-        print("📤 Отправка команды: \(command)")
+        print("📤 Sending command: \(command)")
         guard isConnected else {
-            print("❌ Не подключен к серверу")
+            print("❌ Not connected to server")
             delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
             return
         }
         
-        // Сохраняем последнюю отправленную команду для заголовка блока
+        // Save last sent command for block header
         lastSentCommand = command
 
         let message = TerminalMessage.execute(command: command)
         sendMessage(message)
     }
     
-    /// Отправка ввода в терминал
+    /// Send input to terminal
     func sendInput(_ input: String) {
         guard isConnected else {
             delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
@@ -78,11 +78,11 @@ class WebSocketManager: NSObject {
         sendMessage(message)
     }
     
-    /// Запрос автодополнения
+    /// Request tab completion
     func requestCompletion(for text: String, cursorPosition: Int) {
-        print("📤 Запрос автодополнения для: '\(text)' (позиция: \(cursorPosition))")
+        print("📤 Completion request for: '\(text)' (position: \(cursorPosition))")
         guard isConnected else {
-            print("❌ Не подключен к серверу для автодополнения")
+            print("❌ Not connected to server for completion")
             delegate?.webSocketManager(self, didFailWithError: WebSocketError.notConnected)
             return
         }
@@ -139,15 +139,15 @@ class WebSocketManager: NSObject {
     }
     
     private func handleJSONMessage(_ jsonString: String) {
-        print("📨 Получено сообщение от сервера: \(jsonString)")
+        print("📨 Received message from server: \(jsonString)")
         guard let jsonData = jsonString.data(using: .utf8) else { 
-            print("❌ Не удалось преобразовать в JSON data")
+            print("❌ Failed to convert to JSON data")
             return 
         }
         
         do {
             let response = try JSONDecoder().decode(TerminalResponse.self, from: jsonData)
-            print("✅ JSON декодирован: type=\(response.type)")
+            print("✅ JSON decoded: type=\(response.type)")
             
             DispatchQueue.main.async {
                 switch response.type {
@@ -156,10 +156,10 @@ class WebSocketManager: NSObject {
                     
                 case "output":
                     if let data = response.data {
-                        print("🔄 Передаем output в delegate: \(data)")
+                        print("🔄 Passing output to delegate: \(data)")
                         self.delegate?.webSocketManager(self, didReceiveOutput: data)
                     } else {
-                        print("❌ Нет data в output сообщении")
+                        print("❌ No data in output message")
                     }
                     
                 case "status":
@@ -172,32 +172,38 @@ class WebSocketManager: NSObject {
                     self.delegate?.webSocketManager(self, didFailWithError: WebSocketError.serverError(errorMessage))
                     
                 case "input_sent":
-                    // Подтверждение отправки ввода - можно игнорировать
+                    // Input send confirmation - can be ignored
                     break
                     
                 case "completion_result":
                     if let completions = response.completions,
                        let originalText = response.originalText,
                        let cursorPosition = response.cursorPosition {
-                        print("🎯 Получены варианты автодополнения: \(completions)")
+                        print("🎯 Received completion options: \(completions)")
                         self.delegate?.webSocketManager(self, didReceiveCompletions: completions, 
                                                       originalText: originalText, 
                                                       cursorPosition: cursorPosition)
                     } else {
-                        print("❌ Некорректный формат completion_result")
+                        print("❌ Invalid completion_result format")
                     }
                 
                 case "command_start":
-                    print("🎯 Событие: command_start, cwd=\(response.cwd ?? "nil")")
-                    // Передаем последнюю отправленную команду как заголовок блока
+                    print("🎯 Event: command_start, cwd=\(response.cwd ?? "nil")")
+                    // Pass last sent command as block header
                     let cmd = self.lastSentCommand
                     self.lastSentCommand = nil
                     self.delegate?.webSocketManager(self, didReceiveCommandStart: cmd, cwd: response.cwd)
                     
                 case "command_end":
                     let exitCode = response.exitCode ?? 0
-                    print("🏁 Событие: command_end (exit=\(exitCode)), cwd=\(response.cwd ?? "nil")")
+                    print("🏁 Event: command_end (exit=\(exitCode)), cwd=\(response.cwd ?? "nil")")
                     self.delegate?.webSocketManager(self, didReceiveCommandEndWithExitCode: exitCode, cwd: response.cwd)
+                    
+                case "history":
+                    if let commands = response.commands {
+                        print("📜 Received history: \(commands.count) commands")
+                        self.delegate?.webSocketManager(self, didReceiveHistory: commands)
+                    }
                     
                 default:
                     print("Unknown message type: \(response.type)")
@@ -212,15 +218,15 @@ class WebSocketManager: NSObject {
 // MARK: - URLSessionWebSocketDelegate
 extension WebSocketManager: URLSessionWebSocketDelegate {
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocolString: String?) {
-        print("🎉 WebSocket подключение установлено! Протокол: \(protocolString ?? "none")")
+        print("🎉 WebSocket connection established! Protocol: \(protocolString ?? "none")")
         isConnected = true
-        // Подключение установлено, ждем сообщение "connected" от сервера
+        // Connection established, waiting for "connected" message from server
     }
     
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        print("🔌 WebSocket подключение закрыто. Код: \(closeCode.rawValue)")
+        print("🔌 WebSocket connection closed. Code: \(closeCode.rawValue)")
         if let reason = reason, let reasonString = String(data: reason, encoding: .utf8) {
-            print("📝 Причина: \(reasonString)")
+            print("📝 Reason: \(reasonString)")
         }
         isConnected = false
         DispatchQueue.main.async {
@@ -243,7 +249,7 @@ extension WebSocketManager: URLSessionDelegate {
 
 
 
-/// Ошибки WebSocket подключения
+/// WebSocket connection errors
 enum WebSocketError: Error, LocalizedError {
     case invalidURL
     case notConnected
@@ -252,11 +258,11 @@ enum WebSocketError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Неверный адрес сервера"
+            return "Invalid server address"
         case .notConnected:
-            return "Нет подключения к серверу"
+            return "Not connected to server"
         case .serverError(let message):
-            return "Ошибка сервера: \(message)"
+            return "Server error: \(message)"
         }
     }
 }
@@ -269,7 +275,9 @@ protocol WebSocketManagerDelegate: AnyObject {
     func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int)
     func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int)
-    // Командные события с cwd
+    // Command events with cwd
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?)
+    // Command history
+    func webSocketManager(_ manager: WebSocketManager, didReceiveHistory history: [CommandHistoryRecord])
 }

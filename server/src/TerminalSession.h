@@ -8,153 +8,153 @@
 #include "CompletionManager.h"
 
 /**
- * Класс для управления терминальными сессиями через PTY
+ * Class for managing terminal sessions via PTY
  * 
- * Особенности:
- * - Асинхронное выполнение команд через forkpty
- * - Неблокирующее чтение вывода
- * - Буферизация данных
- * - Проверка состояния процесса
+ * Features:
+ * - Asynchronous command execution via forkpty
+ * - Non-blocking output reading
+ * - Data buffering
+ * - Process state checking
  */
 class TerminalSession {
 public:
     /**
-     * Конструктор
-     * @param bufferSize размер буфера для вывода (по умолчанию 4096)
+     * Constructor
+     * @param bufferSize output buffer size (default 4096)
      */
     explicit TerminalSession(size_t bufferSize = 4096);
     
     /**
-     * Деструктор - автоматически завершает сессию
+     * Destructor - automatically terminates session
      */
     ~TerminalSession();
     
-    // Запрещаем копирование
+    // Disable copying
     TerminalSession(const TerminalSession&) = delete;
     TerminalSession& operator=(const TerminalSession&) = delete;
     
-    // Разрешаем перемещение
+    // Allow moving
     TerminalSession(TerminalSession&& other) noexcept;
     TerminalSession& operator=(TerminalSession&& other) noexcept;
     
     /**
-     * Создание интерактивной bash-сессии
-     * @return true если сессия успешно создана
+     * Create interactive bash session
+     * @return true if session successfully created
      */
     bool createSession();
     
     /**
-     * Выполнение команды в существующей сессии
-     * @param command команда для выполнения
-     * @return true если команда успешно отправлена
+     * Execute command in existing session
+     * @param command command to execute
+     * @return true if command successfully sent
      */
     bool executeCommand(const std::string& command);
     
     /**
-     * Отправка текста в PTY
-     * @param input текст для отправки
-     * @return количество отправленных байт, -1 при ошибке
+     * Send text to PTY
+     * @param input text to send
+     * @return number of bytes sent, -1 on error
      */
     ssize_t sendInput(std::string_view input);
     
     /**
-     * Чтение доступного вывода из PTY
-     * @return строка с новым выводом
+     * Read available output from PTY
+     * @return string with new output
      */
     std::string readOutput();
     
     /**
-     * Проверка, запущен ли процесс
-     * @return true если процесс активен
+     * Check if process is running
+     * @return true if process is active
      */
     bool isRunning() const;
     
     /**
-     * Получение PID дочернего процесса
-     * @return PID процесса или -1 если не запущен
+     * Get child process PID
+     * @return process PID or -1 if not running
      */
     pid_t getChildPid() const;
     
     /**
-     * Принудительное завершение сессии
+     * Force terminate session
      */
     void terminate();
     
     /**
-     * Получение файлового дескриптора PTY (для внешнего polling)
-     * @return файловый дескриптор или -1
+     * Get PTY file descriptor (for external polling)
+     * @return file descriptor or -1
      */
     int getPtyFd() const;
     
     /**
-     * Проверка доступности данных для чтения
-     * @param timeoutMs таймаут в миллисекундах (0 = неблокирующий)
-     * @return true если данные доступны
+     * Check if data is available for reading
+     * @param timeoutMs timeout in milliseconds (0 = non-blocking)
+     * @return true if data is available
      */
     bool hasData(int timeoutMs = 0) const;
     
     /**
-     * Получение вариантов автодополнения для текста
-     * @param text текст для автодополнения
-     * @param cursorPosition позиция курсора в тексте
-     * @return вектор строк с вариантами автодополнения
+     * Get autocompletion options for text
+     * @param text text to autocomplete
+     * @param cursorPosition cursor position in text
+     * @return vector of strings with completion options
      */
     std::vector<std::string> getCompletions(const std::string& text, int cursorPosition) const;
     
     /**
-     * Получение текущей рабочей директории bash-процесса
-     * @return путь к текущей директории или пустая строка при ошибке
+     * Get current working directory of bash process
+     * @return path to current directory or empty string on error
      */
     std::string getCurrentWorkingDirectory() const;
     
     /**
-     * Установка последнего известного cwd (из OSC маркеров)
-     * @param cwd путь к директории
+     * Set last known cwd (from OSC markers)
+     * @param cwd path to directory
      */
     void setLastKnownCwd(const std::string& cwd);
     
     /**
-     * Получение последнего известного cwd
-     * @return путь или пустая строка
+     * Get last known cwd
+     * @return path or empty string
      */
     std::string getLastKnownCwd() const;
 
 private:
     /**
-     * Настройка PTY в неблокирующий режим
+     * Setup PTY in non-blocking mode
      */
     void setupNonBlocking();
     
     /**
-     * Очистка ресурсов
+     * Resource cleanup
      */
     void cleanup();
     
     /**
-     * Проверка статуса дочернего процесса
+     * Check child process status
      */
     void checkChildStatus();
 
 private:
-    int ptyFd;                    // Файловый дескриптор PTY
-    pid_t childPid;               // PID дочернего процесса
-    std::vector<char> buffer;     // Буфер для чтения данных
-    size_t bufferSize;            // Размер буфера
-    bool running;                 // Флаг активности процесса
-    bool sessionCreated;          // Флаг созданной сессии
+    int ptyFd;                    // PTY file descriptor
+    pid_t childPid;               // Child process PID
+    std::vector<char> buffer;     // Buffer for reading data
+    size_t bufferSize;            // Buffer size
+    bool running;                 // Process activity flag
+    bool sessionCreated;          // Session created flag
     
-    // Последний известный cwd из OSC маркеров
+    // Last known cwd from OSC markers
     mutable std::string lastKnownCwd;
     
-    // Менеджер автодополнения
+    // Completion manager
     CompletionManager completionManager;
     
-    // TODO: Добавить в будущем:
-    // - struct winsize m_windowSize;  // Размер окна терминала для resize-событий
-    // - std::string m_lastCommand;    // Последняя выполненная команда
-    // - std::queue<std::string> m_commandQueue; // Очередь команд для цепочки
-    // - bool m_sudoMode;              // Режим sudo для привилегированных операций
-    // - std::function<void(const std::string&)> m_aiAnalyzer; // Коллбэк для AI-анализа
-    // - std::chrono::steady_clock::time_point m_lastActivity; // Время последней активности
-    // - std::string m_promptPattern;  // Паттерн для определения окончания команды
+    // TODO: Add in future:
+    // - struct winsize m_windowSize;  // Terminal window size for resize events
+    // - std::string m_lastCommand;    // Last executed command
+    // - std::queue<std::string> m_commandQueue; // Command queue for chain
+    // - bool m_sudoMode;              // Sudo mode for privileged operations
+    // - std::function<void(const std::string&)> m_aiAnalyzer; // Callback for AI analysis
+    // - std::chrono::steady_clock::time_point m_lastActivity; // Time of last activity
+    // - std::string m_promptPattern;  // Pattern for detecting command completion
 }; 
