@@ -50,6 +50,7 @@ set(SOURCES
     src/TerminalSession.cpp
     src/WebSocketServer.cpp
     src/CompletionManager.cpp
+    src/JsonHelper.cpp
     src/main.cpp
 )
 
@@ -57,6 +58,7 @@ set(HEADERS
     src/TerminalSession.h
     src/WebSocketServer.h
     src/CompletionManager.h
+    src/JsonHelper.h
 )
 
 # Create executable

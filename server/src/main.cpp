@@ -1,5 +1,6 @@
 #include "TerminalSession.h"
 #include "WebSocketServer.h"
+#include "JsonHelper.h"
 #include <iostream>
 #include <csignal>
 #include <atomic>
@@ -40,31 +41,6 @@ void signalHandler(int signal)
 
 using json = nlohmann::json;
 
-// Helper functions for JSON manipulation
-class JsonHelper {
-public:
-    static std::string createResponse(const std::string& type, const std::string& data = "", int exitCode = 0, bool running = false) {
-        json response;
-        response["type"] = type;
-        
-        if (type == "output" && !data.empty()) {
-            response["data"] = data;
-        } else if (type == "status") {
-            response["running"] = running;
-            response["exit_code"] = exitCode;
-        } else if (type == "error" && !data.empty()) {
-            response["message"] = data;
-            response["error_code"] = "COMMAND_FAILED";
-        } else if (type == "connected") {
-            response["server_version"] = "1.0.0";
-        } else if (type == "input_sent") {
-            response["bytes"] = exitCode;
-        }
-        
-        return response.dump();
-    }
-};
-
 int main(int argc, char* argv[])
 {
     // Disable automatic libhv logs
@@ -89,13 +65,17 @@ int main(int argc, char* argv[])
     }
     
     // Create and start WebSocket server
-    WebSocketServer wsServer(37854);
-    if (!wsServer.start()) {
+    WebSocketServer webSocketServer(37854);
+    if (!webSocketServer.start()) {
         fmt::print(stderr, "Failed to start WebSocket server\n");
         return 1;
     }
     
     fmt::print("Server started! Waiting for connections...\n\n");
+    
+    // State tracking for main loop
+    bool wasRunning = false;
+    auto lastStatsTime = std::chrono::steady_clock::now();
     
     // Main server loop
     while (!shouldExit) {
@@ -103,7 +83,7 @@ int main(int argc, char* argv[])
         std::vector<WebSocketServer::IncomingMessage> incomingMessages;
         std::vector<WebSocketServer::ConnectionEvent> connectionEvents;
         
-        wsServer.update(incomingMessages, connectionEvents);
+        webSocketServer.update(incomingMessages, connectionEvents);
         
         // Handle connection/disconnection events
         for (const auto& event : connectionEvents) {
@@ -117,7 +97,7 @@ int main(int argc, char* argv[])
                 if (!cwd.empty()) {
                     welcomeMsg["cwd"] = cwd;
                 }
-                wsServer.sendMessage(event.clientId, welcomeMsg.dump());
+                webSocketServer.sendMessage(event.clientId, welcomeMsg.dump());
                 
                 // Send command history
                 if (!commandHistory.empty()) {
@@ -135,7 +115,7 @@ int main(int argc, char* argv[])
                         commands.push_back(cmd);
                     }
                     historyMsg["commands"] = commands;
-                    wsServer.sendMessage(event.clientId, historyMsg.dump());
+                    webSocketServer.sendMessage(event.clientId, historyMsg.dump());
                     fmt::print("Sent history: {} commands\n", commandHistory.size());
                 }
             } else {
@@ -161,11 +141,11 @@ int main(int argc, char* argv[])
                             fmt::print("Executed command: {}\n", command);
                         } else {
                             std::string error = JsonHelper::createResponse("error", "Failed to execute command");
-                            wsServer.sendMessage(msg.clientId, error);
+                            webSocketServer.sendMessage(msg.clientId, error);
                         }
                     } else {
                         std::string error = JsonHelper::createResponse("error", "Missing command field");
-                        wsServer.sendMessage(msg.clientId, error);
+                        webSocketServer.sendMessage(msg.clientId, error);
                     }
                 } else if (type == "input") {
                     std::string text = msgJson.value("text", "");
@@ -173,14 +153,14 @@ int main(int argc, char* argv[])
                         ssize_t bytes = terminalSession->sendInput(text);
                         if (bytes >= 0) {
                             std::string response = JsonHelper::createResponse("input_sent", "", bytes);
-                            wsServer.sendMessage(msg.clientId, response);
+                            webSocketServer.sendMessage(msg.clientId, response);
                         } else {
                             std::string error = JsonHelper::createResponse("error", "Failed to send input");
-                            wsServer.sendMessage(msg.clientId, error);
+                            webSocketServer.sendMessage(msg.clientId, error);
                         }
                     } else {
                         std::string error = JsonHelper::createResponse("error", "Missing text field");
-                        wsServer.sendMessage(msg.clientId, error);
+                        webSocketServer.sendMessage(msg.clientId, error);
                     }
                 } else if (type == "completion") {
                     std::string text = msgJson.value("text", "");
@@ -198,7 +178,7 @@ int main(int argc, char* argv[])
                     response["original_text"] = text;
                     response["cursor_position"] = cursorPosition;
                     
-                    wsServer.sendMessage(msg.clientId, response.dump());
+                    webSocketServer.sendMessage(msg.clientId, response.dump());
                 } else if (type == "resize") {
                     int cols = msgJson.value("cols", 80);
                     int rows = msgJson.value("rows", 24);
@@ -209,23 +189,23 @@ int main(int argc, char* argv[])
                             response["type"] = "resize_ack";
                             response["cols"] = cols;
                             response["rows"] = rows;
-                            wsServer.sendMessage(msg.clientId, response.dump());
+                            webSocketServer.sendMessage(msg.clientId, response.dump());
                         } else {
                             std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
-                            wsServer.sendMessage(msg.clientId, error);
+                            webSocketServer.sendMessage(msg.clientId, error);
                         }
                     } else {
                         std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
-                        wsServer.sendMessage(msg.clientId, error);
+                        webSocketServer.sendMessage(msg.clientId, error);
                     }
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Unknown message type");
-                    wsServer.sendMessage(msg.clientId, error);
+                    webSocketServer.sendMessage(msg.clientId, error);
                 }
             } catch (const json::exception& e) {
                 fmt::print(stderr, "JSON parsing error: {}\n", e.what());
                 std::string error = JsonHelper::createResponse("error", "Invalid JSON format");
-                wsServer.sendMessage(msg.clientId, error);
+                webSocketServer.sendMessage(msg.clientId, error);
             }
         }
         
@@ -247,7 +227,7 @@ int main(int argc, char* argv[])
                                 if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
                                     commandHistory[currentCommandIndex].output += chunk;
                                 }
-                                wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                                webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                             }
                         }
                         break;
@@ -262,7 +242,7 @@ int main(int argc, char* argv[])
                             if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
                                 commandHistory[currentCommandIndex].output += chunk;
                             }
-                            wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                            webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                         }
                     }
 
@@ -277,7 +257,7 @@ int main(int argc, char* argv[])
                             if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
                                 commandHistory[currentCommandIndex].output += chunk;
                             }
-                            wsServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                            webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
                         }
                         break;
                     }
@@ -318,7 +298,7 @@ int main(int argc, char* argv[])
                             currentCommandIndex = static_cast<int>(commandHistory.size()) - 1;
                             pendingCommand.clear();
                             
-                            wsServer.broadcastMessage(ev.dump());
+                            webSocketServer.broadcastMessage(ev.dump());
                         }
                     } else if (osc.rfind("\x1b]133;B", 0) == 0) {
                         int exitCode = 0;
@@ -343,12 +323,12 @@ int main(int argc, char* argv[])
                             if (!cwd.empty()) {
                                 ev["cwd"] = cwd;
                             }
-                            wsServer.broadcastMessage(ev.dump());
+                            webSocketServer.broadcastMessage(ev.dump());
                         }
                     } else if (osc.rfind("\x1b]133;C", 0) == 0) {
-                        json ev; ev["type"] = "prompt_start"; wsServer.broadcastMessage(ev.dump());
+                        json ev; ev["type"] = "prompt_start"; webSocketServer.broadcastMessage(ev.dump());
                     } else if (osc.rfind("\x1b]133;D", 0) == 0) {
-                        json ev; ev["type"] = "prompt_end"; wsServer.broadcastMessage(ev.dump());
+                        json ev; ev["type"] = "prompt_end"; webSocketServer.broadcastMessage(ev.dump());
                     }
 
                     // Continue after marker
@@ -358,20 +338,18 @@ int main(int argc, char* argv[])
         }
         
         // Check session status and send completion notification
-        static bool wasRunning = false;
         bool currentlyRunning = terminalSession->isRunning();
         if (wasRunning && !currentlyRunning) {
             fmt::print("Command completed\n");
             std::string status = JsonHelper::createResponse("status", "", 0, false);
-            wsServer.broadcastMessage(status);
+            webSocketServer.broadcastMessage(status);
         }
         wasRunning = currentlyRunning;
         
         // Print statistics every 30 seconds
-        static auto lastStatsTime = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
         if (now - lastStatsTime > std::chrono::seconds(30)) {
-            size_t connectedClients = wsServer.getConnectedClients();
+            size_t connectedClients = webSocketServer.getConnectedClients();
             fmt::print("Connected clients: {}\n", connectedClients);
             fmt::print("Terminal session active: {}\n", (terminalSession->isRunning() ? "yes" : "no"));
             lastStatsTime = now;
@@ -382,7 +360,7 @@ int main(int argc, char* argv[])
     }
     
     fmt::print("\n=== Server shutdown ===\n");
-    wsServer.stop();
+    webSocketServer.stop();
     fmt::print("Server stopped\n");
     return 0;
 }
