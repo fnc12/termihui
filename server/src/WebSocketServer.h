@@ -48,10 +48,18 @@ public:
     };
     
     /**
+     * Result of update() call
+     */
+    struct UpdateResult {
+        std::vector<IncomingMessage> incomingMessages;
+        std::vector<ConnectionEvent> connectionEvents;
+    };
+    
+    /**
      * Constructor
      * @param port port for WebSocket server
      */
-    explicit WebSocketServer(int port = 37854);
+    explicit WebSocketServer(int port);
     
     /**
      * Destructor
@@ -81,11 +89,9 @@ public:
     
     /**
      * Update - process all accumulated events (call from main thread)
-     * @param incomingMessages [out] new messages from clients
-     * @param connectionEvents [out] connection/disconnection events
+     * @return struct with incoming messages and connection events
      */
-    void update(std::vector<IncomingMessage>& incomingMessages,
-                std::vector<ConnectionEvent>& connectionEvents);
+    UpdateResult update();
     
     /**
      * Send message to client (adds to queue)
@@ -111,6 +117,12 @@ public:
      * @return list of client identifiers
      */
     std::vector<int> getClientIds() const;
+    
+    /**
+     * Get server port
+     * @return port number
+     */
+    int getPort() const { return port; }
 
 private:
     /**

@@ -51,6 +51,7 @@ set(SOURCES
     src/WebSocketServer.cpp
     src/CompletionManager.cpp
     src/JsonHelper.cpp
+    src/TermihuiServer.cpp
     src/main.cpp
 )
 
@@ -59,6 +60,7 @@ set(HEADERS
     src/WebSocketServer.h
     src/CompletionManager.h
     src/JsonHelper.h
+    src/TermihuiServer.h
 )
 
 # Create executable

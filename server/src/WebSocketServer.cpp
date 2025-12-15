@@ -109,14 +109,16 @@ bool WebSocketServer::isRunning() const
     return this->running.load();
 }
 
-void WebSocketServer::update(std::vector<IncomingMessage>& incomingMessages,
-                           std::vector<ConnectionEvent>& connectionEvents)
+WebSocketServer::UpdateResult WebSocketServer::update()
 {
+    UpdateResult result;
+    
     // Get all incoming messages
     {
         std::lock_guard<std::mutex> lock(this->incomingMutex);
+        result.incomingMessages.reserve(this->incomingQueue.size());
         while (!this->incomingQueue.empty()) {
-            incomingMessages.push_back(std::move(this->incomingQueue.front()));
+            result.incomingMessages.push_back(std::move(this->incomingQueue.front()));
             this->incomingQueue.pop();
         }
     }
@@ -124,14 +126,17 @@ void WebSocketServer::update(std::vector<IncomingMessage>& incomingMessages,
     // Get all connection events
     {
         std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
+        result.connectionEvents.reserve(this->connectionEventsQueue.size());
         while (!this->connectionEventsQueue.empty()) {
-            connectionEvents.push_back(std::move(this->connectionEventsQueue.front()));
+            result.connectionEvents.push_back(std::move(this->connectionEventsQueue.front()));
             this->connectionEventsQueue.pop();
         }
     }
     
     // Process outgoing messages
     this->processOutgoingMessages();
+    
+    return result;
 }
 
 void WebSocketServer::sendMessage(int clientId, const std::string& message)
@@ -249,6 +254,7 @@ void WebSocketServer::processOutgoingMessages()
     // Get all outgoing messages
     {
         std::lock_guard<std::mutex> lock(this->outgoingMutex);
+        messages.reserve(this->outgoingQueue.size());
         while (!this->outgoingQueue.empty()) {
             messages.push_back(std::move(this->outgoingQueue.front()));
             this->outgoingQueue.pop();

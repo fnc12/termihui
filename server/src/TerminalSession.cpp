@@ -93,6 +93,9 @@ bool TerminalSession::createSession()
     
     if (this->childPid == 0) {
         // Child process
+        // Set UTF-8 locale for proper Unicode handling
+        setenv("LANG", "en_US.UTF-8", 1);
+        setenv("LC_ALL", "en_US.UTF-8", 1);
         // Set empty prompt to remove "bash-3.2$"
         setenv("PS1", "", 1);
         // Suppress system banner about switching to zsh
