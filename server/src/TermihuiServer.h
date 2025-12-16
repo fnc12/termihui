@@ -17,8 +17,9 @@ public:
     /**
      * Constructor
      * @param port WebSocket server port
+     * @param bindAddress address to bind (e.g. "0.0.0.0" or "127.0.0.1")
      */
-    explicit TermihuiServer(int port);
+    TermihuiServer(int port, std::string bindAddress);
     
     /**
      * Destructor

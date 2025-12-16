@@ -3,17 +3,25 @@ import Cocoa
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
 
-    
-
+    /// Client core wrapper instance
+    private var clientCore: ClientCoreWrapper?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         print("🚀 AppDelegate: Starting TermiHUI application")
+        print("📦 Client Core version: \(ClientCoreWrapper.version)")
         
-        // Initialize C++ client core
-        let coreInitialized = ClientCoreWrapper.initializeApp()
+        // Create and initialize C++ client core
+        clientCore = ClientCoreWrapper()
         
-        if !coreInitialized {
-            print("❌ AppDelegate: Critical error - failed to initialize core")
+        guard let core = clientCore, core.isValid else {
+            print("❌ AppDelegate: Critical error - failed to create client core")
+            NSApplication.shared.terminate(self)
+            return
+        }
+        
+        let initialized = core.initialize()
+        if !initialized {
+            print("❌ AppDelegate: Critical error - failed to initialize client core")
             NSApplication.shared.terminate(self)
             return
         }
@@ -22,13 +30,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
-        // Insert code here to tear down your application
+        // Shutdown client core
+        clientCore?.shutdown()
+        clientCore = nil
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
-
-
 }
-

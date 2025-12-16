@@ -257,7 +257,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "# Автоматическая сборка C++ ядра клиента\nset -e\n\n# Добавляем пути для поиска cmake и make\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nCLIENT_CORE_DIR=\"${SRCROOT}/../client-core\"\nBUILD_DIR=\"${CLIENT_CORE_DIR}/build\"\nLIB_FILE=\"${BUILD_DIR}/lib/libtermihui_client_core.a\"\n\necho \"🔧 Проверка C++ ядра...\"\n\n# Проверяем наличие cmake\nif ! command -v cmake &> /dev/null; then\n    echo \"❌ cmake не найден. Убедись что установлен Homebrew: brew install cmake\"\n    exit 1\nfi\n\n# Проверяем нужность пересборки\nNEED_BUILD=false\n\nif [ ! -f \"$LIB_FILE\" ]; then\n    echo \"📦 Библиотека не найдена, сборка...\"\n    NEED_BUILD=true\nelif [ \"$CLIENT_CORE_DIR/src/client_core.cpp\" -nt \"$LIB_FILE\" ]; then\n    echo \"🔄 Исходники изменились, пересборка...\"\n    NEED_BUILD=true\nelif [ \"$CLIENT_CORE_DIR/CMakeLists.txt\" -nt \"$LIB_FILE\" ]; then\n    echo \"🔄 CMake изменился, пересборка...\"\n    NEED_BUILD=true\nelse\n    echo \"✅ Библиотека актуальна\"\nfi\n\nif [ \"$NEED_BUILD\" = true ]; then\n    echo \"🛠 Сборка C++ библиотеки...\"\n    echo \"📍 Переходим в: $CLIENT_CORE_DIR\"\n    \n    cd \"$CLIENT_CORE_DIR\"\n    mkdir -p build && cd build\n    \n    echo \"⚙️ Запуск cmake...\"\n    cmake .. -DCMAKE_BUILD_TYPE=Release\n    \n    echo \"🔨 Запуск make...\"\n    make -j4\n    \n    if [ -f \"$LIB_FILE\" ]; then\n        echo \"✅ C++ ядро собрано: $LIB_FILE\"\n    else\n        echo \"❌ Ошибка сборки C++ библиотеки\"\n        exit 1\n    fi\nfi\n\necho \"🎯 C++ ядро готово к использованию\"\n";
+			shellScript = "# Build C++ client core\nset -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nif ! command -v cmake &> /dev/null; then\n    echo \"Error: cmake not found. Install: brew install cmake\"\n    exit 1\nfi\n\ncd \"${SRCROOT}/../client-core\"\nmkdir -p build && cd build\ncmake .. -DCMAKE_BUILD_TYPE=Release\ncmake --build . -j4\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -439,10 +439,16 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../client-core/build/lib";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../client-core/build/lib",
+					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-ltermihui_client_core_with_fmt";
+				OTHER_LDFLAGS = (
+					"-ltermihui_client_core",
+					"-lfmt",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -473,10 +479,16 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../client-core/build/lib";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../client-core/build/lib",
+					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-ltermihui_client_core_with_fmt";
+				OTHER_LDFLAGS = (
+					"-ltermihui_client_core",
+					"-lfmt",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

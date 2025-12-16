@@ -4,40 +4,44 @@ project(termihui-server VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include FetchContent for dependency downloading
-include(FetchContent)
-
-# Fetch Catch2 for unit tests
-FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.4.0
-)
-
-FetchContent_MakeAvailable(Catch2)
-
-# Fetch libhv for WebSocket server
-FetchContent_Declare(
-    libhv
-    GIT_REPOSITORY https://github.com/ithewei/libhv.git
-    GIT_TAG v1.3.2
-)
-
-FetchContent_MakeAvailable(libhv)
-
-# Fetch fmt for formatted output
-FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 10.1.1
-)
-
-FetchContent_MakeAvailable(fmt)
+# Если собираемся standalone (не как подпроект) — качаем зависимости сами
+if(NOT TARGET fmt::fmt OR NOT TARGET hv_static OR NOT TARGET Catch2::Catch2WithMain)
+    include(FetchContent)
+    
+    if(NOT TARGET Catch2::Catch2WithMain)
+        message(STATUS "Fetching Catch2 (standalone build)...")
+        FetchContent_Declare(
+            Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.4.0
+        )
+        FetchContent_MakeAvailable(Catch2)
+    endif()
+    
+    if(NOT TARGET hv_static)
+        message(STATUS "Fetching libhv (standalone build)...")
+        FetchContent_Declare(
+            libhv
+            GIT_REPOSITORY https://github.com/ithewei/libhv.git
+            GIT_TAG v1.3.2
+        )
+        FetchContent_MakeAvailable(libhv)
+    endif()
+    
+    if(NOT TARGET fmt::fmt)
+        message(STATUS "Fetching fmt (standalone build)...")
+        FetchContent_Declare(
+            fmt
+            GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+            GIT_TAG 10.1.1
+        )
+        FetchContent_MakeAvailable(fmt)
+    endif()
+endif()
 
 # For macOS/Linux check for required libraries
 if(NOT WIN32)
     find_package(Threads REQUIRED)
-    # Check util library availability for forkpty
     include(CheckLibraryExists)
     check_library_exists(util forkpty "" HAVE_FORKPTY)
     if(HAVE_FORKPTY)
@@ -133,4 +137,4 @@ target_include_directories(unit_tests PRIVATE
 
 # Enable CTest support
 enable_testing()
-add_test(NAME unit_tests COMMAND unit_tests) 
+add_test(NAME unit_tests COMMAND unit_tests)

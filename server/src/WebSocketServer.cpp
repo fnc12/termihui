@@ -1,11 +1,13 @@
 #include "WebSocketServer.h"
 #include <iostream>
+#include <cstring>
 #include <fmt/core.h>
 
 // libhv headers included via WebSocketServer.h
 
-WebSocketServer::WebSocketServer(int port)
+WebSocketServer::WebSocketServer(int port, std::string bindAddress)
     : port(port)
+    , bindAddress(std::move(bindAddress))
 {
 }
 
@@ -36,15 +38,17 @@ bool WebSocketServer::start()
         
         // Setup server
         this->wsServer.ws = &this->wsService;
+        strncpy(this->wsServer.host, this->bindAddress.c_str(), sizeof(this->wsServer.host) - 1);
+        this->wsServer.host[sizeof(this->wsServer.host) - 1] = '\0';
         this->wsServer.port = this->port;
         
         // Start server in separate thread
         this->serverThread = std::make_unique<std::thread>([this]() {
-            fmt::print("Starting WebSocket server on port {}\n", this->port);
+            fmt::print("Starting WebSocket server on {}:{}\n", this->bindAddress, this->port);
             this->wsServer.run(false); // false = don't block thread
         });
         
-        fmt::print("WebSocket server started on port {}\n", this->port);
+        fmt::print("WebSocket server started on {}:{}\n", this->bindAddress, this->port);
         return true;
         
     } catch (const std::exception& e) {

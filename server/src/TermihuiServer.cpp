@@ -9,8 +9,8 @@ using json = nlohmann::json;
 // Static member initialization
 std::atomic<bool> TermihuiServer::shouldExit{false};
 
-TermihuiServer::TermihuiServer(int port)
-    : webSocketServer(port)
+TermihuiServer::TermihuiServer(int port, std::string bindAddress)
+    : webSocketServer(port, std::move(bindAddress))
     , lastStatsTime(std::chrono::steady_clock::now())
 {
 }
@@ -27,11 +27,10 @@ void TermihuiServer::signalHandler(int signal) {
 bool TermihuiServer::start() {
     // Start WebSocket server
     if (!webSocketServer.start()) {
-        fmt::print(stderr, "Failed to start WebSocket server on port {}\n", webSocketServer.getPort());
+        fmt::print(stderr, "Failed to start WebSocket server on {}:{}\n", 
+                   webSocketServer.getBindAddress(), webSocketServer.getPort());
         return false;
     }
-    
-    fmt::print("WebSocket server started on port {}\n", webSocketServer.getPort());
     
     // Create terminal session
     terminalSession = std::make_unique<TerminalSession>();

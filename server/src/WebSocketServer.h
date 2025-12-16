@@ -58,8 +58,9 @@ public:
     /**
      * Constructor
      * @param port port for WebSocket server
+     * @param bindAddress address to bind (e.g. "0.0.0.0" or "127.0.0.1")
      */
-    explicit WebSocketServer(int port);
+    WebSocketServer(int port, std::string bindAddress);
     
     /**
      * Destructor
@@ -123,6 +124,12 @@ public:
      * @return port number
      */
     int getPort() const { return port; }
+    
+    /**
+     * Get bind address
+     * @return bind address string
+     */
+    const std::string& getBindAddress() const { return bindAddress; }
 
 private:
     /**
@@ -145,6 +152,7 @@ private:
 
 private:
     int port;
+    std::string bindAddress;
     std::atomic<bool> running{false};
     std::atomic<int> nextClientId{1};
     
