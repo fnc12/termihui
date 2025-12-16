@@ -134,6 +134,20 @@ class ViewController: NSViewController {
         // Remove current child controller
         removeCurrentChildController()
         
+        // Notify about connection state change
+        let isConnected: Bool
+        switch state {
+        case .connected:
+            isConnected = true
+        default:
+            isConnected = false
+        }
+        NotificationCenter.default.post(
+            name: .connectionStateChanged,
+            object: nil,
+            userInfo: ["isConnected": isConnected]
+        )
+        
         // Add new controller based on state
         switch state {
         case .welcome:
@@ -159,6 +173,9 @@ class ViewController: NSViewController {
     }
     
     private func showWelcomeScreen() {
+        // Сбрасываем заголовок окна
+        view.window?.title = "TermiHUI"
+        
         addChild(welcomeViewController)
         view.addSubview(welcomeViewController.view)
         updateChildViewFrame()
@@ -177,6 +194,9 @@ class ViewController: NSViewController {
     private func showTerminalScreen(serverAddress: String) {
         print("🔧 showTerminalScreen: Parent view size: \(view.frame)")
         print("🔧 showTerminalScreen: Window size: \(view.window?.frame.size ?? CGSize.zero)")
+        
+        // Устанавливаем заголовок окна
+        view.window?.title = "TermiHUI — \(serverAddress)"
         
         terminalViewController.configure(serverAddress: serverAddress)
         terminalViewController.webSocketManager = webSocketManager
@@ -229,6 +249,15 @@ extension ViewController: TerminalViewControllerDelegate {
     }
     
     func terminalViewControllerDidRequestDisconnect(_ controller: TerminalViewController) {
+        webSocketManager.disconnect()
+        currentState = .welcome
+    }
+}
+
+// MARK: - Public Methods (для меню)
+extension ViewController {
+    /// Вызывается из AppDelegate при нажатии Client -> Disconnect
+    func requestDisconnect() {
         webSocketManager.disconnect()
         currentState = .welcome
     }

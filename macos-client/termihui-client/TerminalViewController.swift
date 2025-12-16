@@ -5,10 +5,6 @@ import SnapKit
 class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - UI Components
-    private let toolbarView = NSView()
-    private let disconnectButton = NSButton(title: "Отключиться", target: nil, action: nil)
-    private let statusLabel = NSTextField(labelWithString: "Подключен")
-    
     private let terminalScrollView = NSScrollView()
     private var collectionView = NSCollectionView()
     private let collectionLayout = NSCollectionViewFlowLayout()
@@ -163,33 +159,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         
-        setupToolbar()
         setupTerminalView()
         setupInputView()
         
         // Add main views
-        view.addSubview(toolbarView)
         view.addSubview(terminalScrollView)
         view.addSubview(inputContainerView)
-    }
-    
-    private func setupToolbar() {
-        toolbarView.wantsLayer = true
-        toolbarView.layer?.backgroundColor = NSColor.separatorColor.cgColor
-        
-        // Disconnect button
-        disconnectButton.bezelStyle = .rounded
-        disconnectButton.controlSize = .small
-        disconnectButton.target = self
-        disconnectButton.action = #selector(disconnectButtonTapped)
-        
-        // Status label
-        statusLabel.font = NSFont.systemFont(ofSize: 12)
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.alignment = .right
-        
-        toolbarView.addSubview(disconnectButton)
-        toolbarView.addSubview(statusLabel)
     }
     
     private func setupTerminalView() {
@@ -313,35 +288,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         print("   ScrollView: \(terminalScrollView.frame)")
         print("   InputContainer: \(inputContainerView.frame)")
         
-        // Toolbar
-        toolbarView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview()
-            make.height.equalTo(40)
-        }
-        
-        disconnectButton.snp.makeConstraints { make in
-            make.leading.equalToSuperview().offset(12)
-            make.centerY.equalToSuperview()
-        }
-        
-        statusLabel.snp.makeConstraints { make in
-            make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalToSuperview()
-            make.leading.greaterThanOrEqualTo(disconnectButton.snp.trailing).offset(12)
-        }
-        
         // Принудительно обновляем layout перед установкой constraints
         view.layoutSubtreeIfNeeded()
         
-        // Terminal view - возвращаемся к старому подходу с минимальной высотой
+        // Terminal view - занимает всё пространство от верха до input
         terminalScrollView.snp.makeConstraints { make in
-            make.top.equalTo(toolbarView.snp.bottom)
-            make.leading.trailing.equalToSuperview()
+            make.top.leading.trailing.equalToSuperview()
             make.bottom.equalTo(inputContainerView.snp.top)
             make.height.greaterThanOrEqualTo(200)
         }
-        
-        print("🔧 Terminal constraints set to full size: \(view.frame)")
         
         print("🔧 Terminal constraints set with minimum height 200")
         
@@ -391,7 +346,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Public Methods
     func configure(serverAddress: String) {
         self.serverAddress = serverAddress
-        statusLabel.stringValue = "Подключен к \(serverAddress)"
+        // Устанавливаем заголовок окна
+        view.window?.title = "TermiHUI — \(serverAddress)"
     }
     
     func appendOutput(_ output: String) {
@@ -413,7 +369,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     func showConnectionStatus(_ status: String) {
-        statusLabel.stringValue = status
+        // Статус теперь в заголовке окна
+        if !serverAddress.isEmpty {
+            view.window?.title = "TermiHUI — \(serverAddress) (\(status))"
+        }
     }
     
     /// Обновляет отображение текущей рабочей директории
@@ -462,7 +421,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         delegate?.terminalViewController(self, didSendCommand: command)
     }
     
-    @objc private func disconnectButtonTapped() {
+    /// Вызывается из меню Client -> Disconnect
+    func requestDisconnect() {
         delegate?.terminalViewControllerDidRequestDisconnect(self)
     }
 }
@@ -747,15 +707,9 @@ extension TerminalViewController {
         appendOutput(completionText)
     }
     
-    /// Shows temporary message in status bar
+    /// Shows temporary message (logged to console)
     private func showTemporaryMessage(_ message: String) {
-        let originalStatus = statusLabel.stringValue
-        statusLabel.stringValue = message
-        
-        // Возвращаем оригинальный статус через 2 секунды
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.statusLabel.stringValue = originalStatus
-        }
+        print("💬 \(message)")
     }
 }
 
