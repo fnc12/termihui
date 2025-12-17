@@ -350,6 +350,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         view.window?.title = "TermiHUI — \(serverAddress)"
     }
     
+    /// Очищает состояние терминала (вызывается при отключении)
+    func clearState() {
+        commandBlocks.removeAll()
+        currentBlockIndex = nil
+        globalDocument = GlobalDocument()
+        selectionRange = nil
+        selectionAnchor = nil
+        currentCwd = ""
+        cwdLabel.stringValue = "~"
+        collectionView.reloadData()
+    }
+    
     func appendOutput(_ output: String) {
         print("📺 TerminalViewController.appendOutput called with: *\(output)*")
         // Копим вывод в текущем блоке (если есть незавершённый)
@@ -489,15 +501,12 @@ extension TerminalViewController {
     func loadHistory(_ history: [CommandHistoryRecord]) {
         print("📜 Loading history: \(history.count) commands")
         
-        // Clear current blocks
+        // Clear current state
         commandBlocks.removeAll()
         currentBlockIndex = nil
         globalDocument = GlobalDocument()
         selectionRange = nil
         selectionAnchor = nil
-        
-        // Reload collectionView
-        collectionView.reloadData()
         
         // Create blocks from history
         for record in history {
@@ -513,10 +522,10 @@ extension TerminalViewController {
             commandBlocks.append(block)
         }
         
-        // Insert all blocks and update collectionView
+        // Полная перезагрузка collectionView после обновления модели
+        collectionView.reloadData()
+        
         if !commandBlocks.isEmpty {
-            let indexPaths = (0..<commandBlocks.count).map { IndexPath(item: $0, section: 0) }
-            collectionView.insertItems(at: Set(indexPaths))
             rebuildGlobalDocument(startingAt: 0)
             
             // Update CWD from last finished block
@@ -528,6 +537,7 @@ extension TerminalViewController {
             
             // Scroll to bottom
             DispatchQueue.main.async {
+                self.updateTextViewFrame()
                 self.scrollToBottom()
             }
         }

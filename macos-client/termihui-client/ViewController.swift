@@ -249,6 +249,7 @@ extension ViewController: TerminalViewControllerDelegate {
     }
     
     func terminalViewControllerDidRequestDisconnect(_ controller: TerminalViewController) {
+        controller.clearState()
         webSocketManager.disconnect()
         currentState = .welcome
     }
@@ -258,6 +259,10 @@ extension ViewController: TerminalViewControllerDelegate {
 extension ViewController {
     /// Вызывается из AppDelegate при нажатии Client -> Disconnect
     func requestDisconnect() {
+        // Очищаем состояние терминала перед отключением
+        if let terminalVC = children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+            terminalVC.clearState()
+        }
         webSocketManager.disconnect()
         currentState = .welcome
     }
