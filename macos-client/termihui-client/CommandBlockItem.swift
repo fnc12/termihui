@@ -11,6 +11,7 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let bodyTextView = NSTextView()
     private let container = NSView()
     private let separatorView = NSView()
+    private let ansiParser = ANSIParser()
     
     // Current highlight state (for reset)
     private var lastHeaderHighlight: NSRange?
@@ -43,7 +44,10 @@ final class CommandBlockItem: NSCollectionViewItem {
             headerLabel.isHidden = true
         }
         
-        bodyTextView.string = output
+        // Parse ANSI escape codes and apply styling
+        let styledSegments = ansiParser.parse(output)
+        let attributedOutput = styledSegments.toAttributedString()
+        bodyTextView.textStorage?.setAttributedString(attributedOutput)
         clearSelectionHighlight()
     }
     

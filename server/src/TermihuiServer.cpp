@@ -223,10 +223,29 @@ void TermihuiServer::processTerminalOutput() {
         return;
     }
     
+    // Helper: find next OSC sequence (any type)
+    auto findNextOSC = [&output](size_t from) -> size_t {
+        return output.find("\x1b]", from);
+    };
+    
+    // Helper: extract path from "user@host:path" format
+    auto extractPathFromTitle = [](const std::string& title) -> std::string {
+        // Format: "user@host:path" or just "path"
+        size_t colonPos = title.rfind(':');
+        if (colonPos != std::string::npos && colonPos < title.length() - 1) {
+            // Check if there's @ before : (indicates user@host:path format)
+            size_t atPos = title.find('@');
+            if (atPos != std::string::npos && atPos < colonPos) {
+                return title.substr(colonPos + 1);
+            }
+        }
+        return "";
+    };
+    
     // Streaming parser: preserve order "text → event → text"
     size_t i = 0;
     while (true) {
-        size_t oscPos = output.find("\x1b]133;", i);
+        size_t oscPos = findNextOSC(i);
         if (oscPos == std::string::npos) {
             // Remainder as regular output
             if (i < output.size()) {
@@ -256,8 +275,14 @@ void TermihuiServer::processTerminalOutput() {
             }
         }
 
-        // Find OSC end (BEL)
+        // Find OSC end (BEL or ST)
         size_t oscEnd = output.find('\x07', oscPos);
+        // Also check for ST (ESC \)
+        size_t stPos = output.find("\x1b\\", oscPos);
+        if (stPos != std::string::npos && (oscEnd == std::string::npos || stPos < oscEnd)) {
+            oscEnd = stPos + 1; // Point to after ST
+        }
+        
         if (oscEnd == std::string::npos) {
             // Incomplete marker — treat rest as regular text
             std::string chunk = output.substr(oscPos);
@@ -284,15 +309,14 @@ void TermihuiServer::processTerminalOutput() {
             return osc.substr(start, end - start);
         };
         
-        // Process event
+        // Process OSC based on type
         if (osc.rfind("\x1b]133;A", 0) == 0) {
+            // OSC 133;A - Command start (our marker)
             std::string cwd = extractParam("cwd");
             if (!cwd.empty()) {
-                terminalSession->setLastKnownCwd(cwd); // Update cwd for tab completion
+                terminalSession->setLastKnownCwd(cwd);
             }
             
-            // Create record and send event only if there's a pending command
-            // Otherwise it's just shell prompt on startup
             if (!pendingCommand.empty()) {
                 json ev;
                 ev["type"] = "command_start";
@@ -300,32 +324,29 @@ void TermihuiServer::processTerminalOutput() {
                     ev["cwd"] = cwd;
                 }
                 
-                // Create new history record
                 CommandRecord record;
                 record.command = std::move(pendingCommand);
                 record.cwdStart = cwd;
                 commandHistory.push_back(std::move(record));
                 currentCommandIndex = static_cast<int>(commandHistory.size()) - 1;
-                // pendingCommand is already empty after std::move
                 
                 webSocketServer.broadcastMessage(ev.dump());
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
+            // OSC 133;B - Command end (our marker)
             int exitCode = 0;
             auto k = osc.find("exit=");
             if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
             std::string cwd = extractParam("cwd");
             if (!cwd.empty()) {
-                terminalSession->setLastKnownCwd(cwd); // Update cwd for tab completion
+                terminalSession->setLastKnownCwd(cwd);
             }
             
-            // Finish current history record and send event
-            // only if there's an active block
             if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
                 commandHistory[currentCommandIndex].exitCode = exitCode;
                 commandHistory[currentCommandIndex].cwdEnd = cwd;
                 commandHistory[currentCommandIndex].isFinished = true;
-                currentCommandIndex = -1; // Reset pointer
+                currentCommandIndex = -1;
                 
                 json ev;
                 ev["type"] = "command_end";
@@ -336,14 +357,58 @@ void TermihuiServer::processTerminalOutput() {
                 webSocketServer.broadcastMessage(ev.dump());
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
+            // OSC 133;C - Prompt start
             json ev;
             ev["type"] = "prompt_start";
             webSocketServer.broadcastMessage(ev.dump());
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
+            // OSC 133;D - Prompt end
             json ev;
             ev["type"] = "prompt_end";
             webSocketServer.broadcastMessage(ev.dump());
+        } else if (osc.rfind("\x1b]2;", 0) == 0) {
+            // OSC 2 - Window title (often contains user@host:path)
+            // Extract title content between "ESC]2;" and BEL/ST
+            size_t titleStart = 4; // After "ESC]2;"
+            size_t titleEnd = osc.find_first_of("\x07\x1b", titleStart);
+            if (titleEnd != std::string::npos) {
+                std::string title = osc.substr(titleStart, titleEnd - titleStart);
+                std::string path = extractPathFromTitle(title);
+                if (!path.empty()) {
+                    fmt::print("OSC 2 detected CWD: {} (from title: {})\n", path, title);
+                    terminalSession->setLastKnownCwd(path);
+                    
+                    // Send cwd_update event to client
+                    json ev;
+                    ev["type"] = "cwd_update";
+                    ev["cwd"] = path;
+                    webSocketServer.broadcastMessage(ev.dump());
+                }
+            }
+        } else if (osc.rfind("\x1b]7;", 0) == 0) {
+            // OSC 7 - Current working directory (file://host/path format)
+            size_t pathStart = osc.find("file://");
+            if (pathStart != std::string::npos) {
+                pathStart += 7; // Skip "file://"
+                // Skip hostname (find next /)
+                size_t slashPos = osc.find('/', pathStart);
+                if (slashPos != std::string::npos) {
+                    size_t pathEnd = osc.find_first_of("\x07\x1b", slashPos);
+                    if (pathEnd != std::string::npos) {
+                        std::string path = osc.substr(slashPos, pathEnd - slashPos);
+                        fmt::print("OSC 7 detected CWD: {}\n", path);
+                        terminalSession->setLastKnownCwd(path);
+                        
+                        // Send cwd_update event to client
+                        json ev;
+                        ev["type"] = "cwd_update";
+                        ev["cwd"] = path;
+                        webSocketServer.broadcastMessage(ev.dump());
+                    }
+                }
+            }
         }
+        // Other OSC types (1, etc.) are silently ignored
 
         // Continue after marker
         i = oscEnd + 1;

@@ -363,6 +363,15 @@ extension ViewController: WebSocketManagerDelegate {
         }
     }
     
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCwdUpdate cwd: String) {
+        // Update CWD from remote session (SSH via OSC 2/7)
+        DispatchQueue.main.async {
+            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
+                terminalVC.updateCurrentCwd(cwd)
+            }
+        }
+    }
+    
     func webSocketManager(_ manager: WebSocketManager, didReceiveHistory history: [CommandHistoryRecord]) {
         // Pass command history to TerminalViewController
         DispatchQueue.main.async {

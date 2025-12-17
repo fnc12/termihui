@@ -64,11 +64,22 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private var selectionAnchor: Int? = nil // global index of selection start
     private var selectionRange: NSRange? = nil // current global range
     
+    // MARK: - Autoscroll state
+    private var autoscrollTimer: Timer?
+    private var lastDragEvent: NSEvent?
+    
+    // MARK: - Raw Input Mode (when command is running)
+    private var isCommandRunning: Bool = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupLayout()
         setupActions()
+    }
+    
+    override var acceptsFirstResponder: Bool {
+        return true
     }
     
     override func viewDidAppear() {
@@ -360,6 +371,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         currentCwd = ""
         cwdLabel.stringValue = "~"
         collectionView.reloadData()
+        
+        // Reset raw input mode
+        isCommandRunning = false
+        inputContainerView.isHidden = false
+        inputContainerView.alphaValue = 1
     }
     
     func appendOutput(_ output: String) {
@@ -437,6 +453,65 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     func requestDisconnect() {
         delegate?.terminalViewControllerDidRequestDisconnect(self)
     }
+    
+    // MARK: - Raw Input Mode
+    
+    /// Counter to track animation state and prevent race conditions
+    private var rawModeAnimationCounter: Int = 0
+    
+    /// Enters raw input mode when command starts executing
+    func enterRawInputMode() {
+        isCommandRunning = true
+        rawModeAnimationCounter += 1
+        let currentCounter = rawModeAnimationCounter
+        
+        // Hide input container with animation
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.15
+            inputContainerView.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            guard let self = self else { return }
+            // Only hide if we're still in the same animation cycle
+            if self.rawModeAnimationCounter == currentCounter && self.isCommandRunning {
+                self.inputContainerView.isHidden = true
+            }
+        }
+        
+        // Make terminal view first responder to capture keyboard
+        view.window?.makeFirstResponder(self)
+        
+        print("🎹 Entered raw input mode")
+    }
+    
+    /// Exits raw input mode when command finishes
+    func exitRawInputMode() {
+        isCommandRunning = false
+        rawModeAnimationCounter += 1 // Invalidate any pending hide animations
+        
+        // Show input container immediately (no animation to avoid race)
+        inputContainerView.isHidden = false
+        inputContainerView.alphaValue = 1
+        
+        // Return focus to command text field
+        view.window?.makeFirstResponder(commandTextField)
+        
+        print("🎹 Exited raw input mode")
+    }
+    
+    /// Sends raw input to PTY via WebSocket
+    private func sendRawInput(_ text: String) {
+        // Local echo for printable characters and newlines
+        // Note: Real terminals handle echo on PTY side, but we disabled it
+        // to avoid command duplication. So we do client-side echo in raw mode.
+        if text == "\n" || text == "\r" || text == "\r\n" {
+            appendOutput("\n")
+        } else if text.allSatisfy({ $0.isPrintable }) {
+            appendOutput(text)
+        }
+        // Don't echo control characters (Ctrl+C, escape sequences, etc.)
+        
+        webSocketManager?.sendInput(text)
+    }
 }
 
 // MARK: - TabHandlingTextFieldDelegate
@@ -479,6 +554,9 @@ extension TerminalViewController {
         currentBlockIndex = commandBlocks.count - 1
         insertBlock(at: currentBlockIndex!)
         rebuildGlobalDocument(startingAt: currentBlockIndex!)
+        
+        // Enter raw input mode for interactive commands
+        enterRawInputMode()
     }
     
     func didFinishCommandBlock(exitCode: Int, cwd: String? = nil) {
@@ -495,6 +573,9 @@ extension TerminalViewController {
         if let newCwd = cwd {
             updateCurrentCwd(newCwd)
         }
+        
+        // Exit raw input mode
+        exitRawInputMode()
     }
     
     /// Loads command history from server
@@ -527,6 +608,14 @@ extension TerminalViewController {
         
         if !commandBlocks.isEmpty {
             rebuildGlobalDocument(startingAt: 0)
+            
+            // Check if last block is unfinished (running command)
+            // If so, set currentBlockIndex to continue appending output to it
+            if let lastIndex = commandBlocks.indices.last, !commandBlocks[lastIndex].isFinished {
+                currentBlockIndex = lastIndex
+                print("📜 Resuming unfinished command block at index \(lastIndex)")
+                enterRawInputMode()
+            }
             
             // Update CWD from last finished block
             if let lastBlock = commandBlocks.last {
@@ -828,9 +917,22 @@ extension TerminalViewController {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard isSelecting, let anchor = selectionAnchor, let window = view.window else { return }
+        guard isSelecting, let anchor = selectionAnchor else { return }
         let locationInView = view.convert(event.locationInWindow, from: nil)
-        guard let (_, globalIndex) = hitTestGlobalIndex(at: locationInView) else { return }
+        
+        // Autoscroll if cursor is outside scroll view bounds
+        let scrollBounds = terminalScrollView.convert(terminalScrollView.bounds, to: view)
+        handleAutoscroll(locationInView: locationInView, scrollBounds: scrollBounds, event: event)
+        
+        // Get global index - use edge detection if outside content
+        let globalIndex: Int
+        if let (_, idx) = hitTestGlobalIndex(at: locationInView) {
+            globalIndex = idx
+        } else {
+            // Cursor is outside content - select to edge
+            globalIndex = getEdgeGlobalIndex(locationInView: locationInView, scrollBounds: scrollBounds)
+        }
+        
         let start = min(anchor, globalIndex)
         let end = max(anchor, globalIndex)
         selectionRange = NSRange(location: start, length: end - start)
@@ -839,15 +941,204 @@ extension TerminalViewController {
 
     override func mouseUp(with event: NSEvent) {
         isSelecting = false
+        stopAutoscrollTimer()
+    }
+    
+    // MARK: - Autoscroll Support
+    
+    private func handleAutoscroll(locationInView: NSPoint, scrollBounds: NSRect, event: NSEvent) {
+        lastDragEvent = event
+        
+        // Calculate distance outside scroll bounds
+        var deltaY: CGFloat = 0
+        if locationInView.y < scrollBounds.minY {
+            deltaY = locationInView.y - scrollBounds.minY // negative = scroll down (content moves up)
+        } else if locationInView.y > scrollBounds.maxY {
+            deltaY = locationInView.y - scrollBounds.maxY // positive = scroll up (content moves down)
+        }
+        
+        if abs(deltaY) > 0 {
+            // Start autoscroll timer if not running
+            if autoscrollTimer == nil {
+                autoscrollTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] _ in
+                    self?.performAutoscroll()
+                }
+            }
+        } else {
+            stopAutoscrollTimer()
+        }
+    }
+    
+    private func performAutoscroll() {
+        guard isSelecting, let event = lastDragEvent else {
+            stopAutoscrollTimer()
+            return
+        }
+        
+        let locationInView = view.convert(event.locationInWindow, from: nil)
+        let scrollBounds = terminalScrollView.convert(terminalScrollView.bounds, to: view)
+        
+        // Calculate scroll speed proportional to distance
+        var deltaY: CGFloat = 0
+        if locationInView.y < scrollBounds.minY {
+            deltaY = (scrollBounds.minY - locationInView.y) * 0.5 // scroll down
+        } else if locationInView.y > scrollBounds.maxY {
+            deltaY = (scrollBounds.maxY - locationInView.y) * 0.5 // scroll up (negative)
+        }
+        
+        if abs(deltaY) < 1 {
+            stopAutoscrollTimer()
+            return
+        }
+        
+        // Apply scroll
+        let clipView = terminalScrollView.contentView
+        var newOrigin = clipView.bounds.origin
+        newOrigin.y = max(0, min(newOrigin.y + deltaY, collectionView.frame.height - clipView.bounds.height))
+        clipView.setBoundsOrigin(newOrigin)
+        terminalScrollView.reflectScrolledClipView(clipView)
+        
+        // Update selection with new scroll position
+        if let anchor = selectionAnchor {
+            let globalIndex: Int
+            if let (_, idx) = hitTestGlobalIndex(at: locationInView) {
+                globalIndex = idx
+            } else {
+                globalIndex = getEdgeGlobalIndex(locationInView: locationInView, scrollBounds: scrollBounds)
+            }
+            let start = min(anchor, globalIndex)
+            let end = max(anchor, globalIndex)
+            selectionRange = NSRange(location: start, length: end - start)
+            updateSelectionHighlight()
+        }
+    }
+    
+    private func stopAutoscrollTimer() {
+        autoscrollTimer?.invalidate()
+        autoscrollTimer = nil
+    }
+    
+    /// Returns global index at document edge when cursor is outside content
+    private func getEdgeGlobalIndex(locationInView: NSPoint, scrollBounds: NSRect) -> Int {
+        if locationInView.y < scrollBounds.minY {
+            // Below scroll view (in flipped coordinates this means end of document)
+            return globalDocument.totalLength
+        } else if locationInView.y > scrollBounds.maxY {
+            // Above scroll view (beginning of document)
+            return 0
+        }
+        // Horizontal edges - find nearest visible line
+        return selectionAnchor ?? 0
     }
 
     override func keyDown(with event: NSEvent) {
-        // Cmd+C — copy selected text
+        // Cmd+C — copy selected text (works in both modes)
         if event.modifierFlags.contains(.command), let chars = event.charactersIgnoringModifiers, chars.lowercased() == "c" {
             copySelectionToPasteboard()
             return
         }
+        
+        // Cmd+V — paste (in raw mode, send to PTY)
+        if event.modifierFlags.contains(.command), let chars = event.charactersIgnoringModifiers, chars.lowercased() == "v" {
+            if isCommandRunning {
+                if let pasteString = NSPasteboard.general.string(forType: .string) {
+                    sendRawInput(pasteString)
+                }
+                return
+            }
+        }
+        
+        // Raw input mode: send all keypresses to PTY
+        if isCommandRunning {
+            handleRawKeyDown(event)
+            return
+        }
+        
         super.keyDown(with: event)
+    }
+    
+    /// Handles key press in raw input mode
+    private func handleRawKeyDown(_ event: NSEvent) {
+        let keyCode = event.keyCode
+        let modifiers = event.modifierFlags
+        
+        // Handle special keys
+        switch keyCode {
+        case 36: // Enter/Return
+            sendRawInput("\n")
+            return
+        case 51: // Backspace
+            sendRawInput("\u{7f}") // DEL character
+            return
+        case 53: // Escape
+            sendRawInput("\u{1b}")
+            return
+        case 48: // Tab
+            sendRawInput("\t")
+            return
+        case 123: // Left arrow
+            sendRawInput("\u{1b}[D")
+            return
+        case 124: // Right arrow
+            sendRawInput("\u{1b}[C")
+            return
+        case 125: // Down arrow
+            sendRawInput("\u{1b}[B")
+            return
+        case 126: // Up arrow
+            sendRawInput("\u{1b}[A")
+            return
+        case 115: // Home
+            sendRawInput("\u{1b}[H")
+            return
+        case 119: // End
+            sendRawInput("\u{1b}[F")
+            return
+        case 116: // Page Up
+            sendRawInput("\u{1b}[5~")
+            return
+        case 121: // Page Down
+            sendRawInput("\u{1b}[6~")
+            return
+        case 117: // Delete (forward)
+            sendRawInput("\u{1b}[3~")
+            return
+        default:
+            break
+        }
+        
+        // Ctrl+key combinations
+        if modifiers.contains(.control), let chars = event.charactersIgnoringModifiers {
+            if let char = chars.first {
+                let asciiValue = char.asciiValue ?? 0
+                // Ctrl+A = 1, Ctrl+B = 2, ..., Ctrl+Z = 26
+                if asciiValue >= 97 && asciiValue <= 122 { // a-z
+                    let ctrlChar = Character(UnicodeScalar(asciiValue - 96))
+                    sendRawInput(String(ctrlChar))
+                    return
+                }
+                // Ctrl+C specifically
+                if char == "c" {
+                    sendRawInput("\u{03}") // ETX (Ctrl+C)
+                    return
+                }
+                // Ctrl+D
+                if char == "d" {
+                    sendRawInput("\u{04}") // EOT (Ctrl+D)
+                    return
+                }
+                // Ctrl+Z
+                if char == "z" {
+                    sendRawInput("\u{1a}") // SUB (Ctrl+Z)
+                    return
+                }
+            }
+        }
+        
+        // Regular characters
+        if let chars = event.characters, !chars.isEmpty {
+            sendRawInput(chars)
+        }
     }
 
     /// Converts click coordinate to global character index if it hits text
@@ -1024,4 +1315,15 @@ extension TerminalViewController {
 protocol TerminalViewControllerDelegate: AnyObject {
     func terminalViewController(_ controller: TerminalViewController, didSendCommand command: String)
     func terminalViewControllerDidRequestDisconnect(_ controller: TerminalViewController)
+}
+
+// MARK: - Character Extension
+private extension Character {
+    /// Returns true if character is printable (not a control character)
+    var isPrintable: Bool {
+        // Control characters are 0x00-0x1F and 0x7F
+        guard let scalar = unicodeScalars.first else { return false }
+        let value = scalar.value
+        return value >= 0x20 && value != 0x7F
+    }
 }

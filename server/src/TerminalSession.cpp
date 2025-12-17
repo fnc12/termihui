@@ -163,7 +163,7 @@ bool TerminalSession::executeCommand(const std::string& command)
         return false;
     }
     
-    // Send command + newline to interactive bash
+    // Send command + newline to interactive shell
     std::string cmd = command + "\n";
     ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
     

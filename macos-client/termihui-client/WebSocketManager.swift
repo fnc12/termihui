@@ -216,6 +216,12 @@ class WebSocketManager: NSObject {
                         self.delegate?.webSocketManager(self, didReceiveHistory: commands)
                     }
                     
+                case "cwd_update":
+                    if let cwd = response.cwd {
+                        print("📂 CWD update from remote: \(cwd)")
+                        self.delegate?.webSocketManager(self, didReceiveCwdUpdate: cwd)
+                    }
+                    
                 default:
                     print("Unknown message type: \(response.type)")
                 }
@@ -289,6 +295,8 @@ protocol WebSocketManagerDelegate: AnyObject {
     // Command events with cwd
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?)
     func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?)
+    // CWD update (from SSH sessions via OSC 2/7)
+    func webSocketManager(_ manager: WebSocketManager, didReceiveCwdUpdate cwd: String)
     // Command history
     func webSocketManager(_ manager: WebSocketManager, didReceiveHistory history: [CommandHistoryRecord])
 }
