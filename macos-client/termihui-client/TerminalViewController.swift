@@ -15,8 +15,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
     private var inputUnderlineView: NSView!
     
-    // Current working directory
+    // Current working directory and server home
     private var currentCwd: String = ""
+    private var serverHome: String = ""
     
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
@@ -406,6 +407,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         selectionRange = nil
         selectionAnchor = nil
         currentCwd = ""
+        serverHome = ""
         cwdLabel.stringValue = "~"
         collectionView.reloadData()
         
@@ -443,34 +445,27 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         }
     }
     
+    /// Обновляет home directory сервера (для сокращения путей)
+    func updateServerHome(_ home: String) {
+        serverHome = home
+        // Обновим отображение CWD с новым home
+        if !currentCwd.isEmpty {
+            updateCurrentCwd(currentCwd)
+        }
+    }
+    
     /// Обновляет отображение текущей рабочей директории
     func updateCurrentCwd(_ cwd: String) {
         currentCwd = cwd
-        // Получаем реальный home directory (не sandboxed)
-        let homeDir = realHomeDirectory()
+        // Сокращаем путь только если сервер прислал home
         let displayCwd: String
-        if cwd.hasPrefix(homeDir) {
-            displayCwd = "~" + String(cwd.dropFirst(homeDir.count))
+        if !serverHome.isEmpty && cwd.hasPrefix(serverHome) {
+            displayCwd = "~" + String(cwd.dropFirst(serverHome.count))
         } else {
             displayCwd = cwd
         }
         cwdLabel.stringValue = displayCwd
         print("📂 CWD updated: \(displayCwd)")
-    }
-    
-    /// Возвращает реальный home directory пользователя (не sandboxed контейнер)
-    private func realHomeDirectory() -> String {
-        // NSHomeDirectory() в sandboxed app возвращает путь к контейнеру
-        // Используем getpwuid для получения реального home
-        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
-            return String(cString: home)
-        }
-        // Fallback: извлекаем из /Users/username
-        let components = NSHomeDirectory().components(separatedBy: "/")
-        if components.count >= 3 && components[1] == "Users" {
-            return "/Users/\(components[2])"
-        }
-        return NSHomeDirectory()
     }
     
     // MARK: - Actions
@@ -900,7 +895,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         let item = collectionView.makeItem(withIdentifier: CommandBlockItem.reuseId, for: indexPath)
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
-        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart)
+        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart, serverHome: serverHome)
         // apply highlight for current selection if it intersects this block
         applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem

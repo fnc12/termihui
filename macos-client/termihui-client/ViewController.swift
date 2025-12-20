@@ -224,6 +224,10 @@ class ViewController: NSViewController {
             } else {
                 print("⚠️ connected missing 'cwd': \(messageDict)")
             }
+            if let home = messageDict["home"] as? String {
+                print("🏠 Server home: \(home)")
+                terminalViewController.updateServerHome(home)
+            }
             
         case "output":
             if let outputData = messageDict["data"] as? String {

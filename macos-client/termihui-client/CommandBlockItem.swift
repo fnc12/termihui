@@ -26,10 +26,10 @@ final class CommandBlockItem: NSCollectionViewItem {
         setupUI()
     }
     
-    func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?, cwdStart: String?) {
+    func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
         // CWD label — gray, above command
         if let cwd = cwdStart, !cwd.isEmpty {
-            cwdLabel.stringValue = shortenHomePath(cwd)
+            cwdLabel.stringValue = shortenHomePath(cwd, serverHome: serverHome)
             cwdLabel.isHidden = false
         } else {
             cwdLabel.stringValue = ""
@@ -52,13 +52,10 @@ final class CommandBlockItem: NSCollectionViewItem {
         clearSelectionHighlight()
     }
     
-    /// Shortens home directory to ~
-    private func shortenHomePath(_ path: String) -> String {
-        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
-            let homeDir = String(cString: home)
-            if path.hasPrefix(homeDir) {
-                return "~" + String(path.dropFirst(homeDir.count))
-            }
+    /// Shortens home directory to ~ using server-provided home
+    private func shortenHomePath(_ path: String, serverHome: String) -> String {
+        if !serverHome.isEmpty && path.hasPrefix(serverHome) {
+            return "~" + String(path.dropFirst(serverHome.count))
         }
         return path
     }

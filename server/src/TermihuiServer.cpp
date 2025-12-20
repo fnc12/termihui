@@ -93,13 +93,17 @@ void TermihuiServer::update() {
 void TermihuiServer::handleNewConnection(int clientId) {
     fmt::print("Client connected: {}\n", clientId);
     
-    // Send welcome message with current cwd
+    // Send welcome message with current cwd and home directory
     json welcomeMsg;
     welcomeMsg["type"] = "connected";
     welcomeMsg["server_version"] = "1.0.0";
     std::string cwd = terminalSession->getLastKnownCwd();
     if (!cwd.empty()) {
         welcomeMsg["cwd"] = cwd;
+    }
+    // Add home directory for path shortening on client
+    if (const char* home = getenv("HOME")) {
+        welcomeMsg["home"] = home;
     }
     webSocketServer.sendMessage(clientId, welcomeMsg.dump());
     
