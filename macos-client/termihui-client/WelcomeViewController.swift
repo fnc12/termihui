@@ -1,7 +1,7 @@
 import Cocoa
 import SnapKit
 
-/// Экран приветствия для ввода адреса сервера
+/// Welcome screen for entering server address
 class WelcomeViewController: NSViewController {
     
     // MARK: - UI Components
@@ -12,6 +12,9 @@ class WelcomeViewController: NSViewController {
     
     // MARK: - Properties
     weak var delegate: WelcomeViewControllerDelegate?
+    
+    /// Client core instance for C++ functionality
+    var clientCore: ClientCoreWrapper?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -99,7 +102,7 @@ class WelcomeViewController: NSViewController {
         AppSettings.shared.serverAddress = serverAddress
         
         // Уведомляем delegate о попытке подключения
-        delegate?.welcomeViewController(self, didRequestConnectionTo: serverAddress)
+        delegate?.welcomeViewController(self, didClickConnectButton: serverAddress)
     }
     
     private func showErrorAlert(message: String) {
@@ -119,5 +122,5 @@ class WelcomeViewController: NSViewController {
 
 // MARK: - Delegate Protocol
 protocol WelcomeViewControllerDelegate: AnyObject {
-    func welcomeViewController(_ controller: WelcomeViewController, didRequestConnectionTo serverAddress: String)
+    func welcomeViewController(_ controller: WelcomeViewController, didClickConnectButton serverAddress: String)
 }

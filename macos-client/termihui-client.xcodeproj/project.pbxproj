@@ -442,12 +442,14 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
 					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
+					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-ltermihui_client_core",
 					"-lfmt",
+					"-lhv_static",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -482,12 +484,14 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
 					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
+					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-ltermihui_client_core",
 					"-lfmt",
+					"-lhv_static",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";

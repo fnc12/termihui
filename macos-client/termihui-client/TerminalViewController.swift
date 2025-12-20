@@ -20,10 +20,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
-    weak var webSocketManager: WebSocketManager?
     private var serverAddress: String = ""
     private let ansiParser = ANSIParser()
     private let baseTopInset: CGFloat = 8
+    
+    /// Client core instance for C++ functionality
+    var clientCore: ClientCoreWrapper?
     
     // Terminal size tracking
     private var lastTerminalCols: Int = 0
@@ -151,7 +153,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             lastTerminalRows = rows
             
             print("📐 Terminal size changed: \(cols)x\(rows)")
-            webSocketManager?.sendResize(cols: cols, rows: rows)
+            clientCore?.send(["type": "resize", "cols": cols, "rows": rows])
         }
     }
     
@@ -162,7 +164,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         lastTerminalRows = rows
         
         print("📐 Initial terminal size: \(cols)x\(rows)")
-        webSocketManager?.sendResize(cols: cols, rows: rows)
+        clientCore?.send(["type": "resize", "cols": cols, "rows": rows])
     }
     
     // MARK: - Setup Methods
@@ -510,7 +512,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         }
         // Don't echo control characters (Ctrl+C, escape sequences, etc.)
         
-        webSocketManager?.sendInput(text)
+        clientCore?.send(["type": "sendInput", "text": text])
     }
 }
 
@@ -522,7 +524,7 @@ extension TerminalViewController: TabHandlingTextFieldDelegate {
         print("   Cursor position: \(cursorPosition)")
         
         // Send completion request to server
-        webSocketManager?.requestCompletion(for: text, cursorPosition: cursorPosition)
+        clientCore?.send(["type": "requestCompletion", "text": text, "cursorPosition": cursorPosition])
     }
 }
 
@@ -906,9 +908,9 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
 // MARK: - Selection handling & highlighting
 extension TerminalViewController {
     override func mouseDown(with event: NSEvent) {
-        guard let window = view.window else { return }
+        guard view.window != nil else { return }
         let locationInView = view.convert(event.locationInWindow, from: nil)
-        guard let (blockIndex, localIndex) = hitTestGlobalIndex(at: locationInView) else { return }
+        guard let (_, localIndex) = hitTestGlobalIndex(at: locationInView) else { return }
         let globalIndex = localIndex
         isSelecting = true
         selectionAnchor = globalIndex

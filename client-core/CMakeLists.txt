@@ -4,9 +4,10 @@ project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Если собираемся standalone (не как подпроект) — качаем fmt сами
+# Если собираемся standalone (не как подпроект) — качаем зависимости сами
+include(FetchContent)
+
 if(NOT TARGET fmt::fmt)
-    include(FetchContent)
     message(STATUS "Fetching fmt (standalone build)...")
     FetchContent_Declare(
         fmt
@@ -15,6 +16,17 @@ if(NOT TARGET fmt::fmt)
     )
     FetchContent_MakeAvailable(fmt)
     message(STATUS "fmt ready")
+endif()
+
+if(NOT TARGET hv_static)
+    message(STATUS "Fetching libhv (standalone build)...")
+    FetchContent_Declare(
+        libhv
+        GIT_REPOSITORY https://github.com/ithewei/libhv.git
+        GIT_TAG        v1.3.2
+    )
+    FetchContent_MakeAvailable(libhv)
+    message(STATUS "libhv ready")
 endif()
 
 # Создаём статическую библиотеку
@@ -29,10 +41,11 @@ target_include_directories(termihui_client_core
         $<INSTALL_INTERFACE:include>
 )
 
-# Линкуем fmt
+# Линкуем зависимости
 target_link_libraries(termihui_client_core
     PRIVATE
         fmt::fmt
+        hv_static
 )
 
 # Настройки выходного файла

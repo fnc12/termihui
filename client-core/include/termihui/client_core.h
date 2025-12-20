@@ -1,21 +1,33 @@
 #pragma once
 
 #include <string>
+#include <string_view>
+#include <memory>
+#include "thread_safe_queue.h"
+
+// Forward declare libhv types
+namespace hv {
+    class WebSocketClient;
+}
 
 namespace termihui {
 
 /**
  * TermiHUI Client Core
- * Manages connection state and protocol handling
+ * Singleton managing connection state and protocol handling
  */
 class ClientCore {
 public:
-    ClientCore();
-    ~ClientCore();
+    /**
+     * Get singleton instance
+     */
+    static ClientCore& instance();
     
-    // Disable copying
+    // Disable copying and moving
     ClientCore(const ClientCore&) = delete;
     ClientCore& operator=(const ClientCore&) = delete;
+    ClientCore(ClientCore&&) = delete;
+    ClientCore& operator=(ClientCore&&) = delete;
     
     /**
      * Get client core version
@@ -38,50 +50,112 @@ public:
      * Check if initialized
      */
     bool isInitialized() const { return initialized; }
+    
+    /**
+     * Send message to core for processing
+     * @param message JSON or other encoded message
+     * @return response string (JSON)
+     */
+    std::string sendMessage(std::string_view message);
+    
+    /**
+     * Poll single event from queue
+     * @return event string or nullptr if empty
+     */
+    const char* pollEvent();
+    
+    /**
+     * Get count of pending events (thread-safe)
+     */
+    size_t pendingEventsCount() const;
+    
+    /**
+     * Add event to pending queue (for internal use)
+     * @param event JSON encoded event
+     */
+    void pushEvent(std::string event);
+    
+    /**
+     * Get last response (for C API)
+     */
+    const char* getLastResponseCStr() const { return lastResponse.c_str(); }
 
 private:
+    ClientCore();
+    ~ClientCore();
+    
+    // Message handlers
+    void handleConnectButtonClicked(const std::string& address);
+    void handleDisconnectButtonClicked();
+    void handleExecuteCommand(const std::string& command);
+    void handleSendInput(const std::string& text);
+    void handleResize(int cols, int rows);
+    void handleRequestCompletion(const std::string& text, int cursorPosition);
+    void handleRequestReconnect(const std::string& address);
+    
+    // WebSocket callbacks (called from libhv thread)
+    void onWebSocketOpen();
+    void onWebSocketMessage(const std::string& message);
+    void onWebSocketClose();
+    void onWebSocketError(const std::string& error);
+    
     bool initialized = false;
+    
+    // WebSocket client
+    std::unique_ptr<hv::WebSocketClient> wsClient;
+    std::string serverAddress;
+    std::string lastSentCommand;
+    
+    // Event queue (thread-safe)
+    StringQueue pendingEvents;
+    
+    // Buffers for C API (to return stable pointers)
+    std::string lastResponse;
+    std::string lastEvent;
 };
 
-// Handle-based C API (for FFI bindings)
-// Use int handles instead of pointers for easier interop with C#, Kotlin, etc.
-
-/**
- * Create new client core instance
- * @return handle (positive int) or -1 on error
- */
-int createClientCore();
-
-/**
- * Destroy client core instance
- * @param handle client core handle
- */
-void destroyClientCore(int handle);
-
-/**
- * Initialize client core
- * @param handle client core handle
- * @return true if successful
- */
-bool initializeClientCore(int handle);
-
-/**
- * Shutdown client core
- * @param handle client core handle
- */
-void shutdownClientCore(int handle);
-
-/**
- * Check if client core is valid handle
- * @param handle client core handle
- * @return true if handle is valid
- */
-bool isValidClientCore(int handle);
+// Simple C++ API (uses singleton internally)
 
 /**
  * Get library version
  * @return version string (static, do not free)
  */
-const char* getClientCoreVersion();
+const char* getVersion();
+
+/**
+ * Initialize client core
+ * @return true if successful
+ */
+bool initialize();
+
+/**
+ * Shutdown client core
+ */
+void shutdown();
+
+/**
+ * Check if client core is initialized
+ * @return true if initialized
+ */
+bool isInitialized();
+
+/**
+ * Send message to client core
+ * @param message JSON or other encoded message
+ * @return response string (valid until next call, do not free)
+ */
+const char* sendMessage(const char* message);
+
+/**
+ * Poll single event from client core
+ * Call in loop until nullptr returned
+ * @return event JSON string or nullptr if empty (valid until next call)
+ */
+const char* pollEvent();
+
+/**
+ * Get count of pending events
+ */
+int pendingEventsCount();
 
 } // namespace termihui

@@ -9,39 +9,41 @@ extern "C" {
 
 /**
  * TermiHUI Client Core C API
- * Handle-based API for FFI (uses int instead of pointers)
+ * Singleton-based API for FFI
  * Safe for use from C, Swift, Kotlin, C#, etc.
  */
-
-/// Create new client core instance
-/// @return handle (positive int) or -1 on error
-int termihui_create_client(void);
-
-/// Destroy client core instance
-/// @param handle client core handle
-void termihui_destroy_client(int handle);
-
-/// Initialize client core
-/// @param handle client core handle
-/// @return true if successful
-bool termihui_initialize_client(int handle);
-
-/// Shutdown client core
-/// @param handle client core handle
-void termihui_shutdown_client(int handle);
-
-/// Check if client core handle is valid
-/// @param handle client core handle
-/// @return true if handle is valid
-bool termihui_is_valid_client(int handle);
 
 /// Get library version
 /// @return version string (static, do not free)
 const char* termihui_get_version(void);
+
+/// Initialize client core
+/// @return true if successful
+bool termihui_initialize(void);
+
+/// Shutdown client core
+void termihui_shutdown(void);
+
+/// Check if client core is initialized
+/// @return true if initialized
+bool termihui_is_initialized(void);
+
+/// Send message to client core for processing
+/// @param message JSON or other encoded message (null-terminated string)
+/// @return response string (valid until next call to this function, do not free)
+const char* termihui_send_message(const char* message);
+
+/// Poll single event from client core
+/// Call in a loop until NULL is returned
+/// @return JSON event string, or NULL if no more events (valid until next call, do not free)
+const char* termihui_poll_event(void);
+
+/// Get count of pending events (optional, for preallocating)
+/// @return number of pending events
+int termihui_pending_events_count(void);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* TERMIHUI_CLIENT_CORE_C_H */
-

@@ -1,7 +1,7 @@
 import Cocoa
 import SnapKit
 
-/// Экран подключения с индикатором прогресса
+/// Connection screen with progress indicator
 class ConnectingViewController: NSViewController {
     
     // MARK: - UI Components
@@ -13,6 +13,9 @@ class ConnectingViewController: NSViewController {
     // MARK: - Properties
     weak var delegate: ConnectingViewControllerDelegate?
     private var serverAddress: String = ""
+    
+    /// Client core instance for C++ functionality
+    var clientCore: ClientCoreWrapper?
     
     override func viewDidLoad() {
         super.viewDidLoad()

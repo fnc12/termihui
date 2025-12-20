@@ -9,8 +9,25 @@ class ViewController: NSViewController {
     private lazy var connectingViewController = ConnectingViewController()
     private lazy var terminalViewController = TerminalViewController()
     
-    // MARK: - Properties  
-    private let webSocketManager = WebSocketManager()
+    // MARK: - Properties
+    
+    /// Client core instance, passed from AppDelegate
+    var clientCore: ClientCoreWrapper? {
+        didSet {
+            // Propagate to child controllers
+            welcomeViewController.clientCore = clientCore
+            connectingViewController.clientCore = clientCore
+            terminalViewController.clientCore = clientCore
+            
+            // Try auto-connect if not done yet
+            if clientCore != nil && !initialStateDetermined {
+                determineInitialState()
+            }
+        }
+    }
+    
+    private var pollTimer: Timer?
+    private var initialStateDetermined = false
     private var currentState: AppState = .welcome {
         didSet {
             updateUIForState(currentState)
@@ -22,6 +39,7 @@ class ViewController: NSViewController {
         setupUI()
         setupDelegates()
         setupWindowObserver()
+        startPollTimer()
         determineInitialState()
     }
     
@@ -69,7 +87,6 @@ class ViewController: NSViewController {
         welcomeViewController.delegate = self
         connectingViewController.delegate = self
         terminalViewController.delegate = self
-        webSocketManager.delegate = self
     }
     
     private func setupWindowObserver() {
@@ -114,16 +131,190 @@ class ViewController: NSViewController {
     }
     
     deinit {
+        pollTimer?.invalidate()
         NotificationCenter.default.removeObserver(self)
     }
     
+    // MARK: - Poll Timer
+    
+    private func startPollTimer() {
+        // Poll events every 16ms (~60fps)
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
+            self?.pollEvents()
+        }
+    }
+    
+    private func pollEvents() {
+        guard let clientCore = clientCore else { return }
+        
+        while let event = clientCore.pollEvent() {
+            handleEvent(event)
+        }
+    }
+    
+    private func handleEvent(_ event: String) {
+        print("📥 ClientCore event: \(event)")
+        
+        guard let data = event.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = json["type"] as? String else {
+            print("❌ Failed to parse event JSON: \(event)")
+            return
+        }
+        
+        switch type {
+        case "connectionStateChanged":
+            if let state = json["state"] as? String {
+                handleConnectionStateChanged(state: state, json: json)
+            } else {
+                print("❌ connectionStateChanged missing 'state': \(json)")
+            }
+        case "serverMessage":
+            if let messageData = json["data"] {
+                handleServerMessage(messageData)
+            } else {
+                print("❌ serverMessage missing 'data': \(json)")
+            }
+        case "error":
+            if let message = json["message"] as? String {
+                print("❌ ClientCore error: \(message)")
+            } else {
+                print("❌ error missing 'message': \(json)")
+            }
+        default:
+            print("⚠️ Unknown event type: '\(type)', json: \(json)")
+        }
+    }
+    
+    private func handleConnectionStateChanged(state: String, json: [String: Any]) {
+        print("🔌 Connection state: \(state)")
+        
+        switch state {
+        case "connecting":
+            if let address = json["address"] as? String {
+                currentState = .connecting(serverAddress: address)
+            } else {
+                print("❌ connecting missing 'address': \(json)")
+            }
+        case "connected":
+            if let address = json["address"] as? String {
+                currentState = .connected(serverAddress: address)
+            } else {
+                print("❌ connected missing 'address': \(json)")
+            }
+        case "disconnected":
+            currentState = .welcome
+        default:
+            print("⚠️ Unknown connection state: '\(state)', json: \(json)")
+        }
+    }
+    
+    private func handleServerMessage(_ data: Any) {
+        guard let messageDict = data as? [String: Any],
+              let messageType = messageDict["type"] as? String else {
+            print("❌ Invalid server message format (not dict or missing 'type'): \(data)")
+            return
+        }
+        
+        switch messageType {
+        case "connected":
+            if let cwd = messageDict["cwd"] as? String {
+                print("📂 Initial CWD: \(cwd)")
+                terminalViewController.updateCurrentCwd(cwd)
+            } else {
+                print("⚠️ connected missing 'cwd': \(messageDict)")
+            }
+            
+        case "output":
+            if let outputData = messageDict["data"] as? String {
+                print("📺 Output: \(outputData.prefix(50))...")
+                terminalViewController.appendOutput(outputData)
+            } else {
+                print("❌ output missing 'data': \(messageDict)")
+            }
+            
+        case "status":
+            if let running = messageDict["running"] as? Bool,
+               let exitCode = messageDict["exit_code"] as? Int {
+                print("📊 Status: running=\(running), exitCode=\(exitCode)")
+                if !running && exitCode != 0 {
+                    terminalViewController.appendOutput("\n[Exit code: \(exitCode)]\n")
+                }
+            } else {
+                print("❌ status missing 'running' or 'exit_code': \(messageDict)")
+            }
+            
+        case "command_start":
+            let cwd = messageDict["cwd"] as? String
+            let command = messageDict["command"] as? String
+            print("▶️ Command start: '\(command ?? "nil")', cwd=\(cwd ?? "nil")")
+            terminalViewController.didStartCommandBlock(command: command, cwd: cwd)
+            
+        case "command_end":
+            let exitCode = messageDict["exit_code"] as? Int ?? 0
+            let cwd = messageDict["cwd"] as? String
+            print("🏁 Command end, exitCode=\(exitCode), cwd=\(cwd ?? "nil")")
+            terminalViewController.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
+            
+        case "history":
+            if let commands = messageDict["commands"] {
+                if let commandsData = try? JSONSerialization.data(withJSONObject: commands),
+                   let records = try? JSONDecoder().decode([CommandHistoryRecord].self, from: commandsData) {
+                    print("📜 History: \(records.count) commands")
+                    terminalViewController.loadHistory(records)
+                } else {
+                    print("❌ history failed to decode 'commands': \(commands)")
+                }
+            } else {
+                print("❌ history missing 'commands': \(messageDict)")
+            }
+            
+        case "cwd_update":
+            if let cwd = messageDict["cwd"] as? String {
+                print("📂 CWD update: \(cwd)")
+                terminalViewController.updateCurrentCwd(cwd)
+            } else {
+                print("❌ cwd_update missing 'cwd': \(messageDict)")
+            }
+            
+        case "completion_result":
+            if let completions = messageDict["completions"] as? [String],
+               let originalText = messageDict["original_text"] as? String,
+               let cursorPosition = messageDict["cursor_position"] as? Int {
+                print("🔤 Completions: \(completions.count) options")
+                terminalViewController.handleCompletionResults(completions, originalText: originalText, cursorPosition: cursorPosition)
+            } else {
+                print("❌ completion_result missing fields: \(messageDict)")
+            }
+            
+        case "input_sent", "resize_ack":
+            // Acknowledgements - can be ignored
+            break
+            
+        case "error":
+            if let message = messageDict["message"] as? String {
+                print("❌ Server error: \(message)")
+            } else {
+                print("❌ error missing 'message': \(messageDict)")
+            }
+            
+        default:
+            print("⚠️ Unknown server message type: '\(messageType)', data: \(messageDict)")
+        }
+    }
+    
     private func determineInitialState() {
+        guard !initialStateDetermined else { return }
+        guard clientCore != nil else { return } // Need clientCore to proceed
+        
+        initialStateDetermined = true
+        
         // If saved address exists, try connecting immediately
         if AppSettings.shared.hasServerAddress {
             let serverAddress = AppSettings.shared.serverAddress
-            currentState = .connecting(serverAddress: serverAddress)
-            // Automatically initiate connection
-            webSocketManager.connect(to: serverAddress)
+            print("🔌 Auto-reconnecting to: \(serverAddress)")
+            // Send reconnect request to core
+            clientCore?.send(["type": "requestReconnect", "address": serverAddress])
         } else {
             currentState = .welcome
         }
@@ -199,7 +390,6 @@ class ViewController: NSViewController {
         view.window?.title = "TermiHUI — \(serverAddress)"
         
         terminalViewController.configure(serverAddress: serverAddress)
-        terminalViewController.webSocketManager = webSocketManager
         addChild(terminalViewController)
         view.addSubview(terminalViewController.view)
         updateChildViewFrame()
@@ -227,10 +417,9 @@ class ViewController: NSViewController {
 
 // MARK: - WelcomeViewControllerDelegate
 extension ViewController: WelcomeViewControllerDelegate {
-    func welcomeViewController(_ controller: WelcomeViewController, didRequestConnectionTo serverAddress: String) {
-        currentState = .connecting(serverAddress: serverAddress)
-        // Initiate connection on manual address entry
-        webSocketManager.connect(to: serverAddress)
+    func welcomeViewController(_ controller: WelcomeViewController, didClickConnectButton serverAddress: String) {
+        // Send event to core - it will handle connection and state updates
+        clientCore?.send(["type": "connectButtonClicked", "address": serverAddress])
     }
 }
 
@@ -244,14 +433,13 @@ extension ViewController: ConnectingViewControllerDelegate {
 // MARK: - TerminalViewControllerDelegate
 extension ViewController: TerminalViewControllerDelegate {
     func terminalViewController(_ controller: TerminalViewController, didSendCommand command: String) {
-        // Send command through WebSocketManager
-        webSocketManager.sendCommand(command)
+        // Send command through ClientCore (it saves command for block header)
+        clientCore?.send(["type": "executeCommand", "command": command])
     }
     
     func terminalViewControllerDidRequestDisconnect(_ controller: TerminalViewController) {
         controller.clearState()
-        webSocketManager.disconnect()
-        currentState = .welcome
+        clientCore?.send(["type": "disconnectButtonClicked"])
     }
 }
 
@@ -260,125 +448,7 @@ extension ViewController {
     /// Вызывается из AppDelegate при нажатии Client -> Disconnect
     func requestDisconnect() {
         // Очищаем состояние терминала перед отключением
-        if let terminalVC = children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-            terminalVC.clearState()
-        }
-        webSocketManager.disconnect()
-        currentState = .welcome
+        terminalViewController.clearState()
+        clientCore?.send(["type": "disconnectButtonClicked"])
     }
 }
-
-// MARK: - WebSocketManagerDelegate
-extension ViewController: WebSocketManagerDelegate {
-    func webSocketManagerDidConnect(_ manager: WebSocketManager, initialCwd: String?) {
-        DispatchQueue.main.async {
-            if case .connecting(let serverAddress) = self.currentState {
-                // First show terminal, then pass cwd
-                self.currentState = .connected(serverAddress: serverAddress)
-                // Now TerminalViewController is added — pass cwd and initial size
-                if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                    if let cwd = initialCwd {
-                        terminalVC.updateCurrentCwd(cwd)
-                    }
-                    // Send initial terminal size to server
-                    terminalVC.sendInitialTerminalSize()
-                }
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didFailWithError error: Error) {
-        DispatchQueue.main.async {
-            let errorMessage = error.localizedDescription
-            self.currentState = .error(message: errorMessage)
-        }
-    }
-    
-    func webSocketManagerDidDisconnect(_ manager: WebSocketManager) {
-        DispatchQueue.main.async {
-            self.currentState = .welcome
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveOutput output: String) {
-        print("🎯 ViewController received output: \(output)")
-        // Handle server output in terminal
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                print("✅ Found TerminalViewController, calling appendOutput")
-                terminalVC.appendOutput(output)
-            } else {
-                print("❌ TerminalViewController not found in children")
-                print("🔍 Current children: \(self.children)")
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveStatus running: Bool, exitCode: Int) {
-        // Handle process status changes
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                if !running && exitCode != 0 {
-                    // Show error message only on unsuccessful completion
-                    terminalVC.appendOutput("❌ Process exited with code \(exitCode)\n")
-                }
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCompletions completions: [String], originalText: String, cursorPosition: Int) {
-        print("🎯 ViewController received completion options:")
-        print("   Original text: '\(originalText)'")
-        print("   Cursor position: \(cursorPosition)")
-        print("   Options: \(completions)")
-        
-        // Pass completion options to TerminalViewController for handling
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.handleCompletionResults(completions, originalText: originalText, cursorPosition: cursorPosition)
-            }
-        }
-    }
-
-    // MARK: - Command events
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandStart command: String?, cwd: String?) {
-        // Pass command and cwd as block header (if available)
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                if let cmd = command, !cmd.isEmpty {
-                    terminalVC.didStartCommandBlock(command: cmd, cwd: cwd)
-                } else {
-                    terminalVC.didStartCommandBlock(cwd: cwd)
-                }
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCommandEndWithExitCode exitCode: Int, cwd: String?) {
-        // Notify TerminalViewController of block completion with cwd
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveCwdUpdate cwd: String) {
-        // Update CWD from remote session (SSH via OSC 2/7)
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.updateCurrentCwd(cwd)
-            }
-        }
-    }
-    
-    func webSocketManager(_ manager: WebSocketManager, didReceiveHistory history: [CommandHistoryRecord]) {
-        // Pass command history to TerminalViewController
-        DispatchQueue.main.async {
-            if let terminalVC = self.children.first(where: { $0 is TerminalViewController }) as? TerminalViewController {
-                terminalVC.loadHistory(history)
-            }
-        }
-    }
-}
-

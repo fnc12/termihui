@@ -3,34 +3,39 @@ import Cocoa
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
 
-    /// Client core wrapper instance
-    private var clientCore: ClientCoreWrapper?
+    /// Client core wrapper instance (accessible for reading by other components)
+    private(set) var clientCore: ClientCoreWrapper?
     
     /// Disconnect menu item (to enable/disable based on connection state)
     private var disconnectMenuItem: NSMenuItem?
+    
+    /// Flag to track if clientCore was already passed to ViewController
+    private var clientCorePassedToVC = false
 
-    func applicationDidFinishLaunching(_ aNotification: Notification) {
-        print("🚀 AppDelegate: Starting TermiHUI application")
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Initialize client core BEFORE window loads
+        print("🚀 AppDelegate: Initializing client core (before window)")
         print("📦 Client Core version: \(ClientCoreWrapper.version)")
         
-        // Create and initialize C++ client core
         clientCore = ClientCoreWrapper()
         
-        guard let core = clientCore, core.isValid else {
+        guard let core = clientCore else {
             print("❌ AppDelegate: Critical error - failed to create client core")
-            NSApplication.shared.terminate(self)
             return
         }
         
         let initialized = core.initialize()
         if !initialized {
             print("❌ AppDelegate: Critical error - failed to initialize client core")
-            NSApplication.shared.terminate(self)
-            return
         }
-        
+    }
+    
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Setup Client menu
         setupClientMenu()
+        
+        // Pass clientCore to main ViewController (window should be ready now)
+        passClientCoreToViewController()
         
         // Subscribe to connection state notifications
         NotificationCenter.default.addObserver(
@@ -53,6 +58,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
+    }
+    
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Fallback: pass clientCore if window wasn't ready during launch
+        passClientCoreToViewController()
+    }
+    
+    // MARK: - Client Core Injection
+    
+    private func passClientCoreToViewController() {
+        guard !clientCorePassedToVC, let core = clientCore else { return }
+        
+        // Try multiple ways to find the window
+        let window = NSApplication.shared.mainWindow 
+            ?? NSApplication.shared.keyWindow 
+            ?? NSApplication.shared.windows.first
+        
+        if let viewController = window?.contentViewController as? ViewController {
+            print("📲 Passing clientCore to ViewController")
+            viewController.clientCore = core
+            clientCorePassedToVC = true
+        } else {
+            print("⚠️ Could not find ViewController, will retry later")
+        }
     }
     
     // MARK: - Menu Setup
