@@ -319,9 +319,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Terminal view - занимает всё пространство от верха до input
         terminalScrollView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
-            make.bottom.equalTo(inputContainerView.snp.top)
             make.height.greaterThanOrEqualTo(200)
         }
+        
+        // Сохраняем constraint для динамического изменения при raw mode
+        updateTerminalBottomConstraint(isRawMode: false)
         
         print("🔧 Terminal constraints set with minimum height 200")
         
@@ -364,6 +366,27 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         print("🔧 setupLayout completed: all constraints set")
     }
     
+    /// Обновляет нижний constraint списка команд в зависимости от режима
+    private func updateTerminalBottomConstraint(isRawMode: Bool) {
+        terminalScrollView.snp.remakeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.height.greaterThanOrEqualTo(200)
+            
+            if isRawMode {
+                // В raw mode список растягивается до самого низа
+                make.bottom.equalToSuperview()
+            } else {
+                // В обычном режиме список заканчивается перед полем ввода
+                make.bottom.equalTo(inputContainerView.snp.top)
+            }
+        }
+        
+        // После изменения layout обновляем выделение
+        DispatchQueue.main.async { [weak self] in
+            self?.updateSelectionHighlight()
+        }
+    }
+    
     private func setupActions() {
         // Actions already set in setup methods
     }
@@ -394,14 +417,17 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     func appendOutput(_ output: String) {
         print("📺 TerminalViewController.appendOutput called with: *\(output)*")
+        // Заменяем табы на пробелы для корректного выделения
+        let expandedOutput = output.replacingOccurrences(of: "\t", with: "        ")
+        
         // Копим вывод в текущем блоке (если есть незавершённый)
         if let idx = currentBlockIndex {
-            commandBlocks[idx].output.append(output)
+            commandBlocks[idx].output.append(expandedOutput)
             reloadBlock(at: idx)
             rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
-            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
+            let block = CommandBlock(id: UUID(), command: nil, output: expandedOutput, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)
@@ -479,15 +505,17 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         rawModeAnimationCounter += 1
         let currentCounter = rawModeAnimationCounter
         
-        // Hide input container with animation
+        // Растягиваем список команд до низа и прячем поле ввода
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             inputContainerView.animator().alphaValue = 0
         } completionHandler: { [weak self] in
             guard let self = self else { return }
-            // Only hide if we're still in the same animation cycle
+            // Only proceed if we're still in the same animation cycle
             if self.rawModeAnimationCounter == currentCounter && self.isCommandRunning {
                 self.inputContainerView.isHidden = true
+                self.updateTerminalBottomConstraint(isRawMode: true)
+                self.view.layoutSubtreeIfNeeded()
             }
         }
         
@@ -502,9 +530,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         isCommandRunning = false
         rawModeAnimationCounter += 1 // Invalidate any pending hide animations
         
+        // Возвращаем layout: список команд до поля ввода
+        updateTerminalBottomConstraint(isRawMode: false)
+        
         // Show input container immediately (no animation to avoid race)
         inputContainerView.isHidden = false
         inputContainerView.alphaValue = 1
+        
+        // Обновляем layout
+        view.layoutSubtreeIfNeeded()
         
         // Return focus to command text field
         view.window?.makeFirstResponder(commandTextField)
@@ -605,10 +639,12 @@ extension TerminalViewController {
         
         // Create blocks from history
         for record in history {
+            // Заменяем табы на пробелы для корректного выделения
+            let expandedOutput = record.output.replacingOccurrences(of: "\t", with: "        ")
             let block = CommandBlock(
                 id: UUID(),
                 command: record.command.isEmpty ? nil : record.command,
-                output: record.output,
+                output: expandedOutput,
                 isFinished: record.isFinished,
                 exitCode: record.exitCode,
                 cwdStart: record.cwdStart.isEmpty ? nil : record.cwdStart,

@@ -44,11 +44,9 @@ final class CommandBlockItem: NSCollectionViewItem {
             headerLabel.isHidden = true
         }
         
-        // Replace tabs with spaces (8-char tab stops)
-        let expandedOutput = output.replacingOccurrences(of: "\t", with: "        ")
-        
         // Parse ANSI escape codes and apply styling
-        let styledSegments = ansiParser.parse(expandedOutput)
+        // Note: tabs are already replaced with spaces in TerminalViewController
+        let styledSegments = ansiParser.parse(output)
         let attributedOutput = styledSegments.toAttributedString()
         bodyTextView.textStorage?.setAttributedString(attributedOutput)
         clearSelectionHighlight()
