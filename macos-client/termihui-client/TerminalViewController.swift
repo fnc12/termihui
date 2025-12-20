@@ -247,7 +247,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     private func setupInputView() {
         inputContainerView.wantsLayer = true
-        inputContainerView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        inputContainerView.layer?.backgroundColor = NSColor.black.cgColor
         
         // CWD label — фиолетовый, как в Warp
         cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
@@ -261,9 +261,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         cwdLabel.stringValue = "~"
         inputContainerView.addSubview(cwdLabel)
         
-        // Command text field
+        // Command text field — светлый текст на чёрном фоне
         commandTextField.placeholderString = "Введите команду..."
         commandTextField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        commandTextField.textColor = NSColor.white
         commandTextField.target = self
         commandTextField.action = #selector(sendCommand)
         commandTextField.tabDelegate = self // Устанавливаем делегат для Tab-обработки
@@ -275,18 +276,29 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         commandTextField.backgroundColor = NSColor.clear
         commandTextField.drawsBackground = false
         
-        // Добавляем тонкую линию снизу как в современных терминалах (опционально)
+        // Тонкая линия снизу — более контрастная на чёрном фоне
         let underlineView = NSView()
         underlineView.wantsLayer = true
-        underlineView.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        underlineView.layer?.backgroundColor = NSColor(white: 0.3, alpha: 1.0).cgColor
         inputContainerView.addSubview(underlineView)
         
         // Сохраняем ссылку для layout constraints
         self.inputUnderlineView = underlineView
         
-        // Send button
-        sendButton.bezelStyle = .rounded
-        sendButton.controlSize = .regular
+        // Send button — круглая кнопка со стрелкой как в Telegram
+        sendButton.wantsLayer = true
+        sendButton.isBordered = false
+        sendButton.title = ""
+        sendButton.bezelStyle = .regularSquare
+        
+        // SF Symbol стрелка
+        if let arrowImage = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Send") {
+            let config = NSImage.SymbolConfiguration(pointSize: 24, weight: .medium)
+            sendButton.image = arrowImage.withSymbolConfiguration(config)
+            sendButton.imagePosition = .imageOnly
+            sendButton.contentTintColor = NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0) // Синий как в Telegram
+        }
+        
         sendButton.target = self
         sendButton.action = #selector(sendCommand)
         sendButton.keyEquivalent = "\r" // Enter key alternative
@@ -338,7 +350,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         sendButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-12)
             make.centerY.equalTo(commandTextField)
-            make.width.equalTo(80)
+            make.width.height.equalTo(28)
         }
         
         // Underline view constraints
