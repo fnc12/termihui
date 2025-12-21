@@ -155,11 +155,19 @@ final class CommandBlockItem: NSCollectionViewItem {
             )
             total += ceil(rect.height) + 4
         }
-        // Rough estimate of body height
+        
+        // Create paragraph style with tab stops for proper width calculation
+        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let charWidth = "M".size(withAttributes: [.font: font]).width
+        let tabWidth = charWidth * 8
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.tabStops = (1...20).map { NSTextTab(type: .leftTabStopType, location: CGFloat($0) * tabWidth) }
+        paragraphStyle.defaultTabInterval = tabWidth
+        
         let bodyRect = (output as NSString).boundingRect(
             with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]
+            attributes: [.font: font, .paragraphStyle: paragraphStyle]
         )
         total += ceil(bodyRect.height)
         return max(total, 28)
