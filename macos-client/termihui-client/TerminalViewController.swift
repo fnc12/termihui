@@ -117,16 +117,23 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     /// Calculate terminal size in characters based on view dimensions
     private func calculateTerminalSize() -> (cols: Int, rows: Int) {
-        // Get the width of the output area (collectionView)
-        let viewWidth = terminalScrollView.contentSize.width
-        let viewHeight = terminalScrollView.contentSize.height
+        // Use visible bounds, not content size
+        var viewWidth = collectionView.bounds.width
+        let viewHeight = terminalScrollView.bounds.height
         
-        // Account for padding/margins in CommandBlockItem
-        let effectiveWidth = viewWidth - (CommandBlockItem.horizontalPadding * 2)
+        // Account for vertical scroller if it's not overlay style
+        if terminalScrollView.scrollerStyle == .legacy,
+           let scroller = terminalScrollView.verticalScroller, !scroller.isHidden {
+            viewWidth -= scroller.frame.width
+        }
         
-        // Calculate character dimensions
-        let charSize = "M".size(withAttributes: [.font: terminalFont])
-        let charWidth = charSize.width
+        // Account for all padding: sectionInset + CommandBlockItem padding
+        let sectionInsets = collectionLayout.sectionInset.left + collectionLayout.sectionInset.right
+        let blockPadding = CommandBlockItem.horizontalPadding * 2
+        let effectiveWidth = viewWidth - sectionInsets - blockPadding
+        
+        // Calculate character dimensions (use same method as CommandBlockItem for consistency)
+        let charWidth = "M".size(withAttributes: [.font: terminalFont]).width
         let lineHeight = ceil(terminalFont.ascender - terminalFont.descender + terminalFont.leading)
         
         // Calculate columns and rows
@@ -419,17 +426,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     func appendOutput(_ output: String) {
         print("📺 TerminalViewController.appendOutput called with: *\(output)*")
-        // Заменяем табы на пробелы для корректного выделения
-        let expandedOutput = output.replacingOccurrences(of: "\t", with: "        ")
         
         // Копим вывод в текущем блоке (если есть незавершённый)
         if let idx = currentBlockIndex {
-            commandBlocks[idx].output.append(expandedOutput)
+            commandBlocks[idx].output.append(output)
             reloadBlock(at: idx)
             rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
-            let block = CommandBlock(id: UUID(), command: nil, output: expandedOutput, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
+            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)
@@ -634,12 +639,10 @@ extension TerminalViewController {
         
         // Create blocks from history
         for record in history {
-            // Заменяем табы на пробелы для корректного выделения
-            let expandedOutput = record.output.replacingOccurrences(of: "\t", with: "        ")
             let block = CommandBlock(
                 id: UUID(),
                 command: record.command.isEmpty ? nil : record.command,
-                output: expandedOutput,
+                output: record.output,
                 isFinished: record.isFinished,
                 exitCode: record.exitCode,
                 cwdStart: record.cwdStart.isEmpty ? nil : record.cwdStart,

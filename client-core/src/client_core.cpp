@@ -12,46 +12,44 @@ namespace termihui {
 // Version
 static constexpr const char* VERSION = "1.0.0";
 
-// ClientCore singleton implementation
+// Static instance
+ClientCoreController ClientCoreController::instance;
 
-ClientCore& ClientCore::instance() {
-    static ClientCore instance;
-    return instance;
-}
+// ClientCoreController implementation
 
-ClientCore::ClientCore() {
+ClientCoreController::ClientCoreController() {
     this->wsClient = std::make_unique<hv::WebSocketClient>();
 }
 
-ClientCore::~ClientCore() {
+ClientCoreController::~ClientCoreController() {
     if (this->initialized) {
         this->shutdown();
     }
 }
 
-const char* ClientCore::getVersion() {
+const char* ClientCoreController::getVersion() {
     return VERSION;
 }
 
-bool ClientCore::initialize() {
+bool ClientCoreController::initialize() {
     if (this->initialized) {
-        fmt::print(stderr, "ClientCore: Already initialized\n");
+        fmt::print(stderr, "ClientCoreController: Already initialized\n");
         return false;
     }
     
-    fmt::print("ClientCore: Initializing v{}\n", VERSION);
+    fmt::print("ClientCoreController: Initializing v{}\n", VERSION);
     this->initialized = true;
-    fmt::print("ClientCore: Initialized successfully\n");
+    fmt::print("ClientCoreController: Initialized successfully\n");
     
     return true;
 }
 
-void ClientCore::shutdown() {
+void ClientCoreController::shutdown() {
     if (!this->initialized) {
         return;
     }
     
-    fmt::print("ClientCore: Shutting down\n");
+    fmt::print("ClientCoreController: Shutting down\n");
     
     // Close WebSocket connection
     if (this->wsClient) {
@@ -65,13 +63,13 @@ void ClientCore::shutdown() {
     this->initialized = false;
 }
 
-std::string ClientCore::sendMessage(std::string_view message) {
+std::string ClientCoreController::sendMessage(std::string_view message) {
     if (!this->initialized) {
         return "";
     }
     
     // DEBUG: Print thread id
-    fmt::print("ClientCore::sendMessage [thread:{}]: {}\n", 
+    fmt::print("ClientCoreController::sendMessage [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()), 
                message);
     
@@ -95,16 +93,16 @@ std::string ClientCore::sendMessage(std::string_view message) {
         } else if (type == "requestCompletion") {
             this->handleRequestCompletion(j.at("text").get<std::string>(), j.at("cursorPosition").get<int>());
         } else {
-            fmt::print("ClientCore: Unknown message type: {}\n", type);
+            fmt::print("ClientCoreController: Unknown message type: {}\n", type);
         }
     } catch (const std::exception& e) {
-        fmt::print(stderr, "ClientCore: Failed to parse message: {}\n", e.what());
+        fmt::print(stderr, "ClientCoreController: Failed to parse message: {}\n", e.what());
     }
     
     return "";
 }
 
-const char* ClientCore::pollEvent() {
+const char* ClientCoreController::pollEvent() {
     auto event = this->pendingEvents.pop();
     if (!event.has_value()) {
         return nullptr;
@@ -115,23 +113,23 @@ const char* ClientCore::pollEvent() {
     return this->lastEvent.c_str();
 }
 
-void ClientCore::pushEvent(std::string event) {
+void ClientCoreController::pushEvent(std::string event) {
     // DEBUG: Print thread id
-    fmt::print("ClientCore::pushEvent [thread:{}]: {}\n", 
+    fmt::print("ClientCoreController::pushEvent [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()), 
                event);
     
     this->pendingEvents.push(std::move(event));
 }
 
-size_t ClientCore::pendingEventsCount() const {
+size_t ClientCoreController::pendingEventsCount() const {
     return this->pendingEvents.size();
 }
 
 // Message handlers
 
-void ClientCore::handleConnectButtonClicked(const std::string& address) {
-    fmt::print("ClientCore: Connect button clicked, address: {}\n", address);
+void ClientCoreController::handleConnectButtonClicked(const std::string& address) {
+    fmt::print("ClientCoreController: Connect button clicked, address: {}\n", address);
     
     if (address.empty()) {
         this->pushEvent(json{{"type", "error"}, {"message", "Address is empty"}}.dump());
@@ -164,15 +162,15 @@ void ClientCore::handleConnectButtonClicked(const std::string& address) {
     };
     
     // Connect
-    fmt::print("ClientCore: Connecting to {}\n", wsUrl);
+    fmt::print("ClientCoreController: Connecting to {}\n", wsUrl);
     int ret = this->wsClient->open(wsUrl.c_str());
     if (ret != 0) {
         this->onWebSocketError("Failed to initiate connection");
     }
 }
 
-void ClientCore::handleRequestReconnect(const std::string& address) {
-    fmt::print("ClientCore: Auto-reconnect requested, address: {}\n", address);
+void ClientCoreController::handleRequestReconnect(const std::string& address) {
+    fmt::print("ClientCoreController: Auto-reconnect requested, address: {}\n", address);
     
     if (address.empty()) {
         this->pushEvent(json{{"type", "error"}, {"message", "Address is empty"}}.dump());
@@ -192,15 +190,15 @@ void ClientCore::handleRequestReconnect(const std::string& address) {
     this->wsClient->onmessage = [this](const std::string& msg) { this->onWebSocketMessage(msg); };
     this->wsClient->onclose = [this]() { this->onWebSocketClose(); };
     
-    fmt::print("ClientCore: Reconnecting to {}\n", wsUrl);
+    fmt::print("ClientCoreController: Reconnecting to {}\n", wsUrl);
     int ret = this->wsClient->open(wsUrl.c_str());
     if (ret != 0) {
         this->onWebSocketError("Failed to initiate reconnection");
     }
 }
 
-void ClientCore::handleDisconnectButtonClicked() {
-    fmt::print("ClientCore: Disconnect button clicked\n");
+void ClientCoreController::handleDisconnectButtonClicked() {
+    fmt::print("ClientCoreController: Disconnect button clicked\n");
     
     if (this->wsClient) {
         this->wsClient->close();
@@ -212,8 +210,8 @@ void ClientCore::handleDisconnectButtonClicked() {
     }.dump());
 }
 
-void ClientCore::handleExecuteCommand(const std::string& command) {
-    fmt::print("ClientCore: Execute command: {}\n", command);
+void ClientCoreController::handleExecuteCommand(const std::string& command) {
+    fmt::print("ClientCoreController: Execute command: {}\n", command);
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
         this->pushEvent(json{
@@ -233,8 +231,8 @@ void ClientCore::handleExecuteCommand(const std::string& command) {
     this->wsClient->send(msg.dump());
 }
 
-void ClientCore::handleSendInput(const std::string& text) {
-    fmt::print("ClientCore: Send input: {}\n", text.substr(0, 20));
+void ClientCoreController::handleSendInput(const std::string& text) {
+    fmt::print("ClientCoreController: Send input: {}\n", text.substr(0, 20));
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
         return;
@@ -247,8 +245,8 @@ void ClientCore::handleSendInput(const std::string& text) {
     this->wsClient->send(msg.dump());
 }
 
-void ClientCore::handleResize(int cols, int rows) {
-    fmt::print("ClientCore: Resize: {}x{}\n", cols, rows);
+void ClientCoreController::handleResize(int cols, int rows) {
+    fmt::print("ClientCoreController: Resize: {}x{}\n", cols, rows);
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
         return;
@@ -262,8 +260,8 @@ void ClientCore::handleResize(int cols, int rows) {
     this->wsClient->send(msg.dump());
 }
 
-void ClientCore::handleRequestCompletion(const std::string& text, int cursorPosition) {
-    fmt::print("ClientCore: Request completion for: '{}' at {}\n", text, cursorPosition);
+void ClientCoreController::handleRequestCompletion(const std::string& text, int cursorPosition) {
+    fmt::print("ClientCoreController: Request completion for: '{}' at {}\n", text, cursorPosition);
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
         return;
@@ -279,8 +277,8 @@ void ClientCore::handleRequestCompletion(const std::string& text, int cursorPosi
 
 // WebSocket callbacks (called from libhv thread)
 
-void ClientCore::onWebSocketOpen() {
-    fmt::print("ClientCore::onWebSocketOpen [thread:{}]\n", 
+void ClientCoreController::onWebSocketOpen() {
+    fmt::print("ClientCoreController::onWebSocketOpen [thread:{}]\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()));
     
     this->pushEvent(json{
@@ -290,8 +288,8 @@ void ClientCore::onWebSocketOpen() {
     }.dump());
 }
 
-void ClientCore::onWebSocketMessage(const std::string& message) {
-    fmt::print("ClientCore::onWebSocketMessage [thread:{}]: {}\n", 
+void ClientCoreController::onWebSocketMessage(const std::string& message) {
+    fmt::print("ClientCoreController::onWebSocketMessage [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()),
                message.substr(0, 100)); // Truncate for debug
     
@@ -310,12 +308,12 @@ void ClientCore::onWebSocketMessage(const std::string& message) {
             {"data", serverData}
         }.dump());
     } catch (const std::exception& e) {
-        fmt::print(stderr, "ClientCore: Failed to parse server message: {}\n", e.what());
+        fmt::print(stderr, "ClientCoreController: Failed to parse server message: {}\n", e.what());
     }
 }
 
-void ClientCore::onWebSocketClose() {
-    fmt::print("ClientCore::onWebSocketClose [thread:{}]\n", 
+void ClientCoreController::onWebSocketClose() {
+    fmt::print("ClientCoreController::onWebSocketClose [thread:{}]\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()));
     
     this->pushEvent(json{
@@ -324,8 +322,8 @@ void ClientCore::onWebSocketClose() {
     }.dump());
 }
 
-void ClientCore::onWebSocketError(const std::string& error) {
-    fmt::print("ClientCore::onWebSocketError [thread:{}]: {}\n", 
+void ClientCoreController::onWebSocketError(const std::string& error) {
+    fmt::print("ClientCoreController::onWebSocketError [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()),
                error);
     
@@ -335,36 +333,35 @@ void ClientCore::onWebSocketError(const std::string& error) {
     }.dump());
 }
 
-// Simple C++ API (uses singleton)
+// Simple C++ API (uses static instance)
 
 const char* getVersion() {
-    return ClientCore::getVersion();
+    return ClientCoreController::getVersion();
 }
 
 bool initialize() {
-    return ClientCore::instance().initialize();
+    return ClientCoreController::instance.initialize();
 }
 
 void shutdown() {
-    ClientCore::instance().shutdown();
+    ClientCoreController::instance.shutdown();
 }
 
 bool isInitialized() {
-    return ClientCore::instance().isInitialized();
+    return ClientCoreController::instance.isInitialized();
 }
 
 const char* sendMessage(const char* message) {
-    auto& core = ClientCore::instance();
-    core.sendMessage(message ? message : "");
-    return core.getLastResponseCStr();
+    ClientCoreController::instance.sendMessage(message ? message : "");
+    return ClientCoreController::instance.getLastResponseCStr();
 }
 
 const char* pollEvent() {
-    return ClientCore::instance().pollEvent();
+    return ClientCoreController::instance.pollEvent();
 }
 
 int pendingEventsCount() {
-    return static_cast<int>(ClientCore::instance().pendingEventsCount());
+    return static_cast<int>(ClientCoreController::instance.pendingEventsCount());
 }
 
 } // namespace termihui

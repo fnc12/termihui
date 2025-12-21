@@ -45,9 +45,15 @@ final class CommandBlockItem: NSCollectionViewItem {
         }
         
         // Parse ANSI escape codes and apply styling
-        // Note: tabs are already replaced with spaces in TerminalViewController
+        // Parse ANSI codes and apply styling
         let styledSegments = ansiParser.parse(output)
-        let attributedOutput = styledSegments.toAttributedString()
+        let attributedOutput = NSMutableAttributedString(attributedString: styledSegments.toAttributedString())
+        
+        // Apply paragraph style with tab stops to entire string
+        if let paragraphStyle = bodyTextView.defaultParagraphStyle {
+            attributedOutput.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributedOutput.length))
+        }
+        
         bodyTextView.textStorage?.setAttributedString(attributedOutput)
         clearSelectionHighlight()
     }
@@ -82,6 +88,15 @@ final class CommandBlockItem: NSCollectionViewItem {
         bodyTextView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         bodyTextView.textColor = .white
         bodyTextView.textContainerInset = NSSize(width: 0, height: 0)
+        
+        // Configure tab stops for proper column alignment
+        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let charWidth = "M".size(withAttributes: [.font: font]).width
+        let tabWidth = charWidth * 8 // 8-character tab stops
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.tabStops = (1...20).map { NSTextTab(type: .leftTabStopType, location: CGFloat($0) * tabWidth) }
+        paragraphStyle.defaultTabInterval = tabWidth
+        bodyTextView.defaultParagraphStyle = paragraphStyle
         
         separatorView.wantsLayer = true
         separatorView.layer?.backgroundColor = NSColor.separatorColor.cgColor

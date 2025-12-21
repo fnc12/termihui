@@ -13,21 +13,21 @@ namespace hv {
 namespace termihui {
 
 /**
- * TermiHUI Client Core
- * Singleton managing connection state and protocol handling
+ * TermiHUI Client Core Controller
+ * Manages connection state and protocol handling
  */
-class ClientCore {
+class ClientCoreController {
 public:
-    /**
-     * Get singleton instance
-     */
-    static ClientCore& instance();
+    static ClientCoreController instance;
+    
+    ClientCoreController();
+    ~ClientCoreController();
     
     // Disable copying and moving
-    ClientCore(const ClientCore&) = delete;
-    ClientCore& operator=(const ClientCore&) = delete;
-    ClientCore(ClientCore&&) = delete;
-    ClientCore& operator=(ClientCore&&) = delete;
+    ClientCoreController(const ClientCoreController&) = delete;
+    ClientCoreController& operator=(const ClientCoreController&) = delete;
+    ClientCoreController(ClientCoreController&&) = delete;
+    ClientCoreController& operator=(ClientCoreController&&) = delete;
     
     /**
      * Get client core version
@@ -81,9 +81,6 @@ public:
     const char* getLastResponseCStr() const { return lastResponse.c_str(); }
 
 private:
-    ClientCore();
-    ~ClientCore();
-    
     // Message handlers
     void handleConnectButtonClicked(const std::string& address);
     void handleDisconnectButtonClicked();
@@ -114,7 +111,7 @@ private:
     std::string lastEvent;
 };
 
-// Simple C++ API (uses singleton internally)
+// Simple C++ API (uses global instance)
 
 /**
  * Get library version
