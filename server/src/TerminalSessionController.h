@@ -29,13 +29,11 @@ public:
      */
     ~TerminalSessionController();
     
-    // Disable copying
+    // Disable copying and moving
     TerminalSessionController(const TerminalSessionController&) = delete;
     TerminalSessionController& operator=(const TerminalSessionController&) = delete;
-    
-    // Allow moving
-    TerminalSessionController(TerminalSessionController&& other) noexcept;
-    TerminalSessionController& operator=(TerminalSessionController&& other) noexcept;
+    TerminalSessionController(TerminalSessionController&&) = delete;
+    TerminalSessionController& operator=(TerminalSessionController&&) = delete;
     
     /**
      * Create interactive bash session
@@ -68,6 +66,13 @@ public:
      * @return true if process is active
      */
     bool isRunning() const;
+    
+    /**
+     * Check if session just finished running (transitioned from running to not running)
+     * Updates internal state tracking
+     * @return true if session just finished
+     */
+    bool didJustFinishRunning();
     
     /**
      * Get child process PID
@@ -150,6 +155,7 @@ private:
     size_t bufferSize;            // Buffer size
     bool running;                 // Process activity flag
     bool sessionCreated;          // Session created flag
+    bool prevRunningState;        // Previous running state for transition detection
     
     // Last known cwd from OSC markers
     mutable std::string lastKnownCwd;

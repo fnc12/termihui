@@ -109,7 +109,6 @@ private:
     std::string pendingCommand;
     
     // State tracking
-    bool wasRunning = false;
     std::chrono::steady_clock::time_point lastStatsTime;
 };
 

@@ -34,46 +34,13 @@ TerminalSessionController::TerminalSessionController(size_t bufferSize)
     , bufferSize(bufferSize)
     , running(false)
     , sessionCreated(false)
+    , prevRunningState(false)
 {
 }
 
 TerminalSessionController::~TerminalSessionController()
 {
     this->cleanup();
-}
-
-TerminalSessionController::TerminalSessionController(TerminalSessionController&& other) noexcept
-    : ptyFd(other.ptyFd)
-    , childPid(other.childPid)
-    , buffer(std::move(other.buffer))
-    , bufferSize(other.bufferSize)
-    , running(other.running)
-    , sessionCreated(other.sessionCreated)
-{
-    other.ptyFd = -1;
-    other.childPid = -1;
-    other.running = false;
-    other.sessionCreated = false;
-}
-
-TerminalSessionController& TerminalSessionController::operator=(TerminalSessionController&& other) noexcept
-{
-    if (this != &other) {
-        this->cleanup();
-        
-        this->ptyFd = other.ptyFd;
-        this->childPid = other.childPid;
-        this->buffer = std::move(other.buffer);
-        this->bufferSize = other.bufferSize;
-        this->running = other.running;
-        this->sessionCreated = other.sessionCreated;
-        
-        other.ptyFd = -1;
-        other.childPid = -1;
-        other.running = false;
-        other.sessionCreated = false;
-    }
-    return *this;
 }
 
 bool TerminalSessionController::createSession()
@@ -228,6 +195,14 @@ std::string TerminalSessionController::readOutput()
 bool TerminalSessionController::isRunning() const
 {
     return this->running;
+}
+
+bool TerminalSessionController::didJustFinishRunning()
+{
+    bool currentlyRunning = this->running;
+    bool justFinished = this->prevRunningState && !currentlyRunning;
+    this->prevRunningState = currentlyRunning;
+    return justFinished;
 }
 
 pid_t TerminalSessionController::getChildPid() const

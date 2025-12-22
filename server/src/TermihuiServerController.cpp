@@ -75,13 +75,11 @@ void TermihuiServerController::update() {
     this->processTerminalOutput();
     
     // Check session status and send completion notification
-    bool currentlyRunning = this->terminalSessionController->isRunning();
-    if (this->wasRunning && !currentlyRunning) {
+    if (this->terminalSessionController->didJustFinishRunning()) {
         fmt::print("Command completed\n");
         std::string status = JsonHelper::createResponse("status", "", 0, false);
         this->webSocketServer.broadcastMessage(status);
     }
-    this->wasRunning = currentlyRunning;
     
     // Print statistics every 30 seconds
     this->printStats();
