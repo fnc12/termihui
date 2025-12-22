@@ -161,20 +161,6 @@ size_t WebSocketServer::getConnectedClients() const
     return this->clients.size();
 }
 
-std::vector<int> WebSocketServer::getClientIds() const
-{
-    std::lock_guard<std::mutex> lock(this->clientsMutex);
-    
-    std::vector<int> result;
-    result.reserve(this->clients.size());
-    
-    for (const auto& [clientId, channel] : this->clients) {
-        result.push_back(clientId);
-    }
-    
-    return result;
-}
-
 int WebSocketServer::generateClientId()
 {
     return this->nextClientId.fetch_add(1);

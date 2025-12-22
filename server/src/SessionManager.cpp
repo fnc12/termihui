@@ -55,7 +55,7 @@ bool SessionManager::createSession(const SessionId& sessionId, const std::string
     }
     
     // Create new session
-    auto session = std::make_shared<TerminalSession>();
+    auto session = std::make_shared<TerminalSessionController>();
     if (!session->createSession()) {
         fmt::print(stderr, "Failed to create interactive session for '{}'\n", sessionId);
         return false;
@@ -163,7 +163,7 @@ void SessionManager::pollLoop()
         auto startTime = std::chrono::steady_clock::now();
         
         // Copy session list for safe iteration
-        std::unordered_map<SessionId, std::shared_ptr<TerminalSession>> sessionsCopy;
+        std::unordered_map<SessionId, std::shared_ptr<TerminalSessionController>> sessionsCopy;
         {
             std::lock_guard<std::mutex> lock(this->sessionsMutex);
             sessionsCopy = this->sessions;
@@ -194,7 +194,7 @@ void SessionManager::pollLoop()
     fmt::print("Session polling loop completed\n");
 }
 
-void SessionManager::pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSession> session)
+void SessionManager::pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSessionController> session)
 {
     if (!session->isRunning()) {
         return;

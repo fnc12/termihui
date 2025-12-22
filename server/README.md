@@ -20,8 +20,8 @@ Server component of TermiHUI project for managing terminal sessions via PTY.
 server/
 ├── CMakeLists.txt              # Build configuration
 ├── src/
-│   ├── TerminalSession.h       # Terminal session class header
-│   ├── TerminalSession.cpp     # Terminal session implementation
+│   ├── TerminalSessionController.h       # Terminal session class header
+│   ├── TerminalSessionController.cpp     # Terminal session implementation
 │   ├── WebSocketServer.h       # WebSocket server header
 │   ├── WebSocketServer.cpp     # WebSocket server implementation
 │   ├── CompletionManager.h     # Autocompletion manager header
@@ -60,13 +60,13 @@ The server will start on port **37854** (WebSocket).
 
 ## Usage Example
 
-### TerminalSession Class
+### TerminalSessionController Class
 
 ```cpp
-#include "TerminalSession.h"
+#include "TerminalSessionController.h"
 
 // Create session
-TerminalSession session;
+TerminalSessionController session;
 
 // Create interactive bash session
 if (session.createSession()) {
@@ -91,7 +91,7 @@ session.terminate();
 
 ## API Reference
 
-### TerminalSession Main Methods
+### TerminalSessionController Main Methods
 
 - `createSession()` - Create interactive bash/shell session
 - `executeCommand(command)` - Execute command in session
@@ -155,7 +155,7 @@ session.terminate();
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Client App    │───▶│ TerminalSession  │───▶│   PTY Process   │
+│   Client App    │───▶│ TerminalSessionController  │───▶│   PTY Process   │
 │   (WebSocket)   │    │     (C++)        │    │   (bash/zsh)    │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                      │

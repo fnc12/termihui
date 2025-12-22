@@ -101,7 +101,7 @@ private:
     
     // Server components
     WebSocketServer webSocketServer;
-    std::unique_ptr<TerminalSessionController> terminalSession;
+    std::unique_ptr<TerminalSessionController> terminalSessionController;
     
     // Command history
     std::vector<CommandRecord> commandHistory;

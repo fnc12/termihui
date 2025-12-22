@@ -114,12 +114,6 @@ public:
     size_t getConnectedClients() const;
     
     /**
-     * Get list of connected clients
-     * @return list of client identifiers
-     */
-    std::vector<int> getClientIds() const;
-    
-    /**
      * Get server port
      * @return port number
      */

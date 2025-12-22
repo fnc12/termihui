@@ -1,4 +1,4 @@
-#include "TermihuiServer.h"
+#include "TermihuiServerController.h"
 #include <csignal>
 #include <fmt/core.h>
 #include "hv/hlog.h"
@@ -57,8 +57,8 @@ int main(int argc, char* argv[])
     hlog_disable();
     
     // Set up signal handlers
-    signal(SIGINT, TermihuiServer::signalHandler);
-    signal(SIGTERM, TermihuiServer::signalHandler);
+    signal(SIGINT, TermihuiServerController::signalHandler);
+    signal(SIGTERM, TermihuiServerController::signalHandler);
     
     fmt::print("=== TermiHUI Server ===\n");
     fmt::print("Bind address: {}\n", bindAddress);
@@ -66,21 +66,21 @@ int main(int argc, char* argv[])
     fmt::print("Press Ctrl+C to stop\n\n");
     
     // Create and start the server
-    TermihuiServer termihuiServer(port, bindAddress);
+    TermihuiServerController termihuiServerController(port, bindAddress);
     
-    if (!termihuiServer.start()) {
+    if (!termihuiServerController.start()) {
         return 1;
     }
     
     fmt::print("Server started! Waiting for connections...\n\n");
     
     // Main server loop
-    while (!termihuiServer.shouldStop()) {
-        termihuiServer.update();
+    while (!termihuiServerController.shouldStop()) {
+        termihuiServerController.update();
     }
     
     fmt::print("\n=== Server shutdown ===\n");
-    termihuiServer.stop();
+    termihuiServerController.stop();
     
     return 0;
 }

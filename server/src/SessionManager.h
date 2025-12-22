@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TerminalSession.h"
+#include "TerminalSessionController.h"
 #include <memory>
 #include <unordered_map>
 #include <string>
@@ -122,7 +122,7 @@ private:
      * @param sessionId session identifier
      * @param session session pointer
      */
-    void pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSession> session);
+    void pollSession(const SessionId& sessionId, std::shared_ptr<TerminalSessionController> session);
     
     /**
      * Cleanup finished sessions
@@ -131,7 +131,7 @@ private:
 
 private:
     mutable std::mutex sessionsMutex;
-    std::unordered_map<SessionId, std::shared_ptr<TerminalSession>> sessions;
+    std::unordered_map<SessionId, std::shared_ptr<TerminalSessionController>> sessions;
     
     std::atomic<bool> running{false};
     std::unique_ptr<std::thread> pollThread;

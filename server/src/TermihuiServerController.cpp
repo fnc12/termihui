@@ -33,8 +33,8 @@ bool TermihuiServerController::start() {
     }
     
     // Create terminal session
-    terminalSession = std::make_unique<TerminalSessionController>();
-    if (!terminalSession->createSession()) {
+    terminalSessionController = std::make_unique<TerminalSessionController>();
+    if (!terminalSessionController->createSession()) {
         fmt::print(stderr, "Failed to create terminal session\n");
         webSocketServer.stop();
         return false;
@@ -45,9 +45,9 @@ bool TermihuiServerController::start() {
 }
 
 void TermihuiServerController::stop() {
-    if (terminalSession) {
-        terminalSession->terminate();
-        terminalSession.reset();
+    if (terminalSessionController) {
+        terminalSessionController->terminate();
+        terminalSessionController.reset();
     }
     webSocketServer.stop();
     fmt::print("Server stopped\n");
@@ -75,7 +75,7 @@ void TermihuiServerController::update() {
     processTerminalOutput();
     
     // Check session status and send completion notification
-    bool currentlyRunning = terminalSession->isRunning();
+    bool currentlyRunning = terminalSessionController->isRunning();
     if (wasRunning && !currentlyRunning) {
         fmt::print("Command completed\n");
         std::string status = JsonHelper::createResponse("status", "", 0, false);
@@ -97,7 +97,7 @@ void TermihuiServerController::handleNewConnection(int clientId) {
     json welcomeMsg;
     welcomeMsg["type"] = "connected";
     welcomeMsg["server_version"] = "1.0.0";
-    std::string cwd = terminalSession->getLastKnownCwd();
+    std::string cwd = terminalSessionController->getLastKnownCwd();
     if (!cwd.empty()) {
         welcomeMsg["cwd"] = cwd;
     }
@@ -145,7 +145,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
                 // Save command for history recording on command_start
                 pendingCommand = command;
                 
-                if (terminalSession->executeCommand(command)) {
+                if (terminalSessionController->executeCommand(command)) {
                     fmt::print("Executed command: {}\n", command);
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Failed to execute command");
@@ -158,7 +158,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
         } else if (type == "input") {
             std::string text = msgJson.value("text", "");
             if (!text.empty()) {
-                ssize_t bytes = terminalSession->sendInput(text);
+                ssize_t bytes = terminalSessionController->sendInput(text);
                 if (bytes >= 0) {
                     std::string response = JsonHelper::createResponse("input_sent", "", bytes);
                     webSocketServer.sendMessage(msg.clientId, response);
@@ -177,7 +177,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
             fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
             
             // Get completion options
-            auto completions = terminalSession->getCompletions(text, cursorPosition);
+            auto completions = terminalSessionController->getCompletions(text, cursorPosition);
             
             // Create JSON response with options
             json response;
@@ -192,7 +192,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
             int rows = msgJson.value("rows", 24);
             
             if (cols > 0 && rows > 0) {
-                if (terminalSession->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
+                if (terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
                     json response;
                     response["type"] = "resize_ack";
                     response["cols"] = cols;
@@ -218,11 +218,11 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
 }
 
 void TermihuiServerController::processTerminalOutput() {
-    if (!terminalSession->hasData(0)) {
+    if (!terminalSessionController->hasData(0)) {
         return;
     }
     
-    std::string output = terminalSession->readOutput();
+    std::string output = terminalSessionController->readOutput();
     if (output.empty()) {
         return;
     }
@@ -318,7 +318,7 @@ void TermihuiServerController::processTerminalOutput() {
             // OSC 133;A - Command start (our marker)
             std::string cwd = extractParam("cwd");
             if (!cwd.empty()) {
-                terminalSession->setLastKnownCwd(cwd);
+                terminalSessionController->setLastKnownCwd(cwd);
             }
             
             if (!pendingCommand.empty()) {
@@ -343,7 +343,7 @@ void TermihuiServerController::processTerminalOutput() {
             if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
             std::string cwd = extractParam("cwd");
             if (!cwd.empty()) {
-                terminalSession->setLastKnownCwd(cwd);
+                terminalSessionController->setLastKnownCwd(cwd);
             }
             
             if (currentCommandIndex >= 0 && currentCommandIndex < static_cast<int>(commandHistory.size())) {
@@ -380,7 +380,7 @@ void TermihuiServerController::processTerminalOutput() {
                 std::string path = extractPathFromTitle(title);
                 if (!path.empty()) {
                     fmt::print("OSC 2 detected CWD: {} (from title: {})\n", path, title);
-                    terminalSession->setLastKnownCwd(path);
+                    terminalSessionController->setLastKnownCwd(path);
                     
                     // Send cwd_update event to client
                     json ev;
@@ -401,7 +401,7 @@ void TermihuiServerController::processTerminalOutput() {
                     if (pathEnd != std::string::npos) {
                         std::string path = osc.substr(slashPos, pathEnd - slashPos);
                         fmt::print("OSC 7 detected CWD: {}\n", path);
-                        terminalSession->setLastKnownCwd(path);
+                        terminalSessionController->setLastKnownCwd(path);
                         
                         // Send cwd_update event to client
                         json ev;
@@ -424,7 +424,7 @@ void TermihuiServerController::printStats() {
     if (now - lastStatsTime > std::chrono::seconds(30)) {
         size_t connectedClients = webSocketServer.getConnectedClients();
         fmt::print("Connected clients: {}\n", connectedClients);
-        fmt::print("Terminal session active: {}\n", (terminalSession->isRunning() ? "yes" : "no"));
+        fmt::print("Terminal session active: {}\n", (terminalSessionController->isRunning() ? "yes" : "no"));
         lastStatsTime = now;
     }
 }

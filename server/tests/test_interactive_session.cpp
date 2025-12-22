@@ -1,10 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
-#include "TerminalSession.h"
+#include "TerminalSessionController.h"
 #include <thread>
 #include <chrono>
 
-TEST_CASE("UTF-8 command handling", "[TerminalSession][UTF8]") {
-    TerminalSession session;
+TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
+    TerminalSessionController session;
     
     // Create interactive bash session
     REQUIRE(session.createSession());
@@ -110,9 +110,9 @@ TEST_CASE("UTF-8 command handling", "[TerminalSession][UTF8]") {
     }
 }
 
-TEST_CASE("Interactive bash session state persistence", "[TerminalSession][Interactive]") {
+TEST_CASE("Interactive bash session state persistence", "[TerminalSessionController][Interactive]") {
     SECTION("Directory change should persist between commands") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Create interactive bash session
         REQUIRE(session.createSession());

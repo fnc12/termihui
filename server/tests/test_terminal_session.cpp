@@ -1,12 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
-#include "TerminalSession.h"
+#include "TerminalSessionController.h"
 #include <thread>
 #include <chrono>
 
-TEST_CASE("TerminalSession basic functionality", "[TerminalSession]") {
+TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionController]") {
     
     SECTION("Session creation and command execution") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Тестируем создание сессии с простой командой
         REQUIRE(session.startCommand("echo 'Hello, World!'"));
@@ -38,7 +38,7 @@ TEST_CASE("TerminalSession basic functionality", "[TerminalSession]") {
     }
     
     SECTION("ls command execution") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Тестируем команду ls
         REQUIRE(session.startCommand("ls"));
@@ -70,7 +70,7 @@ TEST_CASE("TerminalSession basic functionality", "[TerminalSession]") {
     }
     
     SECTION("Interactive session with input") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Запускаем bash для интерактивной сессии
         REQUIRE(session.startCommand("bash"));
@@ -119,10 +119,10 @@ TEST_CASE("TerminalSession basic functionality", "[TerminalSession]") {
     }
 }
 
-TEST_CASE("TerminalSession error handling", "[TerminalSession]") {
+TEST_CASE("TerminalSessionController error handling", "[TerminalSessionController]") {
     
     SECTION("Invalid command") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Тестируем несуществующую команду
         REQUIRE(session.startCommand("nonexistent_command_12345"));
@@ -135,7 +135,7 @@ TEST_CASE("TerminalSession error handling", "[TerminalSession]") {
     }
     
     SECTION("Double start prevention") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Запускаем первую команду
         REQUIRE(session.startCommand("sleep 1"));
@@ -148,13 +148,13 @@ TEST_CASE("TerminalSession error handling", "[TerminalSession]") {
     }
 }
 
-TEST_CASE("TerminalSession resource management", "[TerminalSession]") {
+TEST_CASE("TerminalSessionController resource management", "[TerminalSessionController]") {
     
     SECTION("Proper cleanup on destruction") {
         pid_t childPid = -1;
         
         {
-            TerminalSession session;
+            TerminalSessionController session;
             REQUIRE(session.startCommand("sleep 2"));
             childPid = session.getChildPid();
             REQUIRE(childPid > 0);
@@ -169,9 +169,9 @@ TEST_CASE("TerminalSession resource management", "[TerminalSession]") {
     }
 }
 
-TEST_CASE("Interactive bash session state persistence", "[TerminalSession][Interactive]") {
+TEST_CASE("Interactive bash session state persistence", "[TerminalSessionController][Interactive]") {
     SECTION("Directory change should persist between commands") {
-        TerminalSession session;
+        TerminalSessionController session;
         
         // Создаем интерактивную bash-сессию
         REQUIRE(session.createSession());
