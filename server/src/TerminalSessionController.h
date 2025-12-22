@@ -92,11 +92,10 @@ public:
     int getPtyFd() const;
     
     /**
-     * Check if data is available for reading
-     * @param timeoutMs timeout in milliseconds (0 = non-blocking)
+     * Check if data is available for reading (non-blocking)
      * @return true if data is available
      */
-    bool hasData(int timeoutMs = 0) const;
+    bool hasData() const;
     
     /**
      * Get autocompletion options for text

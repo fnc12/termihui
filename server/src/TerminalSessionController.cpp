@@ -166,7 +166,7 @@ std::string TerminalSessionController::readOutput()
     std::string output;
     
     // Read all available data
-    while (this->hasData(0)) {
+    while (this->hasData()) {
         ssize_t bytesRead = read(this->ptyFd, this->buffer.data(), this->bufferSize);
         
         if (bytesRead > 0) {
@@ -233,7 +233,7 @@ int TerminalSessionController::getPtyFd() const
     return this->ptyFd;
 }
 
-bool TerminalSessionController::hasData(int timeoutMs) const
+bool TerminalSessionController::hasData() const
 {
     if (this->ptyFd < 0) {
         return false;
@@ -244,7 +244,7 @@ bool TerminalSessionController::hasData(int timeoutMs) const
     pfd.events = POLLIN;
     pfd.revents = 0;
     
-    int result = poll(&pfd, 1, timeoutMs);
+    int result = poll(&pfd, 1, 0);  // Non-blocking
     
     if (result > 0) {
         return (pfd.revents & POLLIN) != 0;

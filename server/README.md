@@ -75,7 +75,7 @@ if (session.createSession()) {
     
     // Read output
     while (session.isRunning()) {
-        if (session.hasData(100)) {
+        if (session.hasData()) {
             std::string output = session.readOutput();
             std::cout << output;
         }
@@ -105,7 +105,7 @@ session.terminate();
 
 - `getChildPid()` - Get child process PID
 - `getPtyFd()` - Get PTY file descriptor
-- `hasData(timeout)` - Check data availability
+- `hasData()` - Check data availability
 - `getCompletions(text, pos)` - Get tab completion options
 - `getCurrentWorkingDirectory()` - Get bash process cwd
 

@@ -24,7 +24,7 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
         std::string output;
         int attempts = 0;
         while (session.isRunning() && attempts < 50) {
-            if (session.hasData(10)) {
+            if (session.hasData()) {
                 std::string newOutput = session.readOutput();
                 output += newOutput;
             }
@@ -53,7 +53,7 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
         std::string output;
         int attempts = 0;
         while (session.isRunning() && attempts < 100) {
-            if (session.hasData(10)) {
+            if (session.hasData()) {
                 std::string newOutput = session.readOutput();
                 output += newOutput;
             }
@@ -88,7 +88,7 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
         std::string output;
         int attempts = 0;
         while (attempts < 50) {
-            if (session.hasData(10)) {
+            if (session.hasData()) {
                 std::string newOutput = session.readOutput();
                 output += newOutput;
             }
@@ -190,7 +190,7 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         std::string initialDir;
         int attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 std::string output = session.readOutput();
                 initialDir += output;
                 if (initialDir.find('\n') != std::string::npos) {
@@ -223,7 +223,7 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         std::string newDir;
         attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 std::string output = session.readOutput();
                 newDir += output;
                 if (newDir.find('\n') != std::string::npos) {

@@ -201,7 +201,7 @@ void SessionManager::pollSession(const SessionId& sessionId, std::shared_ptr<Ter
     }
     
     // Read output if available
-    if (session->hasData(0)) { // Non-blocking check
+    if (session->hasData()) { // Non-blocking check
         std::string output = session->readOutput();
         if (!output.empty() && this->outputCallback) {
             this->outputCallback(sessionId, output);

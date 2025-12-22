@@ -24,7 +24,7 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
         std::string output;
         int attempts = 0;
         while (attempts < 30) {
-            if (session.hasData(100)) {
+            if (session.hasData()) {
                 output += session.readOutput();
             }
             attempts++;
@@ -71,7 +71,7 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
         std::string output;
         int attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 output += session.readOutput();
             }
             attempts++;
@@ -96,7 +96,7 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
         std::string output;
         int attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 output += session.readOutput();
             }
             attempts++;
@@ -132,7 +132,7 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         std::string allOutput; // For debugging - save all output
         int attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 std::string output = session.readOutput();
                 allOutput += output; // Save for debugging
                 initialDir += output;
@@ -162,7 +162,7 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         std::string newOutput; // Full output of second pwd command
         attempts = 0;
         while (attempts < 20) {
-            if (session.hasData(50)) {
+            if (session.hasData()) {
                 std::string output = session.readOutput();
                 newOutput += output;
                 if (newOutput.find("bash-3.2$") != std::string::npos) {

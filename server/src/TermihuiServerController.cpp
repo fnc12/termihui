@@ -216,7 +216,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
 }
 
 void TermihuiServerController::processTerminalOutput() {
-    if (!this->terminalSessionController->hasData(0)) {
+    if (!this->terminalSessionController->hasData()) {
         return;
     }
     
