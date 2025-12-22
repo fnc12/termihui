@@ -158,7 +158,7 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
             if (!text.empty()) {
                 ssize_t bytes = this->terminalSessionController->sendInput(text);
                 if (bytes >= 0) {
-                    std::string response = JsonHelper::createResponse("input_sent", "", bytes);
+                    std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
                     this->webSocketServer.sendMessage(msg.clientId, response);
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Failed to send input");
