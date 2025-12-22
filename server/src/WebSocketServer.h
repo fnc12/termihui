@@ -27,15 +27,15 @@ public:
      * Structure for incoming message from client
      */
     struct IncomingMessage {
-        int clientId;
-        std::string message;
+        int clientId = 0;
+        std::string text;
     };
     
     /**
      * Structure for outgoing message to client
      */
     struct OutgoingMessage {
-        int clientId;  // 0 = broadcast to all
+        int clientId = 0;  // 0 = broadcast to all
         std::string message;
     };
     
@@ -43,8 +43,8 @@ public:
      * Client connection/disconnection event
      */
     struct ConnectionEvent {
-        int clientId;
-        bool connected;  // true = connected, false = disconnected
+        int clientId = 0;
+        bool connected = false;  // true = connected, false = disconnected
     };
     
     /**

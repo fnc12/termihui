@@ -130,88 +130,92 @@ void TermihuiServerController::handleDisconnection(int clientId) {
     fmt::print("Client disconnected: {}\n", clientId);
 }
 
-void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMessage& msg) {
-    fmt::print("Processing message from {}: {}\n", msg.clientId, msg.message);
+void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMessage& message) {
+    fmt::print("Processing message from {}: {}\n", message.clientId, message.text);
     
     try {
-        json msgJson = json::parse(msg.message);
-        std::string type = msgJson.value("type", "");
+        json messageJson = json::parse(message.text);
+        std::string type = messageJson.at("type").get<std::string>();
         
         if (type == "execute") {
-            std::string command = msgJson.value("command", "");
-            if (!command.empty()) {
-                // Save command for history recording on command_start
-                this->pendingCommand = command;
-                
-                if (this->terminalSessionController->executeCommand(command)) {
-                    fmt::print("Executed command: {}\n", command);
-                } else {
-                    std::string error = JsonHelper::createResponse("error", "Failed to execute command");
-                    this->webSocketServer.sendMessage(msg.clientId, error);
-                }
-            } else {
-                std::string error = JsonHelper::createResponse("error", "Missing command field");
-                this->webSocketServer.sendMessage(msg.clientId, error);
-            }
+            this->handleExecuteMessage(message.clientId, messageJson.at("command").get<std::string>());
         } else if (type == "input") {
-            std::string text = msgJson.value("text", "");
-            if (!text.empty()) {
-                ssize_t bytes = this->terminalSessionController->sendInput(text);
-                if (bytes >= 0) {
-                    std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
-                    this->webSocketServer.sendMessage(msg.clientId, response);
-                } else {
-                    std::string error = JsonHelper::createResponse("error", "Failed to send input");
-                    this->webSocketServer.sendMessage(msg.clientId, error);
-                }
-            } else {
-                std::string error = JsonHelper::createResponse("error", "Missing text field");
-                this->webSocketServer.sendMessage(msg.clientId, error);
-            }
+            this->handleInputMessage(message.clientId, messageJson.at("text").get<std::string>());
         } else if (type == "completion") {
-            std::string text = msgJson.value("text", "");
-            int cursorPosition = msgJson.value("cursor_position", 0);
-            
-            fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
-            
-            // Get completion options
-            auto completions = this->terminalSessionController->getCompletions(text, cursorPosition);
-            
-            // Create JSON response with options
-            json response;
-            response["type"] = "completion_result";
-            response["completions"] = completions;
-            response["original_text"] = text;
-            response["cursor_position"] = cursorPosition;
-            
-            this->webSocketServer.sendMessage(msg.clientId, response.dump());
+            this->handleCompletionMessage(
+                message.clientId,
+                messageJson.at("text").get<std::string>(),
+                messageJson.at("cursor_position").get<int>()
+            );
         } else if (type == "resize") {
-            int cols = msgJson.value("cols", 80);
-            int rows = msgJson.value("rows", 24);
-            
-            if (cols > 0 && rows > 0) {
-                if (this->terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
-                    json response;
-                    response["type"] = "resize_ack";
-                    response["cols"] = cols;
-                    response["rows"] = rows;
-                    this->webSocketServer.sendMessage(msg.clientId, response.dump());
-                } else {
-                    std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
-                    this->webSocketServer.sendMessage(msg.clientId, error);
-                }
-            } else {
-                std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
-                this->webSocketServer.sendMessage(msg.clientId, error);
-            }
+            this->handleResizeMessage(
+                message.clientId,
+                messageJson.at("cols").get<int>(),
+                messageJson.at("rows").get<int>()
+            );
         } else {
-            std::string error = JsonHelper::createResponse("error", "Unknown message type");
-            this->webSocketServer.sendMessage(msg.clientId, error);
+            std::string error = JsonHelper::createResponse("error", "Unknown message type: " + type);
+            this->webSocketServer.sendMessage(message.clientId, error);
         }
     } catch (const json::exception& e) {
-        fmt::print(stderr, "JSON parsing error: {}\n", e.what());
-        std::string error = JsonHelper::createResponse("error", "Invalid JSON format");
-        this->webSocketServer.sendMessage(msg.clientId, error);
+        fmt::print(stderr, "JSON error: {}\n", e.what());
+        std::string error = JsonHelper::createResponse("error", std::string("Invalid message: ") + e.what());
+        this->webSocketServer.sendMessage(message.clientId, error);
+    }
+}
+
+void TermihuiServerController::handleExecuteMessage(int clientId, const std::string& command) {
+    this->pendingCommand = command;
+    
+    if (this->terminalSessionController->executeCommand(command)) {
+        fmt::print("Executed command: {}\n", command);
+    } else {
+        std::string error = JsonHelper::createResponse("error", "Failed to execute command");
+        this->webSocketServer.sendMessage(clientId, error);
+    }
+}
+
+void TermihuiServerController::handleInputMessage(int clientId, const std::string& text) {
+    ssize_t bytes = this->terminalSessionController->sendInput(text);
+    if (bytes >= 0) {
+        std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
+        this->webSocketServer.sendMessage(clientId, response);
+    } else {
+        std::string error = JsonHelper::createResponse("error", "Failed to send input");
+        this->webSocketServer.sendMessage(clientId, error);
+    }
+}
+
+void TermihuiServerController::handleCompletionMessage(int clientId, const std::string& text, int cursorPosition) {
+    fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
+    
+    auto completions = this->terminalSessionController->getCompletions(text, cursorPosition);
+    
+    json response;
+    response["type"] = "completion_result";
+    response["completions"] = completions;
+    response["original_text"] = text;
+    response["cursor_position"] = cursorPosition;
+    
+    this->webSocketServer.sendMessage(clientId, response.dump());
+}
+
+void TermihuiServerController::handleResizeMessage(int clientId, int cols, int rows) {
+    if (cols <= 0 || rows <= 0) {
+        std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
+        this->webSocketServer.sendMessage(clientId, error);
+        return;
+    }
+    
+    if (this->terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
+        json response;
+        response["type"] = "resize_ack";
+        response["cols"] = cols;
+        response["rows"] = rows;
+        this->webSocketServer.sendMessage(clientId, response.dump());
+    } else {
+        std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
+        this->webSocketServer.sendMessage(clientId, error);
     }
 }
 

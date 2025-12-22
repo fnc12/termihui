@@ -104,11 +104,21 @@ set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_interactive_session.cpp
     tests/test_completion_manager.cpp
+    tests/test_termihui_server_controller.cpp
     src/TerminalSessionController.cpp
     src/CompletionManager.cpp
+    src/TermihuiServerController.cpp
+    src/WebSocketServer.cpp
+    src/JsonHelper.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})
+
+# C++20 for tests (needed for default comparison operators)
+set_target_properties(unit_tests PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
 
 # Compiler settings for tests
 target_compile_options(unit_tests PRIVATE
@@ -126,6 +136,7 @@ if(NOT WIN32)
         Threads::Threads
         ${UTIL_LIBRARIES}
         fmt::fmt
+        hv_static
     )
 endif()
 

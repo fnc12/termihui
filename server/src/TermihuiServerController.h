@@ -22,9 +22,9 @@ public:
     TermihuiServerController(int port, std::string bindAddress);
     
     /**
-     * Destructor
+     * Destructor (virtual for testability)
      */
-    ~TermihuiServerController();
+    virtual ~TermihuiServerController();
     
     // Disable copying
     TermihuiServerController(const TermihuiServerController&) = delete;
@@ -57,6 +57,18 @@ public:
      */
     static void signalHandler(int signal);
     
+    /**
+     * Handle incoming message from client (dispatcher)
+     */
+    void handleMessage(const WebSocketServer::IncomingMessage& message);
+
+protected:
+    // Message handlers (virtual for testability)
+    virtual void handleExecuteMessage(int clientId, const std::string& command);
+    virtual void handleInputMessage(int clientId, const std::string& text);
+    virtual void handleCompletionMessage(int clientId, const std::string& text, int cursorPosition);
+    virtual void handleResizeMessage(int clientId, int cols, int rows);
+
 private:
     /**
      * Handle new client connection
@@ -67,11 +79,6 @@ private:
      * Handle client disconnection
      */
     void handleDisconnection(int clientId);
-    
-    /**
-     * Handle incoming message from client
-     */
-    void handleMessage(const WebSocketServer::IncomingMessage& msg);
     
     /**
      * Process terminal output and OSC markers
