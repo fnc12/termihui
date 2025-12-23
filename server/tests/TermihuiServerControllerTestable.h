@@ -4,6 +4,7 @@
 #include <variant>
 #include <vector>
 #include <string>
+#include <memory>
 
 /**
  * Testable version of TermihuiServerController that records handler calls
@@ -39,8 +40,10 @@ public:
 
     using Call = std::variant<ExecuteCall, InputCall, CompletionCall, ResizeCall>;
 
-    TermihuiServerControllerTestable() 
-        : TermihuiServerController(std::make_unique<WebSocketServerImpl>(0, "127.0.0.1")) {}
+    explicit TermihuiServerControllerTestable(std::unique_ptr<WebSocketServer> webSocketServer)
+        : TermihuiServerController(std::move(webSocketServer))
+    {
+    }
     
     // Call recording
     std::vector<Call> calls;

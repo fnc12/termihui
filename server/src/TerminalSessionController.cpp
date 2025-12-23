@@ -123,14 +123,14 @@ bool TerminalSessionController::createSession()
     return true;
 }
 
-TerminalSessionController::ExecuteCommandResult TerminalSessionController::executeCommand(const std::string& command)
+TerminalSessionController::ExecuteCommandResult TerminalSessionController::executeCommand(std::string_view command)
 {
     if (!this->sessionCreated || !this->running) {
         return {SessionNotCreatedOrInactiveError{}};
     }
     
     // Send command + newline to interactive shell
-    std::string cmd = command + "\n";
+    std::string cmd = std::string(command) + "\n";
     ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
     
     if (bytesWritten < 0) {

@@ -75,6 +75,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall
     -Wextra
     -Wpedantic
+    -Wno-gnu-anonymous-struct      # Suppress libhv warnings
+    -Wno-nested-anon-types         # Suppress libhv warnings
     $<$<CONFIG:Debug>:-g>
     $<$<CONFIG:Release>:-O3>
 )
@@ -125,6 +127,8 @@ target_compile_options(unit_tests PRIVATE
     -Wall
     -Wextra
     -Wpedantic
+    -Wno-gnu-anonymous-struct      # Suppress libhv warnings
+    -Wno-nested-anon-types         # Suppress libhv warnings
     $<$<CONFIG:Debug>:-g>
     $<$<CONFIG:Release>:-O3>
 )

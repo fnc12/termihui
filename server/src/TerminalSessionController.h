@@ -87,7 +87,7 @@ public:
      * @param command command to execute
      * @return true if command successfully sent
      */
-    ExecuteCommandResult executeCommand(const std::string& command);
+    ExecuteCommandResult executeCommand(std::string_view command);
     
     /**
      * Send text to PTY
