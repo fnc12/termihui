@@ -171,6 +171,55 @@ public:
      * @return true if size was set successfully
      */
     bool setWindowSize(unsigned short cols, unsigned short rows);
+    
+    /**
+     * Structure for storing command history record
+     */
+    struct CommandRecord {
+        std::string command;
+        std::string output;
+        int exitCode = 0;
+        std::string cwdStart;
+        std::string cwdEnd;
+        bool isFinished = false;
+    };
+    
+    /**
+     * Set pending command (before execution)
+     * @param command command text
+     */
+    void setPendingCommand(std::string command);
+    
+    /**
+     * Start new command in history (called on OSC 133;A)
+     * @param cwd current working directory
+     */
+    void startCommandInHistory(const std::string& cwd);
+    
+    /**
+     * Append output to current command in history
+     * @param output output text to append
+     */
+    void appendOutputToCurrentCommand(const std::string& output);
+    
+    /**
+     * Finish current command in history (called on OSC 133;B)
+     * @param exitCode command exit code
+     * @param cwd final working directory
+     */
+    void finishCurrentCommand(int exitCode, const std::string& cwd);
+    
+    /**
+     * Get command history
+     * @return const reference to command history vector
+     */
+    const std::vector<CommandRecord>& getCommandHistory() const;
+    
+    /**
+     * Check if there's an active command being recorded
+     * @return true if a command is currently being recorded
+     */
+    bool hasActiveCommand() const;
 
 private:
     /**
@@ -202,6 +251,11 @@ private:
     
     // Completion manager
     CompletionManager completionManager;
+    
+    // Command history
+    std::vector<CommandRecord> commandHistory;
+    int currentCommandIndex = -1;
+    std::string pendingCommand;
     
     // TODO: Add in future:
     // - struct winsize m_windowSize;  // Terminal window size for resize events

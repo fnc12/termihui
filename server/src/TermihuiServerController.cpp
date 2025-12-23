@@ -106,11 +106,12 @@ void TermihuiServerController::handleNewConnection(int clientId) {
     this->webSocketServer->sendMessage(clientId, welcomeMsg.dump());
     
     // Send command history
-    if (!this->commandHistory.empty()) {
+    const auto& commandHistory = this->terminalSessionController->getCommandHistory();
+    if (!commandHistory.empty()) {
         json historyMsg;
         historyMsg["type"] = "history";
         json commands = json::array();
-        for (const auto& record : this->commandHistory) {
+        for (const auto& record : commandHistory) {
             json cmd;
             cmd["command"] = record.command;
             cmd["output"] = record.output;
@@ -122,7 +123,7 @@ void TermihuiServerController::handleNewConnection(int clientId) {
         }
         historyMsg["commands"] = commands;
         this->webSocketServer->sendMessage(clientId, historyMsg.dump());
-        fmt::print("Sent history: {} commands\n", this->commandHistory.size());
+        fmt::print("Sent history: {} commands\n", commandHistory.size());
     }
 }
 
@@ -165,11 +166,11 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
 }
 
 void TermihuiServerController::handleExecuteMessage(int clientId, const std::string& command) {
-    this->pendingCommand = command;
+    this->terminalSessionController->setPendingCommand(command);
     
     using ExecuteCommandResult = TerminalSessionController::ExecuteCommandResult;
     
-    ExecuteCommandResult executeCommandResult = this->terminalSessionController->executeCommand(command);
+    const ExecuteCommandResult executeCommandResult = this->terminalSessionController->executeCommand(command);
     
     if (executeCommandResult.isOk()) {
         fmt::print("Executed command: {}\n", command);
@@ -263,10 +264,7 @@ void TermihuiServerController::processTerminalOutput() {
                 std::string chunk = output.substr(i);
                 if (!chunk.empty()) {
                     fmt::print("Terminal output: *{}*\n", chunk);
-                    // Add to current history record
-                    if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-                        this->commandHistory[this->currentCommandIndex].output += chunk;
-                    }
+                    this->terminalSessionController->appendOutputToCurrentCommand(chunk);
                     this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
                 }
             }
@@ -278,10 +276,7 @@ void TermihuiServerController::processTerminalOutput() {
             std::string chunk = output.substr(i, oscPos - i);
             if (!chunk.empty()) {
                 fmt::print("Terminal output: *{}*\n", chunk);
-                // Add to current history record
-                if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-                    this->commandHistory[this->currentCommandIndex].output += chunk;
-                }
+                this->terminalSessionController->appendOutputToCurrentCommand(chunk);
                 this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
         }
@@ -299,10 +294,7 @@ void TermihuiServerController::processTerminalOutput() {
             std::string chunk = output.substr(oscPos);
             if (!chunk.empty()) {
                 fmt::print("Terminal output: *{}*\n", chunk);
-                // Add to current history record
-                if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-                    this->commandHistory[this->currentCommandIndex].output += chunk;
-                }
+                this->terminalSessionController->appendOutputToCurrentCommand(chunk);
                 this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
             break;
@@ -328,19 +320,13 @@ void TermihuiServerController::processTerminalOutput() {
                 this->terminalSessionController->setLastKnownCwd(cwd);
             }
             
-            if (!this->pendingCommand.empty()) {
+            this->terminalSessionController->startCommandInHistory(cwd);
+            if (this->terminalSessionController->hasActiveCommand()) {
                 json ev;
                 ev["type"] = "command_start";
                 if (!cwd.empty()) {
                     ev["cwd"] = cwd;
                 }
-                
-                CommandRecord record;
-                record.command = std::move(this->pendingCommand);
-                record.cwdStart = cwd;
-                this->commandHistory.push_back(std::move(record));
-                this->currentCommandIndex = static_cast<int>(this->commandHistory.size()) - 1;
-                
                 this->webSocketServer->broadcastMessage(ev.dump());
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
@@ -353,11 +339,8 @@ void TermihuiServerController::processTerminalOutput() {
                 this->terminalSessionController->setLastKnownCwd(cwd);
             }
             
-            if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-                this->commandHistory[this->currentCommandIndex].exitCode = exitCode;
-                this->commandHistory[this->currentCommandIndex].cwdEnd = cwd;
-                this->commandHistory[this->currentCommandIndex].isFinished = true;
-                this->currentCommandIndex = -1;
+            if (this->terminalSessionController->hasActiveCommand()) {
+                this->terminalSessionController->finishCurrentCommand(exitCode, cwd);
                 
                 json ev;
                 ev["type"] = "command_end";

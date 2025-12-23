@@ -89,18 +89,6 @@ private:
      */
     void printStats();
     
-    /**
-     * Structure for storing command history
-     */
-    struct CommandRecord {
-        std::string command;
-        std::string output;
-        int exitCode = 0;
-        std::string cwdStart;
-        std::string cwdEnd;
-        bool isFinished = false;
-    };
-    
 private:
     // Static flag for signal handling
     static std::atomic<bool> shouldExit;
@@ -108,11 +96,6 @@ private:
     // Server components
     std::unique_ptr<WebSocketServer> webSocketServer;
     std::unique_ptr<TerminalSessionController> terminalSessionController;
-    
-    // Command history
-    std::vector<CommandRecord> commandHistory;
-    int currentCommandIndex = -1;
-    std::string pendingCommand;
     
     // State tracking
     std::chrono::steady_clock::time_point lastStatsTime;

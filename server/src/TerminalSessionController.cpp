@@ -131,15 +131,14 @@ TerminalSessionController::ExecuteCommandResult TerminalSessionController::execu
     
     // Send command + newline to interactive shell
     std::string cmd = std::string(command) + "\n";
-    ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
+    const ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
     
     if (bytesWritten < 0) {
         std::string errorText = fmt::format("Command send error: {}", strerror(errno));
         return {CommandSendError{std::move(errorText)}};
     }
     
-    fmt::print("Command sent: {}\n", command);
-    return {ExecuteCommandSuccess{}};
+    return {ExecuteCommandSuccess{bytesWritten}};
 }
 
 ssize_t TerminalSessionController::sendInput(std::string_view input)
@@ -435,4 +434,44 @@ bool TerminalSessionController::setWindowSize(unsigned short cols, unsigned shor
     return true;
 }
 
- 
+void TerminalSessionController::setPendingCommand(std::string command) {
+    this->pendingCommand = std::move(command);
+}
+
+void TerminalSessionController::startCommandInHistory(const std::string& cwd) {
+    if (this->pendingCommand.empty()) {
+        return;
+    }
+    
+    CommandRecord record;
+    record.command = std::move(this->pendingCommand);
+    record.cwdStart = cwd;
+    this->commandHistory.push_back(std::move(record));
+    this->currentCommandIndex = static_cast<int>(this->commandHistory.size()) - 1;
+}
+
+void TerminalSessionController::appendOutputToCurrentCommand(const std::string& output) {
+    if (this->currentCommandIndex >= 0 && 
+        this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
+        this->commandHistory[this->currentCommandIndex].output += output;
+    }
+}
+
+void TerminalSessionController::finishCurrentCommand(int exitCode, const std::string& cwd) {
+    if (this->currentCommandIndex >= 0 && 
+        this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
+        this->commandHistory[this->currentCommandIndex].exitCode = exitCode;
+        this->commandHistory[this->currentCommandIndex].cwdEnd = cwd;
+        this->commandHistory[this->currentCommandIndex].isFinished = true;
+        this->currentCommandIndex = -1;
+    }
+}
+
+const std::vector<TerminalSessionController::CommandRecord>& TerminalSessionController::getCommandHistory() const {
+    return this->commandHistory;
+}
+
+bool TerminalSessionController::hasActiveCommand() const {
+    return this->currentCommandIndex >= 0;
+}
+
