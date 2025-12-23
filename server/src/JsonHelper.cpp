@@ -3,13 +3,13 @@
 
 using json = nlohmann::json;
 
-std::string JsonHelper::createResponse(const std::string& type, const std::string& data, int exitCode, bool running)
+std::string JsonHelper::createResponse(const std::string& type, std::string data, int exitCode, bool running)
 {
-    json response;
+    json response = json::object();
     response["type"] = type;
     
     if (type == "output" && !data.empty()) {
-        response["data"] = data;
+        response["data"] = std::move(data);
     } else if (type == "status") {
         response["running"] = running;
         response["exit_code"] = exitCode;

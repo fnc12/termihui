@@ -16,10 +16,9 @@ class TermihuiServerController {
 public:
     /**
      * Constructor
-     * @param port WebSocket server port
-     * @param bindAddress address to bind (e.g. "0.0.0.0" or "127.0.0.1")
+     * @param webSocketServer WebSocket server instance (dependency injection)
      */
-    TermihuiServerController(int port, std::string bindAddress);
+    TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer);
     
     /**
      * Destructor (virtual for testability)
@@ -107,7 +106,7 @@ private:
     static std::atomic<bool> shouldExit;
     
     // Server components
-    WebSocketServer webSocketServer;
+    std::unique_ptr<WebSocketServer> webSocketServer;
     std::unique_ptr<TerminalSessionController> terminalSessionController;
     
     // Command history
@@ -118,4 +117,3 @@ private:
     // State tracking
     std::chrono::steady_clock::time_point lastStatsTime;
 };
-

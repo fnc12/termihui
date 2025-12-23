@@ -123,11 +123,10 @@ bool TerminalSessionController::createSession()
     return true;
 }
 
-bool TerminalSessionController::executeCommand(const std::string& command)
+TerminalSessionController::ExecuteCommandResult TerminalSessionController::executeCommand(const std::string& command)
 {
     if (!this->sessionCreated || !this->running) {
-        fmt::print(stderr, "Session not created or inactive\n");
-        return false;
+        return {SessionNotCreatedOrInactiveError{}};
     }
     
     // Send command + newline to interactive shell
@@ -135,12 +134,12 @@ bool TerminalSessionController::executeCommand(const std::string& command)
     ssize_t bytesWritten = write(this->ptyFd, cmd.c_str(), cmd.length());
     
     if (bytesWritten < 0) {
-        fmt::print(stderr, "Command send error: {}\n", strerror(errno));
-        return false;
+        std::string errorText = fmt::format("Command send error: {}", strerror(errno));
+        return {CommandSendError{std::move(errorText)}};
     }
     
     fmt::print("Command sent: {}\n", command);
-    return true;
+    return {ExecuteCommandSuccess{}};
 }
 
 ssize_t TerminalSessionController::sendInput(std::string_view input)

@@ -5,18 +5,18 @@
 
 // libhv headers included via WebSocketServer.h
 
-WebSocketServer::WebSocketServer(int port, std::string bindAddress)
+WebSocketServerImpl::WebSocketServerImpl(int port, std::string bindAddress)
     : port(port)
     , bindAddress(std::move(bindAddress))
 {
 }
 
-WebSocketServer::~WebSocketServer()
+WebSocketServerImpl::~WebSocketServerImpl()
 {
     stop();
 }
 
-bool WebSocketServer::start()
+bool WebSocketServerImpl::start()
 {
     if (this->running.exchange(true)) {
         return false; // Already running
@@ -58,7 +58,7 @@ bool WebSocketServer::start()
     }
 }
 
-void WebSocketServer::stop()
+void WebSocketServerImpl::stop()
 {
     if (!this->running.exchange(false)) {
         return; // Already stopped
@@ -108,12 +108,12 @@ void WebSocketServer::stop()
     fmt::print("WebSocket server stopped\n");
 }
 
-bool WebSocketServer::isRunning() const
+bool WebSocketServerImpl::isRunning() const
 {
     return this->running.load();
 }
 
-WebSocketServer::UpdateResult WebSocketServer::update()
+WebSocketServerImpl::UpdateResult WebSocketServerImpl::update()
 {
     UpdateResult result;
     
@@ -143,30 +143,30 @@ WebSocketServer::UpdateResult WebSocketServer::update()
     return result;
 }
 
-void WebSocketServer::sendMessage(int clientId, const std::string& message)
+void WebSocketServerImpl::sendMessage(int clientId, const std::string& message)
 {
     std::lock_guard<std::mutex> lock(this->outgoingMutex);
     this->outgoingQueue.push({clientId, message});
 }
 
-void WebSocketServer::broadcastMessage(const std::string& message)
+void WebSocketServerImpl::broadcastMessage(const std::string& message)
 {
     std::lock_guard<std::mutex> lock(this->outgoingMutex);
     this->outgoingQueue.push({0, message}); // 0 = broadcast to all
 }
 
-size_t WebSocketServer::getConnectedClients() const
+size_t WebSocketServerImpl::getConnectedClients() const
 {
     std::lock_guard<std::mutex> lock(this->clientsMutex);
     return this->clients.size();
 }
 
-int WebSocketServer::generateClientId()
+int WebSocketServerImpl::generateClientId()
 {
     return this->nextClientId.fetch_add(1);
 }
 
-void WebSocketServer::onConnection(const WebSocketChannelPtr& channel)
+void WebSocketServerImpl::onConnection(const WebSocketChannelPtr& channel)
 {
     // Generate ID for new client
     int clientId = this->generateClientId();
@@ -187,7 +187,7 @@ void WebSocketServer::onConnection(const WebSocketChannelPtr& channel)
     }
 }
 
-void WebSocketServer::onMessage(const WebSocketChannelPtr& channel, const std::string& message)
+void WebSocketServerImpl::onMessage(const WebSocketChannelPtr& channel, const std::string& message)
 {
     // Get client ID
     int clientId;
@@ -210,7 +210,7 @@ void WebSocketServer::onMessage(const WebSocketChannelPtr& channel, const std::s
     }
 }
 
-void WebSocketServer::onClose(const WebSocketChannelPtr& channel)
+void WebSocketServerImpl::onClose(const WebSocketChannelPtr& channel)
 {
     // Get client ID
     int clientId = 0;
@@ -237,7 +237,7 @@ void WebSocketServer::onClose(const WebSocketChannelPtr& channel)
     }
 }
 
-void WebSocketServer::processOutgoingMessages()
+void WebSocketServerImpl::processOutgoingMessages()
 {
     std::vector<OutgoingMessage> messages;
     

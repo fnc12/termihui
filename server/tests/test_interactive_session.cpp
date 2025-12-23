@@ -18,7 +18,7 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
     
     SECTION("Cyrillic command should return 'command not found'") {
         // Send command with Cyrillic characters (like typing "pwd" on Russian keyboard)
-        REQUIRE(session.executeCommand("зцв"));
+        REQUIRE(session.executeCommand("зцв").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         std::string output;
@@ -55,17 +55,17 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
     
     SECTION("Create file with Cyrillic name") {
         // First go to /tmp
-        REQUIRE(session.executeCommand("cd /tmp"));
+        REQUIRE(session.executeCommand("cd /tmp").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         session.readOutput();
         
         // Create file with Cyrillic name
-        REQUIRE(session.executeCommand("touch тест_файл.txt"));
+        REQUIRE(session.executeCommand("touch тест_файл.txt").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         session.readOutput();
         
         // List files and check if our file is there
-        REQUIRE(session.executeCommand("ls -la тест_файл.txt"));
+        REQUIRE(session.executeCommand("ls -la тест_файл.txt").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         std::string output;
@@ -90,7 +90,7 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
     }
     
     SECTION("Echo Cyrillic text") {
-        REQUIRE(session.executeCommand("echo 'Привет мир!'"));
+        REQUIRE(session.executeCommand("echo 'Привет мир!'").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         std::string output;
@@ -125,7 +125,7 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         session.readOutput();
         
         // 1. Execute pwd and save result
-        REQUIRE(session.executeCommand("pwd"));
+        REQUIRE(session.executeCommand("pwd").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Increase wait time
         
         std::string initialDir;
@@ -149,14 +149,14 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         REQUIRE(!allOutput.empty());
         
         // 2. Change directory to /tmp
-        REQUIRE(session.executeCommand("cd /tmp"));
+        REQUIRE(session.executeCommand("cd /tmp").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
         // Clear buffer after cd (cd usually outputs nothing)
         session.readOutput();
         
         // 3. Execute pwd again
-        REQUIRE(session.executeCommand("pwd"));
+        REQUIRE(session.executeCommand("pwd").isOk());
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         std::string newOutput; // Full output of second pwd command

@@ -9,8 +9,8 @@ using json = nlohmann::json;
 // Static member initialization
 std::atomic<bool> TermihuiServerController::shouldExit{false};
 
-TermihuiServerController::TermihuiServerController(int port, std::string bindAddress)
-    : webSocketServer(port, std::move(bindAddress))
+TermihuiServerController::TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer)
+    : webSocketServer(std::move(webSocketServer))
     , lastStatsTime(std::chrono::steady_clock::now())
 {
 }
@@ -26,9 +26,9 @@ void TermihuiServerController::signalHandler(int signal) {
 
 bool TermihuiServerController::start() {
     // Start WebSocket server
-    if (!this->webSocketServer.start()) {
+    if (!this->webSocketServer->start()) {
         fmt::print(stderr, "Failed to start WebSocket server on {}:{}\n", 
-                   this->webSocketServer.getBindAddress(), this->webSocketServer.getPort());
+                   this->webSocketServer->getBindAddress(), this->webSocketServer->getPort());
         return false;
     }
     
@@ -36,7 +36,7 @@ bool TermihuiServerController::start() {
     this->terminalSessionController = std::make_unique<TerminalSessionController>();
     if (!this->terminalSessionController->createSession()) {
         fmt::print(stderr, "Failed to create terminal session\n");
-        this->webSocketServer.stop();
+        this->webSocketServer->stop();
         return false;
     }
     
@@ -49,13 +49,13 @@ void TermihuiServerController::stop() {
         this->terminalSessionController->terminate();
         this->terminalSessionController.reset();
     }
-    this->webSocketServer.stop();
+    this->webSocketServer->stop();
     fmt::print("Server stopped\n");
 }
 
 void TermihuiServerController::update() {
     // Get events from WebSocket server
-    auto updateResult = this->webSocketServer.update();
+    auto updateResult = this->webSocketServer->update();
     
     // Handle connection/disconnection events
     for (const auto& connectionEvent : updateResult.connectionEvents) {
@@ -78,7 +78,7 @@ void TermihuiServerController::update() {
     if (this->terminalSessionController->didJustFinishRunning()) {
         fmt::print("Command completed\n");
         std::string status = JsonHelper::createResponse("status", "", 0, false);
-        this->webSocketServer.broadcastMessage(status);
+        this->webSocketServer->broadcastMessage(status);
     }
     
     // Print statistics every 30 seconds
@@ -103,7 +103,7 @@ void TermihuiServerController::handleNewConnection(int clientId) {
     if (const char* home = getenv("HOME")) {
         welcomeMsg["home"] = home;
     }
-    this->webSocketServer.sendMessage(clientId, welcomeMsg.dump());
+    this->webSocketServer->sendMessage(clientId, welcomeMsg.dump());
     
     // Send command history
     if (!this->commandHistory.empty()) {
@@ -121,7 +121,7 @@ void TermihuiServerController::handleNewConnection(int clientId) {
             commands.push_back(cmd);
         }
         historyMsg["commands"] = commands;
-        this->webSocketServer.sendMessage(clientId, historyMsg.dump());
+        this->webSocketServer->sendMessage(clientId, historyMsg.dump());
         fmt::print("Sent history: {} commands\n", this->commandHistory.size());
     }
 }
@@ -155,23 +155,28 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
             );
         } else {
             std::string error = JsonHelper::createResponse("error", "Unknown message type: " + type);
-            this->webSocketServer.sendMessage(message.clientId, error);
+            this->webSocketServer->sendMessage(message.clientId, error);
         }
     } catch (const json::exception& e) {
         fmt::print(stderr, "JSON error: {}\n", e.what());
         std::string error = JsonHelper::createResponse("error", std::string("Invalid message: ") + e.what());
-        this->webSocketServer.sendMessage(message.clientId, error);
+        this->webSocketServer->sendMessage(message.clientId, error);
     }
 }
 
 void TermihuiServerController::handleExecuteMessage(int clientId, const std::string& command) {
     this->pendingCommand = command;
     
-    if (this->terminalSessionController->executeCommand(command)) {
+    using ExecuteCommandResult = TerminalSessionController::ExecuteCommandResult;
+    
+    ExecuteCommandResult executeCommandResult = this->terminalSessionController->executeCommand(command);
+    
+    if (executeCommandResult.isOk()) {
         fmt::print("Executed command: {}\n", command);
     } else {
-        std::string error = JsonHelper::createResponse("error", "Failed to execute command");
-        this->webSocketServer.sendMessage(clientId, error);
+        std::string errorText = fmt::format("Failed to execute command *{}*: {}", command, executeCommandResult.errorText());
+        std::string error = JsonHelper::createResponse("error", std::move(errorText));
+        this->webSocketServer->sendMessage(clientId, error);
     }
 }
 
@@ -179,10 +184,10 @@ void TermihuiServerController::handleInputMessage(int clientId, const std::strin
     ssize_t bytes = this->terminalSessionController->sendInput(text);
     if (bytes >= 0) {
         std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
-        this->webSocketServer.sendMessage(clientId, response);
+        this->webSocketServer->sendMessage(clientId, response);
     } else {
         std::string error = JsonHelper::createResponse("error", "Failed to send input");
-        this->webSocketServer.sendMessage(clientId, error);
+        this->webSocketServer->sendMessage(clientId, error);
     }
 }
 
@@ -197,13 +202,13 @@ void TermihuiServerController::handleCompletionMessage(int clientId, const std::
     response["original_text"] = text;
     response["cursor_position"] = cursorPosition;
     
-    this->webSocketServer.sendMessage(clientId, response.dump());
+    this->webSocketServer->sendMessage(clientId, response.dump());
 }
 
 void TermihuiServerController::handleResizeMessage(int clientId, int cols, int rows) {
     if (cols <= 0 || rows <= 0) {
         std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
-        this->webSocketServer.sendMessage(clientId, error);
+        this->webSocketServer->sendMessage(clientId, error);
         return;
     }
     
@@ -212,10 +217,10 @@ void TermihuiServerController::handleResizeMessage(int clientId, int cols, int r
         response["type"] = "resize_ack";
         response["cols"] = cols;
         response["rows"] = rows;
-        this->webSocketServer.sendMessage(clientId, response.dump());
+        this->webSocketServer->sendMessage(clientId, response.dump());
     } else {
         std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
-        this->webSocketServer.sendMessage(clientId, error);
+        this->webSocketServer->sendMessage(clientId, error);
     }
 }
 
@@ -262,7 +267,7 @@ void TermihuiServerController::processTerminalOutput() {
                     if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
                         this->commandHistory[this->currentCommandIndex].output += chunk;
                     }
-                    this->webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                    this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
                 }
             }
             break;
@@ -277,7 +282,7 @@ void TermihuiServerController::processTerminalOutput() {
                 if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
                     this->commandHistory[this->currentCommandIndex].output += chunk;
                 }
-                this->webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
         }
 
@@ -298,7 +303,7 @@ void TermihuiServerController::processTerminalOutput() {
                 if (this->currentCommandIndex >= 0 && this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
                     this->commandHistory[this->currentCommandIndex].output += chunk;
                 }
-                this->webSocketServer.broadcastMessage(JsonHelper::createResponse("output", chunk));
+                this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
             break;
         }
@@ -336,7 +341,7 @@ void TermihuiServerController::processTerminalOutput() {
                 this->commandHistory.push_back(std::move(record));
                 this->currentCommandIndex = static_cast<int>(this->commandHistory.size()) - 1;
                 
-                this->webSocketServer.broadcastMessage(ev.dump());
+                this->webSocketServer->broadcastMessage(ev.dump());
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
             // OSC 133;B - Command end (our marker)
@@ -360,18 +365,18 @@ void TermihuiServerController::processTerminalOutput() {
                 if (!cwd.empty()) {
                     ev["cwd"] = cwd;
                 }
-                this->webSocketServer.broadcastMessage(ev.dump());
+                this->webSocketServer->broadcastMessage(ev.dump());
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
             // OSC 133;C - Prompt start
             json ev;
             ev["type"] = "prompt_start";
-            this->webSocketServer.broadcastMessage(ev.dump());
+            this->webSocketServer->broadcastMessage(ev.dump());
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
             // OSC 133;D - Prompt end
             json ev;
             ev["type"] = "prompt_end";
-            this->webSocketServer.broadcastMessage(ev.dump());
+            this->webSocketServer->broadcastMessage(ev.dump());
         } else if (osc.rfind("\x1b]2;", 0) == 0) {
             // OSC 2 - Window title (often contains user@host:path)
             // Extract title content between "ESC]2;" and BEL/ST
@@ -388,7 +393,7 @@ void TermihuiServerController::processTerminalOutput() {
                     json ev;
                     ev["type"] = "cwd_update";
                     ev["cwd"] = path;
-                    this->webSocketServer.broadcastMessage(ev.dump());
+                    this->webSocketServer->broadcastMessage(ev.dump());
                 }
             }
         } else if (osc.rfind("\x1b]7;", 0) == 0) {
@@ -409,7 +414,7 @@ void TermihuiServerController::processTerminalOutput() {
                         json ev;
                         ev["type"] = "cwd_update";
                         ev["cwd"] = path;
-                        this->webSocketServer.broadcastMessage(ev.dump());
+                        this->webSocketServer->broadcastMessage(ev.dump());
                     }
                 }
             }
@@ -424,7 +429,7 @@ void TermihuiServerController::processTerminalOutput() {
 void TermihuiServerController::printStats() {
     auto now = std::chrono::steady_clock::now();
     if (now - this->lastStatsTime > std::chrono::seconds(30)) {
-        size_t connectedClients = this->webSocketServer.getConnectedClients();
+        size_t connectedClients = this->webSocketServer->getConnectedClients();
         fmt::print("Connected clients: {}\n", connectedClients);
         fmt::print("Terminal session active: {}\n", (this->terminalSessionController->isRunning() ? "yes" : "no"));
         this->lastStatsTime = now;

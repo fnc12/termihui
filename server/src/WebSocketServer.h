@@ -13,10 +13,10 @@
 #include "hv/WebSocketServer.h"
 
 /**
- * WebSocket server for terminal sessions
+ * WebSocket server interface for terminal sessions
  * 
  * Features:
- * - WebSocket connection handling via libhv
+ * - WebSocket connection handling
  * - JSON protocol according to docs/protocol.md
  * - Non-blocking architecture with message queues
  * - Processing in main thread via update()
@@ -56,74 +56,95 @@ public:
     };
     
     /**
-     * Constructor
-     * @param port port for WebSocket server
-     * @param bindAddress address to bind (e.g. "0.0.0.0" or "127.0.0.1")
+     * Virtual destructor
      */
-    WebSocketServer(int port, std::string bindAddress);
-    
-    /**
-     * Destructor
-     */
-    ~WebSocketServer();
-    
-    // Disable copying
-    WebSocketServer(const WebSocketServer&) = delete;
-    WebSocketServer& operator=(const WebSocketServer&) = delete;
+    virtual ~WebSocketServer() = default;
     
     /**
      * Start server (in background thread)
      * @return true if server started successfully
      */
-    bool start();
+    virtual bool start() = 0;
     
     /**
      * Stop server
      */
-    void stop();
+    virtual void stop() = 0;
     
     /**
      * Check if server is running
      * @return true if server is running
      */
-    bool isRunning() const;
+    virtual bool isRunning() const = 0;
     
     /**
      * Update - process all accumulated events (call from main thread)
      * @return struct with incoming messages and connection events
      */
-    UpdateResult update();
+    virtual UpdateResult update() = 0;
     
     /**
      * Send message to client (adds to queue)
      * @param clientId client identifier
      * @param message message to send
      */
-    void sendMessage(int clientId, const std::string& message);
+    virtual void sendMessage(int clientId, const std::string& message) = 0;
     
     /**
      * Broadcast message (adds to queue)
      * @param message message to send to all clients
      */
-    void broadcastMessage(const std::string& message);
+    virtual void broadcastMessage(const std::string& message) = 0;
     
     /**
      * Get number of connected clients
      * @return number of active connections
      */
-    size_t getConnectedClients() const;
+    virtual size_t getConnectedClients() const = 0;
     
     /**
      * Get server port
      * @return port number
      */
-    int getPort() const { return port; }
+    virtual int getPort() const = 0;
     
     /**
      * Get bind address
      * @return bind address string
      */
-    const std::string& getBindAddress() const { return bindAddress; }
+    virtual const std::string& getBindAddress() const = 0;
+};
+
+/**
+ * WebSocket server implementation using libhv
+ */
+class WebSocketServerImpl : public WebSocketServer {
+public:
+    /**
+     * Constructor
+     * @param port port for WebSocket server
+     * @param bindAddress address to bind (e.g. "0.0.0.0" or "127.0.0.1")
+     */
+    WebSocketServerImpl(int port, std::string bindAddress);
+    
+    /**
+     * Destructor
+     */
+    ~WebSocketServerImpl() override;
+    
+    // Disable copying
+    WebSocketServerImpl(const WebSocketServerImpl&) = delete;
+    WebSocketServerImpl& operator=(const WebSocketServerImpl&) = delete;
+    
+    bool start() override;
+    void stop() override;
+    bool isRunning() const override;
+    UpdateResult update() override;
+    void sendMessage(int clientId, const std::string& message) override;
+    void broadcastMessage(const std::string& message) override;
+    size_t getConnectedClients() const override;
+    int getPort() const override { return this->port; }
+    const std::string& getBindAddress() const override { return this->bindAddress; }
 
 private:
     /**
@@ -145,7 +166,7 @@ private:
     void processOutgoingMessages();
 
 private:
-    int port;
+    int port = 0;
     std::string bindAddress;
     std::atomic<bool> running{false};
     std::atomic<int> nextClientId{1};
@@ -169,12 +190,4 @@ private:
     
     std::mutex outgoingMutex;
     std::queue<OutgoingMessage> outgoingQueue;
-    
-    // TODO: Add in future:
-    // - SSL/TLS support
-    // - Client authentication
-    // - Connection limit
-    // - Heartbeat for connection checks
-    // - Message compression
-    // - Connection logging
-}; 
+};

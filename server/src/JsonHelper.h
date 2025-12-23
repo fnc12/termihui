@@ -17,7 +17,7 @@ public:
      */
     static std::string createResponse(
         const std::string& type, 
-        const std::string& data = "", 
+        std::string data = "", 
         int exitCode = 0, 
         bool running = false
     );

@@ -1,5 +1,6 @@
 #include "TermihuiServerController.h"
 #include <csignal>
+#include <memory>
 #include <fmt/core.h>
 #include "hv/hlog.h"
 #include <cstring>
@@ -66,7 +67,8 @@ int main(int argc, char* argv[])
     fmt::print("Press Ctrl+C to stop\n\n");
     
     // Create and start the server
-    TermihuiServerController termihuiServerController(port, bindAddress);
+    auto webSocketServer = std::make_unique<WebSocketServerImpl>(port, bindAddress);
+    TermihuiServerController termihuiServerController(std::move(webSocketServer));
     
     if (!termihuiServerController.start()) {
         return 1;

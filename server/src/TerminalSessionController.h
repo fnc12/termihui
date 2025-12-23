@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 #include <sys/types.h>
+#include <variant>
+
 #include "CompletionManager.h"
 
 /**
@@ -41,12 +43,51 @@ public:
      */
     bool createSession();
     
+    struct SessionNotCreatedOrInactiveError {};
+
+    struct CommandSendError {
+        std::string errorText;
+    };
+
+    struct ExecuteCommandSuccess {
+        ssize_t bytesWritten = 0;
+    };
+    
+    struct ExecuteCommandResult {
+        std::variant<ExecuteCommandSuccess, CommandSendError, SessionNotCreatedOrInactiveError> data;
+        
+        bool isOk() const {
+            return std::holds_alternative<ExecuteCommandSuccess>(this->data);
+        }
+        
+        std::string errorText() const {
+            if (this->isOk()) {
+                return {};
+            }
+            return std::visit([this] (auto &value) {
+                return this->errorTextFor(value);
+            }, this->data);
+        }
+        
+        std::string errorTextFor(const CommandSendError &commandSendError) const {
+            return commandSendError.errorText;
+        }
+        
+        std::string errorTextFor([[maybe_unused]] const ExecuteCommandSuccess &executeCommandSuccess) const {
+            return {};
+        }
+        
+        std::string errorTextFor([[maybe_unused]] const SessionNotCreatedOrInactiveError &sessionNotCreatedOrInactiveError) const {
+            return "Session not created or inactive";
+        }
+    };
+    
     /**
      * Execute command in existing session
      * @param command command to execute
      * @return true if command successfully sent
      */
-    bool executeCommand(const std::string& command);
+    ExecuteCommandResult executeCommand(const std::string& command);
     
     /**
      * Send text to PTY

@@ -39,7 +39,8 @@ public:
 
     using Call = std::variant<ExecuteCall, InputCall, CompletionCall, ResizeCall>;
 
-    TermihuiServerControllerTestable() : TermihuiServerController(0, "127.0.0.1") {}
+    TermihuiServerControllerTestable() 
+        : TermihuiServerController(std::make_unique<WebSocketServerImpl>(0, "127.0.0.1")) {}
     
     // Call recording
     std::vector<Call> calls;
