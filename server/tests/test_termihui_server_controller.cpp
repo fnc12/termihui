@@ -9,7 +9,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
     using Testable = TermihuiServerControllerTestable;
     
     auto webSocketServerMock = std::make_unique<WebSocketServerMock>();
-    WebSocketServerMock* mockPtr = webSocketServerMock.get();
+    WebSocketServerMock* webSocketServerMockPointer = webSocketServerMock.get();
     
     Testable controller(std::move(webSocketServerMock));
     controller.mockHandleExecuteMessage = true;
@@ -26,7 +26,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         controller.handleMessage(message);
         
         expected = {Testable::ExecuteCall{42, "ls -la"}};
-        REQUIRE(mockPtr->calls.empty());
+        REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("input message calls handleInputMessage") {
@@ -35,7 +35,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         controller.handleMessage(message);
         
         expected = {Testable::InputCall{123, "hello world"}};
-        REQUIRE(mockPtr->calls.empty());
+        REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("completion message calls handleCompletionMessage") {
@@ -44,7 +44,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         controller.handleMessage(message);
         
         expected = {Testable::CompletionCall{7, "ls", 2}};
-        REQUIRE(mockPtr->calls.empty());
+        REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("resize message calls handleResizeMessage") {
@@ -53,7 +53,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         controller.handleMessage(message);
         
         expected = {Testable::ResizeCall{99, 120, 40}};
-        REQUIRE(mockPtr->calls.empty());
+        REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("multiple messages are recorded in order") {
@@ -74,7 +74,7 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
             Testable::InputCall{2, "\n"},
             Testable::ResizeCall{3, 80, 24}
         };
-        REQUIRE(mockPtr->calls.empty());
+        REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("invalid JSON sends error") {
@@ -82,8 +82,8 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         message.text = "not valid json";
         controller.handleMessage(message);
         
-        REQUIRE(mockPtr->calls.size() == 1);
-        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&mockPtr->calls[0]);
+        REQUIRE(webSocketServerMockPointer->calls.size() == 1);
+        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&webSocketServerMockPointer->calls[0]);
         REQUIRE(sendCall != nullptr);
         REQUIRE(sendCall->clientId == 1);
         REQUIRE(sendCall->message.find("error") != std::string::npos);
@@ -94,8 +94,8 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         message.text = json{{"command", "ls"}}.dump();
         controller.handleMessage(message);
         
-        REQUIRE(mockPtr->calls.size() == 1);
-        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&mockPtr->calls[0]);
+        REQUIRE(webSocketServerMockPointer->calls.size() == 1);
+        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&webSocketServerMockPointer->calls[0]);
         REQUIRE(sendCall != nullptr);
         REQUIRE(sendCall->clientId == 2);
         REQUIRE(sendCall->message.find("error") != std::string::npos);
@@ -106,8 +106,8 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         message.text = json{{"type", "unknown_type"}}.dump();
         controller.handleMessage(message);
         
-        REQUIRE(mockPtr->calls.size() == 1);
-        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&mockPtr->calls[0]);
+        REQUIRE(webSocketServerMockPointer->calls.size() == 1);
+        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&webSocketServerMockPointer->calls[0]);
         REQUIRE(sendCall != nullptr);
         REQUIRE(sendCall->clientId == 3);
         REQUIRE(sendCall->message.find("error") != std::string::npos);
@@ -119,8 +119,8 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
         message.text = json{{"type", "execute"}}.dump();  // missing "command"
         controller.handleMessage(message);
         
-        REQUIRE(mockPtr->calls.size() == 1);
-        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&mockPtr->calls[0]);
+        REQUIRE(webSocketServerMockPointer->calls.size() == 1);
+        auto* sendCall = std::get_if<WebSocketServerMock::SendMessageCall>(&webSocketServerMockPointer->calls[0]);
         REQUIRE(sendCall != nullptr);
         REQUIRE(sendCall->clientId == 4);
         REQUIRE(sendCall->message.find("error") != std::string::npos);
