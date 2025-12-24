@@ -67,6 +67,8 @@ bool TerminalSessionController::createSession()
         setenv("PS1", "", 1);
         // Suppress system banner about switching to zsh
         setenv("BASH_SILENCE_DEPRECATION_WARNING", "1", 1);
+        // Set terminal type for TUI applications (nano, vim, htop, etc.)
+        setenv("TERM", "xterm-256color", 1);
 
         // Disable local echo in slave TTY to avoid command duplication in output
         struct termios tio;
