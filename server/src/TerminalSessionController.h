@@ -27,9 +27,9 @@ public:
     explicit TerminalSessionController(size_t bufferSize = 4096);
     
     /**
-     * Destructor - automatically terminates session
+     * Virtual destructor - automatically terminates session
      */
-    ~TerminalSessionController();
+    virtual ~TerminalSessionController();
     
     // Disable copying and moving
     TerminalSessionController(const TerminalSessionController&) = delete;
@@ -100,7 +100,7 @@ public:
      * Read available output from PTY
      * @return string with new output
      */
-    std::string readOutput();
+    virtual std::string readOutput();
     
     /**
      * Check if process is running
@@ -136,7 +136,7 @@ public:
      * Check if data is available for reading (non-blocking)
      * @return true if data is available
      */
-    bool hasData() const;
+    virtual bool hasData() const;
     
     /**
      * Get autocompletion options for text
@@ -156,7 +156,7 @@ public:
      * Set last known cwd (from OSC markers)
      * @param cwd path to directory
      */
-    void setLastKnownCwd(const std::string& cwd);
+    virtual void setLastKnownCwd(const std::string& cwd);
     
     /**
      * Get last known cwd
@@ -188,38 +188,38 @@ public:
      * Set pending command (before execution)
      * @param command command text
      */
-    void setPendingCommand(std::string command);
+    virtual void setPendingCommand(std::string command);
     
     /**
      * Start new command in history (called on OSC 133;A)
      * @param cwd current working directory
      */
-    void startCommandInHistory(const std::string& cwd);
+    virtual void startCommandInHistory(const std::string& cwd);
     
     /**
      * Append output to current command in history
      * @param output output text to append
      */
-    void appendOutputToCurrentCommand(const std::string& output);
+    virtual void appendOutputToCurrentCommand(const std::string& output);
     
     /**
      * Finish current command in history (called on OSC 133;B)
      * @param exitCode command exit code
      * @param cwd final working directory
      */
-    void finishCurrentCommand(int exitCode, const std::string& cwd);
+    virtual void finishCurrentCommand(int exitCode, const std::string& cwd);
     
     /**
      * Get command history
      * @return const reference to command history vector
      */
-    const std::vector<CommandRecord>& getCommandHistory() const;
+    virtual const std::vector<CommandRecord>& getCommandHistory() const;
     
     /**
      * Check if there's an active command being recorded
      * @return true if a command is currently being recorded
      */
-    bool hasActiveCommand() const;
+    virtual bool hasActiveCommand() const;
 
 private:
     /**

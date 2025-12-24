@@ -72,7 +72,7 @@ void TermihuiServerController::update() {
     }
     
     // Process terminal output
-    this->processTerminalOutput();
+    this->processTerminalOutput(*this->terminalSessionController);
     
     // Check session status and send completion notification
     if (this->terminalSessionController->didJustFinishRunning()) {
@@ -225,15 +225,38 @@ void TermihuiServerController::handleResizeMessage(int clientId, int cols, int r
     }
 }
 
-void TermihuiServerController::processTerminalOutput() {
-    if (!this->terminalSessionController->hasData()) {
+// Helper: escape string for logging (show control chars)
+static std::string escapeForLog(const std::string& s) {
+    std::string result;
+    for (char c : s) {
+        if (c == '\x1b') {
+            result += "\\e";
+        } else if (c == '\x07') {
+            result += "\\a";
+        } else if (c == '\n') {
+            result += "\\n";
+        } else if (c == '\r') {
+            result += "\\r";
+        } else if (c < 32) {
+            result += fmt::format("\\x{:02x}", static_cast<unsigned char>(c));
+        } else {
+            result += c;
+        }
+    }
+    return result;
+}
+
+void TermihuiServerController::processTerminalOutput(TerminalSessionController& session) {
+    if (!session.hasData()) {
         return;
     }
     
-    std::string output = this->terminalSessionController->readOutput();
+    std::string output = session.readOutput();
     if (output.empty()) {
         return;
     }
+    
+    fmt::print("[OSC-PARSE] Raw output ({} bytes): {}\n", output.size(), escapeForLog(output));
     
     // Helper: find next OSC sequence (any type)
     auto findNextOSC = [&output](size_t from) -> size_t {
@@ -256,15 +279,20 @@ void TermihuiServerController::processTerminalOutput() {
     
     // Streaming parser: preserve order "text → event → text"
     size_t i = 0;
+    int iteration = 0;
     while (true) {
+        iteration++;
         size_t oscPos = findNextOSC(i);
+        fmt::print("[OSC-PARSE] Iteration {}: i={}, oscPos={}\n", iteration, i, 
+                   oscPos == std::string::npos ? -1 : static_cast<int>(oscPos));
+        
         if (oscPos == std::string::npos) {
             // Remainder as regular output
             if (i < output.size()) {
                 std::string chunk = output.substr(i);
                 if (!chunk.empty()) {
-                    fmt::print("Terminal output: *{}*\n", chunk);
-                    this->terminalSessionController->appendOutputToCurrentCommand(chunk);
+                    fmt::print("[OSC-PARSE] Final text chunk: {}\n", escapeForLog(chunk));
+                    session.appendOutputToCurrentCommand(chunk);
                     this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
                 }
             }
@@ -275,8 +303,8 @@ void TermihuiServerController::processTerminalOutput() {
         if (oscPos > i) {
             std::string chunk = output.substr(i, oscPos - i);
             if (!chunk.empty()) {
-                fmt::print("Terminal output: *{}*\n", chunk);
-                this->terminalSessionController->appendOutputToCurrentCommand(chunk);
+                fmt::print("[OSC-PARSE] Text before OSC: {}\n", escapeForLog(chunk));
+                session.appendOutputToCurrentCommand(chunk);
                 this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
         }
@@ -289,18 +317,22 @@ void TermihuiServerController::processTerminalOutput() {
             oscEnd = stPos + 1; // Point to after ST
         }
         
+        fmt::print("[OSC-PARSE] OSC boundaries: start={}, end={}\n", oscPos, 
+                   oscEnd == std::string::npos ? -1 : static_cast<int>(oscEnd));
+        
         if (oscEnd == std::string::npos) {
             // Incomplete marker — treat rest as regular text
             std::string chunk = output.substr(oscPos);
             if (!chunk.empty()) {
-                fmt::print("Terminal output: *{}*\n", chunk);
-                this->terminalSessionController->appendOutputToCurrentCommand(chunk);
+                fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
+                session.appendOutputToCurrentCommand(chunk);
                 this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
             }
             break;
         }
 
         std::string osc = output.substr(oscPos, oscEnd - oscPos + 1);
+        fmt::print("[OSC-PARSE] Found OSC sequence: {}\n", escapeForLog(osc));
         
         // Helper lambda to extract parameter value from OSC string
         auto extractParam = [&osc](const std::string& key) -> std::string {
@@ -316,12 +348,13 @@ void TermihuiServerController::processTerminalOutput() {
         if (osc.rfind("\x1b]133;A", 0) == 0) {
             // OSC 133;A - Command start (our marker)
             std::string cwd = extractParam("cwd");
+            fmt::print("[OSC-PARSE] >>> OSC 133;A (command_start) cwd={}\n", cwd);
             if (!cwd.empty()) {
-                this->terminalSessionController->setLastKnownCwd(cwd);
+                session.setLastKnownCwd(cwd);
             }
             
-            this->terminalSessionController->startCommandInHistory(cwd);
-            if (this->terminalSessionController->hasActiveCommand()) {
+            session.startCommandInHistory(cwd);
+            if (session.hasActiveCommand()) {
                 json ev;
                 ev["type"] = "command_start";
                 if (!cwd.empty()) {
@@ -335,12 +368,13 @@ void TermihuiServerController::processTerminalOutput() {
             auto k = osc.find("exit=");
             if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
             std::string cwd = extractParam("cwd");
+            fmt::print("[OSC-PARSE] >>> OSC 133;B (command_end) exit={}, cwd={}\n", exitCode, cwd);
             if (!cwd.empty()) {
-                this->terminalSessionController->setLastKnownCwd(cwd);
+                session.setLastKnownCwd(cwd);
             }
             
-            if (this->terminalSessionController->hasActiveCommand()) {
-                this->terminalSessionController->finishCurrentCommand(exitCode, cwd);
+            if (session.hasActiveCommand()) {
+                session.finishCurrentCommand(exitCode, cwd);
                 
                 json ev;
                 ev["type"] = "command_end";
@@ -352,11 +386,13 @@ void TermihuiServerController::processTerminalOutput() {
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
             // OSC 133;C - Prompt start
+            fmt::print("[OSC-PARSE] >>> OSC 133;C (prompt_start)\n");
             json ev;
             ev["type"] = "prompt_start";
             this->webSocketServer->broadcastMessage(ev.dump());
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
             // OSC 133;D - Prompt end
+            fmt::print("[OSC-PARSE] >>> OSC 133;D (prompt_end)\n");
             json ev;
             ev["type"] = "prompt_end";
             this->webSocketServer->broadcastMessage(ev.dump());
@@ -368,9 +404,9 @@ void TermihuiServerController::processTerminalOutput() {
             if (titleEnd != std::string::npos) {
                 std::string title = osc.substr(titleStart, titleEnd - titleStart);
                 std::string path = extractPathFromTitle(title);
+                fmt::print("[OSC-PARSE] >>> OSC 2 (window_title) title={}, extracted_path={}\n", title, path);
                 if (!path.empty()) {
-                    fmt::print("OSC 2 detected CWD: {} (from title: {})\n", path, title);
-                    this->terminalSessionController->setLastKnownCwd(path);
+                    session.setLastKnownCwd(path);
                     
                     // Send cwd_update event to client
                     json ev;
@@ -390,8 +426,8 @@ void TermihuiServerController::processTerminalOutput() {
                     size_t pathEnd = osc.find_first_of("\x07\x1b", slashPos);
                     if (pathEnd != std::string::npos) {
                         std::string path = osc.substr(slashPos, pathEnd - slashPos);
-                        fmt::print("OSC 7 detected CWD: {}\n", path);
-                        this->terminalSessionController->setLastKnownCwd(path);
+                        fmt::print("[OSC-PARSE] >>> OSC 7 (cwd) path={}\n", path);
+                        session.setLastKnownCwd(path);
                         
                         // Send cwd_update event to client
                         json ev;
@@ -400,9 +436,13 @@ void TermihuiServerController::processTerminalOutput() {
                         this->webSocketServer->broadcastMessage(ev.dump());
                     }
                 }
+            } else {
+                fmt::print("[OSC-PARSE] >>> OSC 7 (cwd) - no file:// found\n");
             }
+        } else {
+            // Other OSC types (1, etc.) 
+            fmt::print("[OSC-PARSE] >>> Unknown OSC type, ignoring\n");
         }
-        // Other OSC types (1, etc.) are silently ignored
 
         // Continue after marker
         i = oscEnd + 1;

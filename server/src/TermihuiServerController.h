@@ -61,6 +61,12 @@ public:
      */
     void handleMessage(const WebSocketServer::IncomingMessage& message);
 
+    /**
+     * Process terminal output and OSC markers
+     * @param session terminal session to process output from
+     */
+    void processTerminalOutput(TerminalSessionController& session);
+
 protected:
     // Message handlers (virtual for testability)
     virtual void handleExecuteMessage(int clientId, const std::string& command);
@@ -78,11 +84,6 @@ private:
      * Handle client disconnection
      */
     void handleDisconnection(int clientId);
-    
-    /**
-     * Process terminal output and OSC markers
-     */
-    void processTerminalOutput();
     
     /**
      * Print server statistics
