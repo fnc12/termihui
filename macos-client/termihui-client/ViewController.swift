@@ -9,7 +9,7 @@ class ViewController: NSViewController {
     private lazy var connectingViewController = ConnectingViewController()
     private lazy var terminalViewController = TerminalViewController()
     
-    // MARK: - Properties
+    // MARK: - Properties  
     
     /// Client core instance, passed from AppDelegate
     var clientCore: ClientCoreWrapper? {
@@ -230,11 +230,23 @@ class ViewController: NSViewController {
             }
             
         case "output":
-            if let outputData = messageDict["data"] as? String {
-                print("📺 Output: \(outputData.prefix(50))...")
+            // New format: segments array from C++ ANSI parser
+            if let segmentsData = messageDict["segments"] {
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: segmentsData)
+                    let segments = try JSONDecoder().decode([StyledSegment].self, from: jsonData)
+                    print("📺 Output: \(segments.count) segments")
+                    terminalViewController.appendStyledOutput(segments)
+                } catch {
+                    print("❌ Failed to decode segments: \(error)")
+                }
+            }
+            // Fallback: raw data (for backward compatibility)
+            else if let outputData = messageDict["data"] as? String {
+                print("📺 Output (raw): \(outputData.prefix(50))...")
                 terminalViewController.appendOutput(outputData)
             } else {
-                print("❌ output missing 'data': \(messageDict)")
+                print("❌ output missing 'segments' or 'data': \(messageDict)")
             }
             
         case "status":

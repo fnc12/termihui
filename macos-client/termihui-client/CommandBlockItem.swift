@@ -11,7 +11,6 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let bodyTextView = NSTextView()
     private let container = NSView()
     private let separatorView = NSView()
-    private let ansiParser = ANSIParser()
     
     // Current highlight state (for reset)
     private var lastHeaderHighlight: NSRange?
@@ -26,7 +25,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         setupUI()
     }
     
-    func configure(command: String?, output: String, isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
+    func configure(command: String?, outputSegments: [StyledSegment], isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
         // CWD label — gray, above command
         if let cwd = cwdStart, !cwd.isEmpty {
             cwdLabel.stringValue = shortenHomePath(cwd, serverHome: serverHome)
@@ -44,10 +43,8 @@ final class CommandBlockItem: NSCollectionViewItem {
             headerLabel.isHidden = true
         }
         
-        // Parse ANSI escape codes and apply styling
-        // Parse ANSI codes and apply styling
-        let styledSegments = ansiParser.parse(output)
-        let attributedOutput = NSMutableAttributedString(attributedString: styledSegments.toAttributedString())
+        // Use pre-parsed segments from C++ core
+        let attributedOutput = NSMutableAttributedString(attributedString: outputSegments.toAttributedString())
         
         // Apply paragraph style with tab stops to entire string
         if let paragraphStyle = bodyTextView.defaultParagraphStyle {
@@ -135,7 +132,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         ])
     }
     
-    static func estimatedHeight(command: String?, output: String, width: CGFloat, cwdStart: String? = nil) -> CGFloat {
+    static func estimatedHeight(command: String?, outputText: String, width: CGFloat, cwdStart: String? = nil) -> CGFloat {
         let horizontalInsets: CGFloat = 16
         let constrainedWidth = max(0, width - horizontalInsets)
         
@@ -164,7 +161,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         paragraphStyle.tabStops = (1...20).map { NSTextTab(type: .leftTabStopType, location: CGFloat($0) * tabWidth) }
         paragraphStyle.defaultTabInterval = tabWidth
         
-        let bodyRect = (output as NSString).boundingRect(
+        let bodyRect = (outputText as NSString).boundingRect(
             with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: font, .paragraphStyle: paragraphStyle]

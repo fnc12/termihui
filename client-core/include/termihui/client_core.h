@@ -4,6 +4,7 @@
 #include <string_view>
 #include <memory>
 #include "thread_safe_queue.h"
+#include "thread_safe_string.h"
 
 // Forward declare libhv types
 namespace hv {
@@ -11,6 +12,9 @@ namespace hv {
 }
 
 namespace termihui {
+
+// Forward declare
+class ANSIParser;
 
 /**
  * TermiHUI Client Core Controller
@@ -101,7 +105,7 @@ private:
     // WebSocket client
     std::unique_ptr<hv::WebSocketClient> wsClient;
     std::string serverAddress;
-    std::string lastSentCommand;
+    ThreadSafeString lastSentCommand;
     
     // Event queue (thread-safe)
     StringQueue pendingEvents;
@@ -109,6 +113,9 @@ private:
     // Buffers for C API (to return stable pointers)
     std::string lastResponse;
     std::string lastEvent;
+    
+    // ANSI parser for terminal output
+    std::unique_ptr<ANSIParser> ansiParser;
 };
 
 // Simple C++ API (uses global instance)

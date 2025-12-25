@@ -1,5 +1,6 @@
 #include "termihui/client_core.h"
 #include "termihui/client_core_c.h"
+#include "termihui/ansi_parser.h"
 #include <fmt/core.h>
 #include <thread>
 #include <hv/WebSocketClient.h>
@@ -9,6 +10,44 @@ using json = nlohmann::json;
 
 namespace termihui {
 
+// ADL to_json for Color
+void to_json(json& j, const Color& color) {
+    switch (color.type) {
+        case Color::Type::Standard:
+            j = std::string(colorName(color.index));
+            break;
+        case Color::Type::Bright:
+            j = std::string("bright_") + std::string(colorName(color.index));
+            break;
+        case Color::Type::Indexed:
+            j = json{{"index", color.index}};
+            break;
+        case Color::Type::RGB:
+            j = json{{"rgb", fmt::format("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)}};
+            break;
+    }
+}
+
+// ADL to_json for TextStyle
+void to_json(json& j, const TextStyle& style) {
+    j["fg"] = style.fg ? json(*style.fg) : json(nullptr);
+    j["bg"] = style.bg ? json(*style.bg) : json(nullptr);
+    j["bold"] = style.bold;
+    j["dim"] = style.dim;
+    j["italic"] = style.italic;
+    j["underline"] = style.underline;
+    j["reverse"] = style.reverse;
+    j["strikethrough"] = style.strikethrough;
+}
+
+// ADL to_json for StyledSegment
+void to_json(json& j, const StyledSegment& segment) {
+    j = json{
+        {"text", segment.text},
+        {"style", segment.style}
+    };
+}
+
 // Version
 static constexpr const char* VERSION = "1.0.0";
 
@@ -17,8 +56,9 @@ ClientCoreController ClientCoreController::instance;
 
 // ClientCoreController implementation
 
-ClientCoreController::ClientCoreController() {
-    this->wsClient = std::make_unique<hv::WebSocketClient>();
+ClientCoreController::ClientCoreController()
+    : wsClient(std::make_unique<hv::WebSocketClient>())
+    , ansiParser(std::make_unique<ANSIParser>()) {
 }
 
 ClientCoreController::~ClientCoreController() {
@@ -222,7 +262,7 @@ void ClientCoreController::handleExecuteCommand(const std::string& command) {
     }
     
     // Save for block header
-    this->lastSentCommand = command;
+    this->lastSentCommand.set(command);
     
     json msg = {
         {"type", "execute"},
@@ -296,16 +336,30 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
     // Forward message to UI as event
     try {
         auto serverData = json::parse(message);
+        std::string msgType = serverData.at("type").get<std::string>();
         
         // Add saved command to command_start
-        if (serverData.value("type", "") == "command_start" && !this->lastSentCommand.empty()) {
-            serverData["command"] = this->lastSentCommand;
-            this->lastSentCommand.clear();
+        if (msgType == "command_start") {
+            if (auto cmd = this->lastSentCommand.take()) {
+                serverData["command"] = std::move(*cmd);
+            }
+        }
+        
+        // Parse ANSI codes for output messages
+        if (msgType == "output") {
+            std::string rawOutput = serverData.at("data").get<std::string>();
+            
+            // Parse ANSI codes into styled segments (ADL to_json handles conversion)
+            auto segments = this->ansiParser->parse(rawOutput);
+            
+            // Replace raw data with parsed segments
+            serverData["segments"] = std::move(segments);
+            serverData.erase("data");
         }
         
         this->pushEvent(json{
             {"type", "serverMessage"},
-            {"data", serverData}
+            {"data", std::move(serverData)}
         }.dump());
     } catch (const std::exception& e) {
         fmt::print(stderr, "ClientCoreController: Failed to parse server message: {}\n", e.what());

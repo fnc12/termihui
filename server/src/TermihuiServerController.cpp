@@ -173,36 +173,36 @@ void TermihuiServerController::handleExecuteMessage(int clientId, const std::str
     const ExecuteCommandResult executeCommandResult = this->terminalSessionController->executeCommand(command);
     
     if (executeCommandResult.isOk()) {
-        fmt::print("Executed command: {}\n", command);
-    } else {
+                    fmt::print("Executed command: {}\n", command);
+                } else {
         std::string errorText = fmt::format("Failed to execute command *{}*: {}", command, executeCommandResult.errorText());
         std::string error = JsonHelper::createResponse("error", std::move(errorText));
         this->webSocketServer->sendMessage(clientId, error);
-    }
+            }
 }
 
 void TermihuiServerController::handleInputMessage(int clientId, const std::string& text) {
     ssize_t bytes = this->terminalSessionController->sendInput(text);
-    if (bytes >= 0) {
+                if (bytes >= 0) {
         std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
         this->webSocketServer->sendMessage(clientId, response);
-    } else {
-        std::string error = JsonHelper::createResponse("error", "Failed to send input");
+                } else {
+                    std::string error = JsonHelper::createResponse("error", "Failed to send input");
         this->webSocketServer->sendMessage(clientId, error);
-    }
-}
-
+                }
+            }
+            
 void TermihuiServerController::handleCompletionMessage(int clientId, const std::string& text, int cursorPosition) {
-    fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
-    
+            fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
+            
     auto completions = this->terminalSessionController->getCompletions(text, cursorPosition);
-    
-    json response;
-    response["type"] = "completion_result";
-    response["completions"] = completions;
-    response["original_text"] = text;
-    response["cursor_position"] = cursorPosition;
-    
+            
+            json response;
+            response["type"] = "completion_result";
+            response["completions"] = completions;
+            response["original_text"] = text;
+            response["cursor_position"] = cursorPosition;
+            
     this->webSocketServer->sendMessage(clientId, response.dump());
 }
 
@@ -214,15 +214,15 @@ void TermihuiServerController::handleResizeMessage(int clientId, int cols, int r
     }
     
     if (this->terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
-        json response;
-        response["type"] = "resize_ack";
-        response["cols"] = cols;
-        response["rows"] = rows;
+                    json response;
+                    response["type"] = "resize_ack";
+                    response["cols"] = cols;
+                    response["rows"] = rows;
         this->webSocketServer->sendMessage(clientId, response.dump());
-    } else {
-        std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
+                } else {
+                    std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
         this->webSocketServer->sendMessage(clientId, error);
-    }
+                }
 }
 
 // Helper: escape string for logging (show control chars)

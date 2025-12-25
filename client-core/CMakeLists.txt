@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
@@ -9,12 +9,12 @@ include(FetchContent)
 
 if(NOT TARGET fmt::fmt)
     message(STATUS "Fetching fmt (standalone build)...")
-    FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
         GIT_TAG        10.1.1
-    )
-    FetchContent_MakeAvailable(fmt)
+)
+FetchContent_MakeAvailable(fmt)
     message(STATUS "fmt ready")
 endif()
 
@@ -32,6 +32,7 @@ endif()
 # Создаём статическую библиотеку
 add_library(termihui_client_core STATIC
     src/client_core.cpp
+    src/ansi_parser.cpp
 )
 
 # Публичные заголовочные файлы

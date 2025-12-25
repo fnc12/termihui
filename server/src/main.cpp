@@ -16,7 +16,7 @@ void printUsage(std::string_view programName) {
     fmt::print("  {}                       # Listen on localhost:37854\n", programName);
     fmt::print("  {} -b 0.0.0.0            # Listen on all interfaces\n", programName);
     fmt::print("  {} -b 0.0.0.0 -p 8080    # Listen on all interfaces, port 8080\n", programName);
-}
+    }
 
 int main(int argc, char* argv[])
 {
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
     // Main server loop
     while (!termihuiServerController.shouldStop()) {
         termihuiServerController.update();
-    }
+                }
     
     fmt::print("\n=== Server shutdown ===\n");
     termihuiServerController.stop();

@@ -22,7 +22,6 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
     private var serverAddress: String = ""
-    private let ansiParser = ANSIParser()
     private let baseTopInset: CGFloat = 8
     
     /// Client core instance for C++ functionality
@@ -38,11 +37,16 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private struct CommandBlock {
         let id: UUID
         var command: String?
-        var output: String
+        var outputSegments: [StyledSegment]  // Pre-parsed styled segments from C++ core
         var isFinished: Bool
         var exitCode: Int?
         var cwdStart: String?   // cwd when command started
         var cwdEnd: String?     // cwd after command finished (can change, e.g. cd)
+        
+        /// Plain text output (for history, search, etc.)
+        var outputText: String {
+            outputSegments.map { $0.text }.joined()
+        }
     }
     private var commandBlocks: [CommandBlock] = []
     
@@ -438,17 +442,24 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         inputContainerView.alphaValue = 1
     }
     
+    /// Append raw output (backward compatibility - creates single unstyled segment)
     func appendOutput(_ output: String) {
-        print("📺 TerminalViewController.appendOutput called with: *\(output)*")
+        let segment = StyledSegment(text: output, style: SegmentStyle())
+        appendStyledOutput([segment])
+    }
+    
+    /// Append pre-parsed styled segments from C++ core
+    func appendStyledOutput(_ segments: [StyledSegment]) {
+        guard !segments.isEmpty else { return }
         
         // Копим вывод в текущем блоке (если есть незавершённый)
         if let idx = currentBlockIndex {
-            commandBlocks[idx].output.append(output)
+            commandBlocks[idx].outputSegments.append(contentsOf: segments)
             reloadBlock(at: idx)
             rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
-            let block = CommandBlock(id: UUID(), command: nil, output: output, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
+            let block = CommandBlock(id: UUID(), command: nil, outputSegments: segments, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)
@@ -612,7 +623,7 @@ extension TerminalViewController {
     // Пока просто фиксация событий, без изменения текста.
     func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
         print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
-        let block = CommandBlock(id: UUID(), command: command, output: "", isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
+        let block = CommandBlock(id: UUID(), command: command, outputSegments: [], isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
         insertBlock(at: currentBlockIndex!)
@@ -653,11 +664,14 @@ extension TerminalViewController {
         selectionAnchor = nil
         
         // Create blocks from history
+        // Note: history comes with raw output, wrap in unstyled segments for now
+        // TODO: Server should send pre-parsed segments in history too
         for record in history {
+            let segments = record.output.isEmpty ? [] : [StyledSegment(text: record.output, style: SegmentStyle())]
             let block = CommandBlock(
                 id: UUID(),
                 command: record.command.isEmpty ? nil : record.command,
-                output: record.output,
+                outputSegments: segments,
                 isFinished: record.isFinished,
                 exitCode: record.exitCode,
                 cwdStart: record.cwdStart.isEmpty ? nil : record.cwdStart,
@@ -890,8 +904,8 @@ extension TerminalViewController {
                 offset += cmdTextNSString.length
             }
 
-            if !block.output.isEmpty {
-                let outNSString = block.output as NSString
+            if !block.outputText.isEmpty {
+                let outNSString = block.outputText as NSString
                 let range = NSRange(location: offset, length: outNSString.length)
                 segments.append(GlobalSegment(blockIndex: idx, kind: .output, range: range))
                 offset += outNSString.length
@@ -913,7 +927,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         let item = collectionView.makeItem(withIdentifier: CommandBlockItem.reuseId, for: indexPath)
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
-        blockItem.configure(command: block.command, output: block.output, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart, serverHome: serverHome)
+        blockItem.configure(command: block.command, outputSegments: block.outputSegments, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart, serverHome: serverHome)
         // apply highlight for current selection if it intersects this block
         applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem
@@ -922,7 +936,7 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
     func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> NSSize {
         let contentWidth = collectionView.bounds.width - (collectionLayout.sectionInset.left + collectionLayout.sectionInset.right)
         let block = commandBlocks[indexPath.item]
-        let height = CommandBlockItem.estimatedHeight(command: block.command, output: block.output, width: contentWidth, cwdStart: block.cwdStart)
+        let height = CommandBlockItem.estimatedHeight(command: block.command, outputText: block.outputText, width: contentWidth, cwdStart: block.cwdStart)
         return NSSize(width: contentWidth, height: height)
     }
 
@@ -1297,7 +1311,7 @@ extension TerminalViewController {
                     result += piece
                 }
             case .output:
-                let ns = (block.output as NSString)
+                let ns = (block.outputText as NSString)
                 if local.location < ns.length, local.length > 0, local.location + local.length <= ns.length {
                     result += ns.substring(with: local)
                 }

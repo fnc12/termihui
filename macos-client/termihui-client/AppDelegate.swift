@@ -59,7 +59,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
-    
+
     func applicationDidBecomeActive(_ notification: Notification) {
         // Fallback: pass clientCore if window wasn't ready during launch
         passClientCoreToViewController()
