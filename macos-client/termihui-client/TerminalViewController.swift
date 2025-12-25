@@ -284,6 +284,19 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         commandTextField.backgroundColor = NSColor.clear
         commandTextField.drawsBackground = false
         
+        // Callback для авторазмера поля ввода с анимацией
+        commandTextField.onHeightChanged = { [weak self] newHeight in
+            guard let self = self else { return }
+            
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.allowsImplicitAnimation = true
+                self.view.layoutSubtreeIfNeeded()
+            } completionHandler: {
+                self.updateTextViewFrame()
+            }
+        }
+        
         // Тонкая линия снизу — более контрастная на чёрном фоне
         let underlineView = NSView()
         underlineView.wantsLayer = true
@@ -335,11 +348,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         print("🔧 Terminal constraints set with minimum height 200")
         
-        // Input container
+        // Input container - динамическая высота
         inputContainerView.snp.makeConstraints { make in
             make.leading.trailing.equalToSuperview()
-            make.bottom.equalToSuperview() // Прижимаем к низу
-            make.height.equalTo(70) // Увеличиваем высоту для cwd лейбла
+            make.bottom.equalToSuperview()
         }
         
         // CWD label сверху
@@ -350,16 +362,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.equalTo(16)
         }
         
+        // Text field - динамическая высота (min 24, растёт по контенту)
         commandTextField.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(12)
             make.top.equalTo(cwdLabel.snp.bottom).offset(4)
             make.trailing.equalTo(sendButton.snp.leading).offset(-8)
-            make.height.equalTo(24)
+            make.height.greaterThanOrEqualTo(24)
+            make.bottom.equalToSuperview().offset(-12) // Определяет высоту контейнера
         }
         
         sendButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalTo(commandTextField)
+            make.top.equalTo(commandTextField.snp.top) // Выравниваем по верху поля
             make.width.height.equalTo(28)
         }
         
@@ -481,6 +495,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Очищаем поле ввода
         commandTextField.stringValue = ""
+        commandTextField.updateHeightIfNeeded() // Сбрасываем высоту поля
         
         // НЕ добавляем эхо команды - PTY уже предоставляет полный вывод
         // appendOutput("$ \(command)\n")  // Убираем дублирование
