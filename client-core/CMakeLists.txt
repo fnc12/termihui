@@ -63,3 +63,38 @@ install(TARGETS termihui_client_core
 install(DIRECTORY include/
     DESTINATION include
 )
+
+# ============================================
+# Unit tests
+# ============================================
+
+if(TARGET Catch2::Catch2WithMain)
+    set(TEST_SOURCES
+        tests/test_main.cpp
+        tests/test_client_core_controller.cpp
+        tests/ClientCoreControllerTestable.cpp
+    )
+
+    add_executable(client_core_tests ${TEST_SOURCES})
+
+    # C++20 for tests (needed for default comparison operators)
+    set_target_properties(client_core_tests PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+    )
+
+    target_link_libraries(client_core_tests PRIVATE
+        termihui_client_core
+        Catch2::Catch2WithMain
+        fmt::fmt
+        hv_static
+    )
+
+    target_include_directories(client_core_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
+    )
+
+    enable_testing()
+    add_test(NAME client_core_tests COMMAND client_core_tests)
+endif()

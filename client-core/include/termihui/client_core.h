@@ -25,7 +25,7 @@ public:
     static ClientCoreController instance;
     
     ClientCoreController();
-    ~ClientCoreController();
+    virtual ~ClientCoreController();
     
     // Disable copying and moving
     ClientCoreController(const ClientCoreController&) = delete;
@@ -84,15 +84,17 @@ public:
      */
     const char* getLastResponseCStr() const { return lastResponse.c_str(); }
 
+protected:
+    // Message handlers (virtual for testing)
+    virtual void handleConnectButtonClicked(std::string_view address);
+    virtual void handleDisconnectButtonClicked();
+    virtual void handleExecuteCommand(std::string_view command);
+    virtual void handleSendInput(std::string_view text);
+    virtual void handleResize(int cols, int rows);
+    virtual void handleRequestCompletion(std::string_view text, int cursorPosition);
+    virtual void handleRequestReconnect(std::string_view address);
+
 private:
-    // Message handlers
-    void handleConnectButtonClicked(const std::string& address);
-    void handleDisconnectButtonClicked();
-    void handleExecuteCommand(const std::string& command);
-    void handleSendInput(const std::string& text);
-    void handleResize(int cols, int rows);
-    void handleRequestCompletion(const std::string& text, int cursorPosition);
-    void handleRequestReconnect(const std::string& address);
     
     // WebSocket callbacks (called from libhv thread)
     void onWebSocketOpen();

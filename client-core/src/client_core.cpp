@@ -168,7 +168,7 @@ size_t ClientCoreController::pendingEventsCount() const {
 
 // Message handlers
 
-void ClientCoreController::handleConnectButtonClicked(const std::string& address) {
+void ClientCoreController::handleConnectButtonClicked(std::string_view address) {
     fmt::print("ClientCoreController: Connect button clicked, address: {}\n", address);
     
     if (address.empty()) {
@@ -176,10 +176,10 @@ void ClientCoreController::handleConnectButtonClicked(const std::string& address
         return;
     }
     
-    this->serverAddress = address;
+    this->serverAddress = std::string(address);
     
     // Build WebSocket URL
-    std::string wsUrl = "ws://" + address;
+    std::string wsUrl = "ws://" + std::string(address);
     
     // Notify UI that we're connecting
     this->pushEvent(json{
@@ -209,7 +209,7 @@ void ClientCoreController::handleConnectButtonClicked(const std::string& address
     }
 }
 
-void ClientCoreController::handleRequestReconnect(const std::string& address) {
+void ClientCoreController::handleRequestReconnect(std::string_view address) {
     fmt::print("ClientCoreController: Auto-reconnect requested, address: {}\n", address);
     
     if (address.empty()) {
@@ -217,8 +217,8 @@ void ClientCoreController::handleRequestReconnect(const std::string& address) {
         return;
     }
     
-    this->serverAddress = address;
-    std::string wsUrl = "ws://" + address;
+    this->serverAddress = std::string(address);
+    std::string wsUrl = "ws://" + std::string(address);
     
     this->pushEvent(json{
         {"type", "connectionStateChanged"},
@@ -250,7 +250,7 @@ void ClientCoreController::handleDisconnectButtonClicked() {
     }.dump());
 }
 
-void ClientCoreController::handleExecuteCommand(const std::string& command) {
+void ClientCoreController::handleExecuteCommand(std::string_view command) {
     fmt::print("ClientCoreController: Execute command: {}\n", command);
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
@@ -262,16 +262,16 @@ void ClientCoreController::handleExecuteCommand(const std::string& command) {
     }
     
     // Save for block header
-    this->lastSentCommand.set(command);
+    this->lastSentCommand.set(std::string(command));
     
     json msg = {
         {"type", "execute"},
-        {"command", command}
+        {"command", std::string(command)}
     };
     this->wsClient->send(msg.dump());
 }
 
-void ClientCoreController::handleSendInput(const std::string& text) {
+void ClientCoreController::handleSendInput(std::string_view text) {
     fmt::print("ClientCoreController: Send input: {}\n", text.substr(0, 20));
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
@@ -280,7 +280,7 @@ void ClientCoreController::handleSendInput(const std::string& text) {
     
     json msg = {
         {"type", "input"},
-        {"text", text}
+        {"text", std::string(text)}
     };
     this->wsClient->send(msg.dump());
 }
@@ -300,7 +300,7 @@ void ClientCoreController::handleResize(int cols, int rows) {
     this->wsClient->send(msg.dump());
 }
 
-void ClientCoreController::handleRequestCompletion(const std::string& text, int cursorPosition) {
+void ClientCoreController::handleRequestCompletion(std::string_view text, int cursorPosition) {
     fmt::print("ClientCoreController: Request completion for: '{}' at {}\n", text, cursorPosition);
     
     if (!this->wsClient || !this->wsClient->isConnected()) {
@@ -309,7 +309,7 @@ void ClientCoreController::handleRequestCompletion(const std::string& text, int 
     
     json msg = {
         {"type", "completion"},
-        {"text", text},
+        {"text", std::string(text)},
         {"cursor_position", cursorPosition}
     };
     this->wsClient->send(msg.dump());
