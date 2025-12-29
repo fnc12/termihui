@@ -25,6 +25,10 @@ void TermihuiServerController::signalHandler(int signal) {
 }
 
 bool TermihuiServerController::start() {
+    // Initialize file system manager and create storage directory
+    this->fileSystemManager.initialize();
+    fmt::print("📁 Data storage path: {}\n", this->fileSystemManager.getWritablePath().string());
+    
     // Start WebSocket server
     if (!this->webSocketServer->start()) {
         fmt::print(stderr, "Failed to start WebSocket server on {}:{}\n", 
@@ -112,14 +116,14 @@ void TermihuiServerController::handleNewConnection(int clientId) {
         historyMsg["type"] = "history";
         json commands = json::array();
         for (const auto& record : commandHistory) {
-            json cmd;
-            cmd["command"] = record.command;
-            cmd["output"] = record.output;
-            cmd["exit_code"] = record.exitCode;
-            cmd["cwd_start"] = record.cwdStart;
-            cmd["cwd_end"] = record.cwdEnd;
-            cmd["is_finished"] = record.isFinished;
-            commands.push_back(cmd);
+            json command = json::object();
+            command["command"] = record.command;
+            command["output"] = record.output;
+            command["exit_code"] = record.exitCode;
+            command["cwd_start"] = record.cwdStart;
+            command["cwd_end"] = record.cwdEnd;
+            command["is_finished"] = record.isFinished;
+            commands.push_back(std::move(command));
         }
         historyMsg["commands"] = commands;
         this->webSocketServer->sendMessage(clientId, historyMsg.dump());

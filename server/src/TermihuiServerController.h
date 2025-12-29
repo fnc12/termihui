@@ -2,6 +2,7 @@
 
 #include "TerminalSessionController.h"
 #include "WebSocketServer.h"
+#include "FileSystemManager.h"
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -95,6 +96,7 @@ private:
     static std::atomic<bool> shouldExit;
     
     // Server components
+    FileSystemManager fileSystemManager;
     std::unique_ptr<WebSocketServer> webSocketServer;
     std::unique_ptr<TerminalSessionController> terminalSessionController;
     

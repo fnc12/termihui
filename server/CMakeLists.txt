@@ -37,6 +37,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
     endif()
+
+    if(NOT TARGET platform_folders)
+        message(STATUS "Fetching platform_folders (standalone build)...")
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "")
+FetchContent_Declare(
+    platform_folders
+    GIT_REPOSITORY https://github.com/sago007/PlatformFolders.git
+    GIT_TAG 4.2.0
+)
+FetchContent_MakeAvailable(platform_folders)
+    endif()
 endif()
 
 # For macOS/Linux check for required libraries
@@ -56,6 +67,7 @@ set(SOURCES
     src/CompletionManager.cpp
     src/JsonHelper.cpp
     src/TermihuiServerController.cpp
+    src/FileSystemManager.cpp
     src/main.cpp
 )
 
@@ -65,6 +77,7 @@ set(HEADERS
     src/CompletionManager.h
     src/JsonHelper.h
     src/TermihuiServerController.h
+    src/FileSystemManager.h
 )
 
 # Create executable
@@ -88,12 +101,14 @@ if(NOT WIN32)
         ${UTIL_LIBRARIES}
         hv_static
         fmt::fmt
+        platform_folders
     )
 endif()
 
 # Include directories for headers
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
+    ${platform_folders_SOURCE_DIR}
 )
 
 # For Debug mode add more debug information
@@ -112,6 +127,7 @@ set(TEST_SOURCES
     src/TermihuiServerController.cpp
     src/WebSocketServer.cpp
     src/JsonHelper.cpp
+    src/FileSystemManager.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})
@@ -141,6 +157,7 @@ if(NOT WIN32)
         ${UTIL_LIBRARIES}
         fmt::fmt
         hv_static
+        platform_folders
     )
 endif()
 
@@ -148,6 +165,7 @@ endif()
 target_include_directories(unit_tests PRIVATE
     src
     tests
+    ${platform_folders_SOURCE_DIR}
 )
 
 # Enable CTest support
