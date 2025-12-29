@@ -1,0 +1,115 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Server",
+      "type": "shell",
+      "command": "./termihui-server",
+      "options": {
+        "cwd": "${workspaceFolder}/server/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Run Server",
+      "type": "shell",
+      "command": "make && ./termihui-server",
+      "options": {
+        "cwd": "${workspaceFolder}/server/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Server",
+      "type": "shell",
+      "command": "make",
+      "options": {
+        "cwd": "${workspaceFolder}/server/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Xcode Project (Server)",
+      "type": "shell",
+      "command": "cmake -G Xcode -B xcode-build .",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Open Xcode Project (Server)",
+      "type": "shell",
+      "command": "open xcode-build/termihui-server.xcodeproj",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate & Open Xcode Project (Server)",
+      "dependsOn": [
+        "Generate Xcode Project (Server)",
+        "Open Xcode Project (Server)"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Server Tests",
+      "type": "shell",
+      "command": "make unit_tests && ./server/unit_tests",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Client Core Tests",
+      "type": "shell",
+      "command": "make client_core_tests && ./client-core/client_core_tests",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run All Tests",
+      "dependsOn": [
+        "Run Server Tests",
+        "Run Client Core Tests"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}
+
