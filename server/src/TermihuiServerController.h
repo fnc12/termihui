@@ -3,6 +3,7 @@
 #include "TerminalSessionController.h"
 #include "WebSocketServer.h"
 #include "FileSystemManager.h"
+#include "ServerStorage.h"
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -97,9 +98,11 @@ private:
     
     // Server components
     FileSystemManager fileSystemManager;
+    std::unique_ptr<ServerStorage> serverStorage;
     std::unique_ptr<WebSocketServer> webSocketServer;
     std::unique_ptr<TerminalSessionController> terminalSessionController;
     
     // State tracking
+    uint64_t currentRunId = 0;
     std::chrono::steady_clock::time_point lastStatsTime;
 };

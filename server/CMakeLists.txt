@@ -48,6 +48,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(platform_folders)
     endif()
+
+    if(NOT TARGET sqlite_orm::sqlite_orm)
+        message(STATUS "Fetching sqlite_orm (standalone build)...")
+FetchContent_Declare(
+    sqlite_orm
+    GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
+    GIT_TAG v1.9.1
+)
+FetchContent_MakeAvailable(sqlite_orm)
+add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
+    endif()
 endif()
 
 # For macOS/Linux check for required libraries
@@ -68,6 +79,7 @@ set(SOURCES
     src/JsonHelper.cpp
     src/TermihuiServerController.cpp
     src/FileSystemManager.cpp
+    src/ServerStorage.cpp
     src/main.cpp
 )
 
@@ -78,6 +90,8 @@ set(HEADERS
     src/JsonHelper.h
     src/TermihuiServerController.h
     src/FileSystemManager.h
+    src/ServerStorage.h
+    src/ServerStorageModels.h
 )
 
 # Create executable
@@ -102,6 +116,7 @@ if(NOT WIN32)
         hv_static
         fmt::fmt
         platform_folders
+        sqlite_orm::sqlite_orm
     )
 endif()
 
@@ -128,6 +143,7 @@ set(TEST_SOURCES
     src/WebSocketServer.cpp
     src/JsonHelper.cpp
     src/FileSystemManager.cpp
+    src/ServerStorage.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})
@@ -158,6 +174,7 @@ if(NOT WIN32)
         fmt::fmt
         hv_static
         platform_folders
+        sqlite_orm::sqlite_orm
     )
 endif()
 

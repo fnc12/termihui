@@ -29,6 +29,17 @@ bool TermihuiServerController::start() {
     this->fileSystemManager.initialize();
     fmt::print("📁 Data storage path: {}\n", this->fileSystemManager.getWritablePath().string());
     
+    // Initialize server storage and record start
+    auto serverDbPath = this->fileSystemManager.getWritablePath() / "server_state.sqlite";
+    this->serverStorage = std::make_unique<ServerStorage>(serverDbPath);
+    
+    if (this->serverStorage->wasLastRunCrashed()) {
+        fmt::print("⚠️  Previous server run was not properly shut down\n");
+    }
+    
+    this->currentRunId = this->serverStorage->recordStart();
+    fmt::print("🚀 Server run ID: {}\n", this->currentRunId);
+    
     // Start WebSocket server
     if (!this->webSocketServer->start()) {
         fmt::print(stderr, "Failed to start WebSocket server on {}:{}\n", 
@@ -54,6 +65,12 @@ void TermihuiServerController::stop() {
         this->terminalSessionController.reset();
     }
     this->webSocketServer->stop();
+    
+    // Record graceful stop
+    if (this->serverStorage && this->currentRunId > 0) {
+        this->serverStorage->recordStop(this->currentRunId);
+    }
+    
     fmt::print("Server stopped\n");
 }
 
