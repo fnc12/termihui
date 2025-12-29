@@ -3,7 +3,7 @@
 
 namespace termihui {
 
-std::vector<StyledSegment> ANSIParser::parse(const std::string& input) {
+std::vector<StyledSegment> ANSIParser::parse(std::string_view input) {
     std::vector<StyledSegment> segments;
     std::string currentText;
     

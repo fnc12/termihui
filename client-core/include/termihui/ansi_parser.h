@@ -79,7 +79,7 @@ public:
      * @param input Raw text with ANSI codes
      * @return Vector of styled segments
      */
-    std::vector<StyledSegment> parse(const std::string& input);
+    std::vector<StyledSegment> parse(std::string_view input);
     
     /**
      * Reset parser state (current style)

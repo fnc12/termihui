@@ -664,14 +664,11 @@ extension TerminalViewController {
         selectionAnchor = nil
         
         // Create blocks from history
-        // Note: history comes with raw output, wrap in unstyled segments for now
-        // TODO: Server should send pre-parsed segments in history too
         for record in history {
-            let segments = record.output.isEmpty ? [] : [StyledSegment(text: record.output, style: SegmentStyle())]
             let block = CommandBlock(
                 id: UUID(),
                 command: record.command.isEmpty ? nil : record.command,
-                outputSegments: segments,
+                outputSegments: record.segments,
                 isFinished: record.isFinished,
                 exitCode: record.exitCode,
                 cwdStart: record.cwdStart.isEmpty ? nil : record.cwdStart,

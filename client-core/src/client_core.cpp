@@ -347,14 +347,23 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
         
         // Parse ANSI codes for output messages
         if (msgType == "output") {
-            std::string rawOutput = serverData.at("data").get<std::string>();
-            
-            // Parse ANSI codes into styled segments (ADL to_json handles conversion)
+            std::string_view rawOutput = serverData.at("data").get<std::string_view>();
             auto segments = this->ansiParser->parse(rawOutput);
-            
-            // Replace raw data with parsed segments
             serverData["segments"] = std::move(segments);
             serverData.erase("data");
+        }
+        
+        // Parse ANSI codes for history messages
+        if (msgType == "history") {
+            auto& commands = serverData.at("commands");
+            for (auto& cmd : commands) {
+                if (auto it = cmd.find("output"); it != cmd.end() && it->is_string()) {
+                    std::string_view rawOutput = it->get<std::string_view>();
+                    auto segments = this->ansiParser->parse(rawOutput);
+                    cmd["segments"] = std::move(segments);
+                    cmd.erase(it);
+                }
+            }
         }
         
         this->pushEvent(json{
