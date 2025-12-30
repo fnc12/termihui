@@ -2,9 +2,11 @@
 #include "TerminalSessionController.h"
 #include <thread>
 #include <chrono>
+#include <filesystem>
 
 TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
-    TerminalSessionController session;
+    auto tempDb = std::filesystem::temp_directory_path() / "test_session.sqlite";
+    TerminalSessionController session(tempDb, 1);
     
     // Create interactive bash session
     REQUIRE(session.createSession());
@@ -112,7 +114,8 @@ TEST_CASE("UTF-8 command handling", "[TerminalSessionController][UTF8]") {
 
 TEST_CASE("Interactive bash session state persistence", "[TerminalSessionController][Interactive]") {
     SECTION("Directory change should persist between commands") {
-        TerminalSessionController session;
+        auto tempDb = std::filesystem::temp_directory_path() / "test_session2.sqlite";
+        TerminalSessionController session(tempDb, 1);
         
         // Create interactive bash session
         REQUIRE(session.createSession());

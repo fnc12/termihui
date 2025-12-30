@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <queue>
+#include <filesystem>
 
 /**
  * Mock TerminalSessionController for unit tests
@@ -41,7 +42,8 @@ public:
         FinishCurrentCommandCall
     >;
     
-    TerminalSessionControllerMock() : TerminalSessionController(1) {}
+    TerminalSessionControllerMock() 
+        : TerminalSessionController(std::filesystem::temp_directory_path() / "test_mock.sqlite", 1) {}
     
     // Recorded calls
     std::vector<Call> calls;
