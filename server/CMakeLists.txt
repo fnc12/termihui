@@ -80,6 +80,7 @@ set(SOURCES
     src/TermihuiServerController.cpp
     src/FileSystemManager.cpp
     src/ServerStorage.cpp
+    src/SessionStorage.cpp
     src/main.cpp
 )
 
@@ -92,6 +93,9 @@ set(HEADERS
     src/FileSystemManager.h
     src/ServerStorage.h
     src/ServerStorageModels.h
+    src/SessionStorage.h
+    src/SessionStorageModels.h
+    src/SessionStorageSchema.h
 )
 
 # Create executable
@@ -144,6 +148,7 @@ set(TEST_SOURCES
     src/JsonHelper.cpp
     src/FileSystemManager.cpp
     src/ServerStorage.cpp
+    src/SessionStorage.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})

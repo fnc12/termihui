@@ -4,10 +4,12 @@
 #include <string_view>
 #include <vector>
 #include <memory>
+#include <filesystem>
 #include <sys/types.h>
 #include <variant>
 
 #include "CompletionManager.h"
+#include "SessionStorage.h"
 
 /**
  * Class for managing terminal sessions via PTY
@@ -22,9 +24,11 @@ class TerminalSessionController {
 public:
     /**
      * Constructor
+     * @param dbPath path to session storage database
+     * @param serverRunId current server run ID
      * @param bufferSize output buffer size (default 4096)
      */
-    explicit TerminalSessionController(size_t bufferSize = 4096);
+    TerminalSessionController(std::filesystem::path dbPath, uint64_t serverRunId, size_t bufferSize = 4096);
     
     /**
      * Virtual destructor - automatically terminates session
@@ -173,18 +177,6 @@ public:
     bool setWindowSize(unsigned short cols, unsigned short rows);
     
     /**
-     * Structure for storing command history record
-     */
-    struct CommandRecord {
-        std::string command;
-        std::string output;
-        int exitCode = 0;
-        std::string cwdStart;
-        std::string cwdEnd;
-        bool isFinished = false;
-    };
-    
-    /**
      * Set pending command (before execution)
      * @param command command text
      */
@@ -210,10 +202,10 @@ public:
     virtual void finishCurrentCommand(int exitCode, const std::string& cwd);
     
     /**
-     * Get command history
-     * @return const reference to command history vector
+     * Get command history for current server run
+     * @return vector of commands from storage
      */
-    virtual const std::vector<CommandRecord>& getCommandHistory() const;
+    std::vector<SessionCommand> getCommandHistory();
     
     /**
      * Check if there's an active command being recorded
@@ -252,9 +244,10 @@ private:
     // Completion manager
     CompletionManager completionManager;
     
-    // Command history
-    std::vector<CommandRecord> commandHistory;
-    int currentCommandIndex = -1;
+    // Session storage for persistent command history
+    SessionStorage sessionStorage;
+    uint64_t serverRunId;
+    uint64_t currentCommandId = 0;  // ID of active command in storage
     std::string pendingCommand;
     
     // TODO: Add in future:

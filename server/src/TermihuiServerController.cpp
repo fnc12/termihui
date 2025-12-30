@@ -47,8 +47,10 @@ bool TermihuiServerController::start() {
         return false;
     }
     
-    // Create terminal session
-    this->terminalSessionController = std::make_unique<TerminalSessionController>();
+    // Create terminal session with session storage
+    auto sessionDbPath = this->fileSystemManager.getWritablePath() / "session_history.sqlite";
+    this->terminalSessionController = std::make_unique<TerminalSessionController>(
+        std::move(sessionDbPath), this->currentRunId);
     if (!this->terminalSessionController->createSession()) {
         fmt::print(stderr, "Failed to create terminal session\n");
         this->webSocketServer->stop();
@@ -126,14 +128,15 @@ void TermihuiServerController::handleNewConnection(int clientId) {
     }
     this->webSocketServer->sendMessage(clientId, welcomeMsg.dump());
     
-    // Send command history
-    const auto& commandHistory = this->terminalSessionController->getCommandHistory();
+    // Send command history from persistent storage
+    auto commandHistory = this->terminalSessionController->getCommandHistory();
     if (!commandHistory.empty()) {
         json historyMsg;
         historyMsg["type"] = "history";
         json commands = json::array();
         for (const auto& record : commandHistory) {
             json command = json::object();
+            command["id"] = record.id;
             command["command"] = record.command;
             command["output"] = record.output;
             command["exit_code"] = record.exitCode;
@@ -375,6 +378,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             }
             
             session.startCommandInHistory(cwd);
+            
             if (session.hasActiveCommand()) {
                 json ev;
                 ev["type"] = "command_start";

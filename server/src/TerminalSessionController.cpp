@@ -27,7 +27,7 @@
 #error "Unsupported platform"
 #endif
 
-TerminalSessionController::TerminalSessionController(size_t bufferSize)
+TerminalSessionController::TerminalSessionController(std::filesystem::path dbPath, uint64_t serverRunId, size_t bufferSize)
     : ptyFd(-1)
     , childPid(-1)
     , buffer(bufferSize)
@@ -35,7 +35,10 @@ TerminalSessionController::TerminalSessionController(size_t bufferSize)
     , running(false)
     , sessionCreated(false)
     , prevRunningState(false)
+    , sessionStorage(std::move(dbPath))
+    , serverRunId(serverRunId)
 {
+    this->sessionStorage.initialize();
 }
 
 TerminalSessionController::~TerminalSessionController()
@@ -445,35 +448,35 @@ void TerminalSessionController::startCommandInHistory(const std::string& cwd) {
         return;
     }
     
-    CommandRecord record;
-    record.command = std::move(this->pendingCommand);
-    record.cwdStart = cwd;
-    this->commandHistory.push_back(std::move(record));
-    this->currentCommandIndex = static_cast<int>(this->commandHistory.size()) - 1;
+    this->currentCommandId = this->sessionStorage.addCommand(this->serverRunId, this->pendingCommand, cwd);
+    fmt::print("Added command to storage with ID: {}\n", this->currentCommandId);
+    
+    this->pendingCommand.clear();
 }
 
 void TerminalSessionController::appendOutputToCurrentCommand(const std::string& output) {
-    if (this->currentCommandIndex >= 0 && 
-        this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-        this->commandHistory[this->currentCommandIndex].output += output;
+    if (this->currentCommandId > 0) {
+        this->sessionStorage.appendOutput(this->currentCommandId, output);
+    } else {
+        fmt::print("[WARN] appendOutputToCurrentCommand called with no active command, output ignored ({} bytes)\n", output.size());
     }
 }
 
 void TerminalSessionController::finishCurrentCommand(int exitCode, const std::string& cwd) {
-    if (this->currentCommandIndex >= 0 && 
-        this->currentCommandIndex < static_cast<int>(this->commandHistory.size())) {
-        this->commandHistory[this->currentCommandIndex].exitCode = exitCode;
-        this->commandHistory[this->currentCommandIndex].cwdEnd = cwd;
-        this->commandHistory[this->currentCommandIndex].isFinished = true;
-        this->currentCommandIndex = -1;
+    if (this->currentCommandId > 0) {
+        this->sessionStorage.finishCommand(this->currentCommandId, exitCode, cwd);
+        fmt::print("Finished command ID: {} with exit code: {}\n", this->currentCommandId, exitCode);
+        this->currentCommandId = 0;
+    } else {
+        fmt::print("[WARN] finishCurrentCommand called with no active command (exit={}, cwd={})\n", exitCode, cwd);
     }
 }
 
-const std::vector<TerminalSessionController::CommandRecord>& TerminalSessionController::getCommandHistory() const {
-    return this->commandHistory;
+std::vector<SessionCommand> TerminalSessionController::getCommandHistory() {
+    return this->sessionStorage.getCommandsForRun(this->serverRunId);
 }
 
 bool TerminalSessionController::hasActiveCommand() const {
-    return this->currentCommandIndex >= 0;
+    return this->currentCommandId > 0;
 }
 
