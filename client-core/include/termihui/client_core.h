@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <memory>
@@ -84,15 +85,28 @@ public:
      */
     const char* getLastResponseCStr() const { return lastResponse.c_str(); }
 
+    /**
+     * Get active session ID
+     * @return active session ID (0 if none)
+     */
+    uint64_t getActiveSessionId() const { return activeSessionId; }
+
 protected:
     // Message handlers (virtual for testing)
-    virtual void handleConnectButtonClicked(std::string_view address);
-    virtual void handleDisconnectButtonClicked();
-    virtual void handleExecuteCommand(std::string_view command);
-    virtual void handleSendInput(std::string_view text);
-    virtual void handleResize(int cols, int rows);
-    virtual void handleRequestCompletion(std::string_view text, int cursorPosition);
-    virtual void handleRequestReconnect(std::string_view address);
+    // Return empty string on success, error message on failure
+    virtual std::string handleConnectButtonClicked(std::string_view address);
+    virtual std::string handleDisconnectButtonClicked();
+    virtual std::string handleExecuteCommand(std::string_view command);
+    virtual std::string handleSendInput(std::string_view text);
+    virtual std::string handleResize(int cols, int rows);
+    virtual std::string handleRequestCompletion(std::string_view text, int cursorPosition);
+    virtual std::string handleRequestReconnect(std::string_view address);
+    
+    // Session management handlers
+    virtual std::string handleCreateSession();
+    virtual std::string handleCloseSession(uint64_t sessionId);
+    virtual std::string handleSwitchSession(uint64_t sessionId);
+    virtual std::string handleListSessions();
 
 private:
     
@@ -118,6 +132,9 @@ private:
     
     // ANSI parser for terminal output
     std::unique_ptr<ANSIParser> ansiParser;
+    
+    // Active session ID (0 = no session selected)
+    uint64_t activeSessionId = 0;
 };
 
 // Simple C++ API (uses global instance)

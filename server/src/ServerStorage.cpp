@@ -62,3 +62,44 @@ bool ServerStorage::wasLastRunCrashed() {
     auto stop = this->getStopForRun(lastRun->id);
     return !stop.has_value();
 }
+
+uint64_t ServerStorage::createTerminalSession(uint64_t serverRunId) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+    
+    TerminalSession session;
+    session.serverRunId = serverRunId;
+    session.createdAt = timestamp;
+    session.isDeleted = false;
+    session.deletedAt = 0;
+    
+    return static_cast<uint64_t>(this->storage.insert(session));
+}
+
+void ServerStorage::markTerminalSessionAsDeleted(uint64_t sessionId) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+    
+    this->storage.update_all(
+        set(
+            c(&TerminalSession::isDeleted) = true,
+            c(&TerminalSession::deletedAt) = timestamp
+        ),
+        where(c(&TerminalSession::id) == sessionId)
+    );
+}
+
+std::optional<TerminalSession> ServerStorage::getTerminalSession(uint64_t sessionId) {
+    return this->storage.get_optional<TerminalSession>(sessionId);
+}
+
+std::vector<TerminalSession> ServerStorage::getActiveTerminalSessions() {
+    return this->storage.get_all<TerminalSession>(
+        where(c(&TerminalSession::isDeleted) == false),
+        order_by(&TerminalSession::id)
+    );
+}

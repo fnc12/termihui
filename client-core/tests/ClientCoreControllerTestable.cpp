@@ -2,54 +2,92 @@
 
 namespace termihui {
 
-void ClientCoreControllerTestable::handleConnectButtonClicked(std::string_view address) {
+std::string ClientCoreControllerTestable::handleConnectButtonClicked(std::string_view address) {
     this->calls.push_back(ConnectButtonClickedCall{std::string(address)});
     if (!this->mockHandleConnectButtonClicked) {
-        this->ClientCoreController::handleConnectButtonClicked(address);
+        return this->ClientCoreController::handleConnectButtonClicked(address);
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleRequestReconnect(std::string_view address) {
+std::string ClientCoreControllerTestable::handleRequestReconnect(std::string_view address) {
     this->calls.push_back(RequestReconnectCall{std::string(address)});
     if (!this->mockHandleRequestReconnect) {
-        this->ClientCoreController::handleRequestReconnect(address);
+        return this->ClientCoreController::handleRequestReconnect(address);
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleDisconnectButtonClicked() {
+std::string ClientCoreControllerTestable::handleDisconnectButtonClicked() {
     this->calls.push_back(DisconnectButtonClickedCall{});
     if (!this->mockHandleDisconnectButtonClicked) {
-        this->ClientCoreController::handleDisconnectButtonClicked();
+        return this->ClientCoreController::handleDisconnectButtonClicked();
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleExecuteCommand(std::string_view command) {
+std::string ClientCoreControllerTestable::handleExecuteCommand(std::string_view command) {
     this->calls.push_back(ExecuteCommandCall{std::string(command)});
     if (!this->mockHandleExecuteCommand) {
-        this->ClientCoreController::handleExecuteCommand(command);
+        return this->ClientCoreController::handleExecuteCommand(command);
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleSendInput(std::string_view text) {
+std::string ClientCoreControllerTestable::handleSendInput(std::string_view text) {
     this->calls.push_back(SendInputCall{std::string(text)});
     if (!this->mockHandleSendInput) {
-        this->ClientCoreController::handleSendInput(text);
+        return this->ClientCoreController::handleSendInput(text);
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleResize(int cols, int rows) {
+std::string ClientCoreControllerTestable::handleResize(int cols, int rows) {
     this->calls.push_back(ResizeCall{cols, rows});
     if (!this->mockHandleResize) {
-        this->ClientCoreController::handleResize(cols, rows);
+        return this->ClientCoreController::handleResize(cols, rows);
     }
+    return "";
 }
 
-void ClientCoreControllerTestable::handleRequestCompletion(std::string_view text, int cursorPosition) {
+std::string ClientCoreControllerTestable::handleRequestCompletion(std::string_view text, int cursorPosition) {
     this->calls.push_back(RequestCompletionCall{std::string(text), cursorPosition});
     if (!this->mockHandleRequestCompletion) {
-        this->ClientCoreController::handleRequestCompletion(text, cursorPosition);
+        return this->ClientCoreController::handleRequestCompletion(text, cursorPosition);
     }
+    return "";
+}
+
+std::string ClientCoreControllerTestable::handleCreateSession() {
+    this->calls.push_back(CreateSessionCall{});
+    if (!this->mockHandleCreateSession) {
+        return this->ClientCoreController::handleCreateSession();
+    }
+    return "";
+}
+
+std::string ClientCoreControllerTestable::handleCloseSession(uint64_t sessionId) {
+    this->calls.push_back(CloseSessionCall{sessionId});
+    if (!this->mockHandleCloseSession) {
+        return this->ClientCoreController::handleCloseSession(sessionId);
+    }
+    return "";
+}
+
+std::string ClientCoreControllerTestable::handleSwitchSession(uint64_t sessionId) {
+    this->calls.push_back(SwitchSessionCall{sessionId});
+    if (!this->mockHandleSwitchSession) {
+        return this->ClientCoreController::handleSwitchSession(sessionId);
+    }
+    return "";
+}
+
+std::string ClientCoreControllerTestable::handleListSessions() {
+    this->calls.push_back(ListSessionsCall{});
+    if (!this->mockHandleListSessions) {
+        return this->ClientCoreController::handleListSessions();
+    }
+    return "";
 }
 
 } // namespace termihui
-

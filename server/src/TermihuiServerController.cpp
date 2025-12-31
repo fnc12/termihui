@@ -48,9 +48,11 @@ bool TermihuiServerController::start() {
     }
     
     // Create terminal session with session storage
+    // TODO: sessionId should come from TerminalSessionStorage (to be implemented)
     auto sessionDbPath = this->fileSystemManager.getWritablePath() / "session_history.sqlite";
+    uint64_t sessionId = 1; // Temporary hardcoded, will be replaced with DB-generated ID
     this->terminalSessionController = std::make_unique<TerminalSessionController>(
-        std::move(sessionDbPath), this->currentRunId);
+        std::move(sessionDbPath), sessionId, this->currentRunId);
     if (!this->terminalSessionController->createSession()) {
         fmt::print(stderr, "Failed to create terminal session\n");
         this->webSocketServer->stop();
@@ -178,6 +180,10 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
                 messageJson.at("cols").get<int>(),
                 messageJson.at("rows").get<int>()
             );
+        } else if (type == "list_sessions") {
+            this->handleListSessionsMessage(message.clientId);
+        } else if (type == "create_session") {
+            this->handleCreateSessionMessage(message.clientId);
         } else {
             std::string error = JsonHelper::createResponse("error", "Unknown message type: " + type);
             this->webSocketServer->sendMessage(message.clientId, error);
@@ -247,6 +253,35 @@ void TermihuiServerController::handleResizeMessage(int clientId, int cols, int r
                     std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
         this->webSocketServer->sendMessage(clientId, error);
                 }
+}
+
+void TermihuiServerController::handleListSessionsMessage(int clientId) {
+    auto sessions = this->serverStorage->getActiveTerminalSessions();
+    
+    json response;
+    response["type"] = "sessions_list";
+    json sessionsArray = json::array();
+    for (const auto& s : sessions) {
+        sessionsArray.push_back({
+            {"id", s.id},
+            {"created_at", s.createdAt}
+        });
+    }
+    response["sessions"] = std::move(sessionsArray);
+    
+    this->webSocketServer->sendMessage(clientId, response.dump());
+    fmt::print("Sent sessions list ({} sessions) to client {}\n", sessions.size(), clientId);
+}
+
+void TermihuiServerController::handleCreateSessionMessage(int clientId) {
+    uint64_t sessionId = this->serverStorage->createTerminalSession(this->currentRunId);
+    
+    json response;
+    response["type"] = "session_created";
+    response["session_id"] = sessionId;
+    
+    this->webSocketServer->sendMessage(clientId, response.dump());
+    fmt::print("Created session {} for client {}\n", sessionId, clientId);
 }
 
 // Helper: escape string for logging (show control chars)

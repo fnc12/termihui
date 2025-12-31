@@ -25,10 +25,16 @@ public:
     /**
      * Constructor
      * @param dbPath path to session storage database
+     * @param sessionId unique session ID (from database)
      * @param serverRunId current server run ID
      * @param bufferSize output buffer size (default 4096)
      */
-    TerminalSessionController(std::filesystem::path dbPath, uint64_t serverRunId, size_t bufferSize = 4096);
+    TerminalSessionController(std::filesystem::path dbPath, uint64_t sessionId, uint64_t serverRunId, size_t bufferSize = 4096);
+    
+    /**
+     * Get session ID
+     */
+    uint64_t getSessionId() const { return this->sessionId; }
     
     /**
      * Virtual destructor - automatically terminates session
@@ -246,6 +252,7 @@ private:
     
     // Session storage for persistent command history
     SessionStorage sessionStorage;
+    uint64_t sessionId;
     uint64_t serverRunId;
     uint64_t currentCommandId = 0;  // ID of active command in storage
     std::string pendingCommand;

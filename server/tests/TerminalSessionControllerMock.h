@@ -43,7 +43,7 @@ public:
     >;
     
     TerminalSessionControllerMock() 
-        : TerminalSessionController(std::filesystem::temp_directory_path() / "test_mock.sqlite", 1) {}
+        : TerminalSessionController(std::filesystem::temp_directory_path() / "test_mock.sqlite", 1, 1) {}
     
     // Recorded calls
     std::vector<Call> calls;

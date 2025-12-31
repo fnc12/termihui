@@ -27,7 +27,7 @@
 #error "Unsupported platform"
 #endif
 
-TerminalSessionController::TerminalSessionController(std::filesystem::path dbPath, uint64_t serverRunId, size_t bufferSize)
+TerminalSessionController::TerminalSessionController(std::filesystem::path dbPath, uint64_t sessionId, uint64_t serverRunId, size_t bufferSize)
     : ptyFd(-1)
     , childPid(-1)
     , buffer(bufferSize)
@@ -36,6 +36,7 @@ TerminalSessionController::TerminalSessionController(std::filesystem::path dbPat
     , sessionCreated(false)
     , prevRunningState(false)
     , sessionStorage(std::move(dbPath))
+    , sessionId(sessionId)
     , serverRunId(serverRunId)
 {
     this->sessionStorage.initialize();

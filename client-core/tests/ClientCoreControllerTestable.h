@@ -1,6 +1,7 @@
 #pragma once
 
 #include "termihui/client_core.h"
+#include <cstdint>
 #include <variant>
 #include <vector>
 #include <string>
@@ -49,6 +50,24 @@ public:
         auto operator<=>(const RequestCompletionCall&) const = default;
     };
 
+    struct CreateSessionCall {
+        auto operator<=>(const CreateSessionCall&) const = default;
+    };
+
+    struct CloseSessionCall {
+        uint64_t sessionId = 0;
+        auto operator<=>(const CloseSessionCall&) const = default;
+    };
+
+    struct SwitchSessionCall {
+        uint64_t sessionId = 0;
+        auto operator<=>(const SwitchSessionCall&) const = default;
+    };
+
+    struct ListSessionsCall {
+        auto operator<=>(const ListSessionsCall&) const = default;
+    };
+
     using Call = std::variant<
         ConnectButtonClickedCall,
         RequestReconnectCall,
@@ -56,7 +75,11 @@ public:
         ExecuteCommandCall,
         SendInputCall,
         ResizeCall,
-        RequestCompletionCall
+        RequestCompletionCall,
+        CreateSessionCall,
+        CloseSessionCall,
+        SwitchSessionCall,
+        ListSessionsCall
     >;
 
     // Call recording
@@ -70,14 +93,22 @@ public:
     bool mockHandleSendInput = true;
     bool mockHandleResize = true;
     bool mockHandleRequestCompletion = true;
+    bool mockHandleCreateSession = true;
+    bool mockHandleCloseSession = true;
+    bool mockHandleSwitchSession = true;
+    bool mockHandleListSessions = true;
 
-    void handleConnectButtonClicked(std::string_view address) override;
-    void handleRequestReconnect(std::string_view address) override;
-    void handleDisconnectButtonClicked() override;
-    void handleExecuteCommand(std::string_view command) override;
-    void handleSendInput(std::string_view text) override;
-    void handleResize(int cols, int rows) override;
-    void handleRequestCompletion(std::string_view text, int cursorPosition) override;
+    std::string handleConnectButtonClicked(std::string_view address) override;
+    std::string handleRequestReconnect(std::string_view address) override;
+    std::string handleDisconnectButtonClicked() override;
+    std::string handleExecuteCommand(std::string_view command) override;
+    std::string handleSendInput(std::string_view text) override;
+    std::string handleResize(int cols, int rows) override;
+    std::string handleRequestCompletion(std::string_view text, int cursorPosition) override;
+    std::string handleCreateSession() override;
+    std::string handleCloseSession(uint64_t sessionId) override;
+    std::string handleSwitchSession(uint64_t sessionId) override;
+    std::string handleListSessions() override;
 };
 
 } // namespace termihui

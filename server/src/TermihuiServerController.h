@@ -75,6 +75,8 @@ protected:
     virtual void handleInputMessage(int clientId, const std::string& text);
     virtual void handleCompletionMessage(int clientId, const std::string& text, int cursorPosition);
     virtual void handleResizeMessage(int clientId, int cols, int rows);
+    virtual void handleListSessionsMessage(int clientId);
+    virtual void handleCreateSessionMessage(int clientId);
 
 private:
     /**
