@@ -1,9 +1,9 @@
 #include "termihui/client_core.h"
 #include "termihui/client_core_c.h"
 #include "termihui/ansi_parser.h"
+#include "termihui/websocket_client_controller.h"
 #include <fmt/core.h>
 #include <thread>
-#include <hv/WebSocketClient.h>
 #include <hv/json.hpp>
 
 using json = nlohmann::json;
@@ -57,7 +57,7 @@ ClientCoreController ClientCoreController::instance;
 // ClientCoreController implementation
 
 ClientCoreController::ClientCoreController()
-    : wsClient(std::make_unique<hv::WebSocketClient>())
+    : webSocketController(std::make_unique<WebSocketClientController>())
     , ansiParser(std::make_unique<ANSIParser>()) {
 }
 
@@ -92,8 +92,8 @@ void ClientCoreController::shutdown() {
     fmt::print("ClientCoreController: Shutting down\n");
     
     // Close WebSocket connection
-    if (this->wsClient) {
-        this->wsClient->close();
+    if (this->webSocketController) {
+        this->webSocketController->close();
     }
     
     this->pendingEvents.clear();
@@ -201,24 +201,10 @@ std::string ClientCoreController::handleConnectButtonClicked(std::string_view ad
         {"address", address}
     }.dump());
     
-    // Setup WebSocket callbacks
-    this->wsClient->onopen = [this]() {
-        this->onWebSocketOpen();
-    };
-    
-    this->wsClient->onmessage = [this](const std::string& msg) {
-        this->onWebSocketMessage(msg);
-    };
-    
-    this->wsClient->onclose = [this]() {
-        this->onWebSocketClose();
-    };
-    
-    // Connect
+    // Connect (callbacks are handled via update() now)
     fmt::print("ClientCoreController: Connecting to {}\n", wsUrl);
-    int ret = this->wsClient->open(wsUrl.c_str());
+    int ret = this->webSocketController->open(wsUrl);
     if (ret != 0) {
-        // this->onWebSocketError("Failed to initiate connection");
         return fmt::format("Failed to initiate connection {}", ret);
     }
     
@@ -241,14 +227,9 @@ std::string ClientCoreController::handleRequestReconnect(std::string_view addres
         {"address", address}
     }.dump());
     
-    this->wsClient->onopen = [this]() { this->onWebSocketOpen(); };
-    this->wsClient->onmessage = [this](const std::string& msg) { this->onWebSocketMessage(msg); };
-    this->wsClient->onclose = [this]() { this->onWebSocketClose(); };
-    
     fmt::print("ClientCoreController: Reconnecting to {}\n", wsUrl);
-    int ret = this->wsClient->open(wsUrl.c_str());
+    int ret = this->webSocketController->open(wsUrl);
     if (ret != 0) {
-        // this->onWebSocketError("Failed to initiate reconnection");
         return fmt::format("Failed to initiate connection {}", ret);
     }
     
@@ -258,8 +239,8 @@ std::string ClientCoreController::handleRequestReconnect(std::string_view addres
 std::string ClientCoreController::handleDisconnectButtonClicked() {
     fmt::print("ClientCoreController: Disconnect button clicked\n");
     
-    if (this->wsClient) {
-        this->wsClient->close();
+    if (this->webSocketController) {
+        this->webSocketController->close();
     }
     
     this->pushEvent(json{
@@ -273,7 +254,7 @@ std::string ClientCoreController::handleDisconnectButtonClicked() {
 std::string ClientCoreController::handleExecuteCommand(std::string_view command) {
     fmt::print("ClientCoreController: Execute command: {}\n", command);
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
@@ -289,7 +270,7 @@ std::string ClientCoreController::handleExecuteCommand(std::string_view command)
         {"session_id", this->activeSessionId},
         {"command", std::string(command)}
     };
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -297,7 +278,7 @@ std::string ClientCoreController::handleExecuteCommand(std::string_view command)
 std::string ClientCoreController::handleSendInput(std::string_view text) {
     fmt::print("ClientCoreController: Send input: {}\n", text.substr(0, 20));
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
@@ -310,7 +291,7 @@ std::string ClientCoreController::handleSendInput(std::string_view text) {
         {"session_id", this->activeSessionId},
         {"text", std::string(text)}
     };
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -318,7 +299,7 @@ std::string ClientCoreController::handleSendInput(std::string_view text) {
 std::string ClientCoreController::handleResize(int cols, int rows) {
     fmt::print("ClientCoreController: Resize: {}x{}\n", cols, rows);
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
@@ -332,7 +313,7 @@ std::string ClientCoreController::handleResize(int cols, int rows) {
         {"cols", cols},
         {"rows", rows}
     };
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -340,7 +321,7 @@ std::string ClientCoreController::handleResize(int cols, int rows) {
 std::string ClientCoreController::handleRequestCompletion(std::string_view text, int cursorPosition) {
     fmt::print("ClientCoreController: Request completion for: '{}' at {}\n", text, cursorPosition);
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
@@ -354,7 +335,7 @@ std::string ClientCoreController::handleRequestCompletion(std::string_view text,
         {"text", std::string(text)},
         {"cursor_position", cursorPosition}
     };
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -364,12 +345,12 @@ std::string ClientCoreController::handleRequestCompletion(std::string_view text,
 std::string ClientCoreController::handleCreateSession() {
     fmt::print("ClientCoreController: Create session\n");
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
     json msg = {{"type", "create_session"}};
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -377,7 +358,7 @@ std::string ClientCoreController::handleCreateSession() {
 std::string ClientCoreController::handleCloseSession(uint64_t sessionId) {
     fmt::print("ClientCoreController: Close session {}\n", sessionId);
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
@@ -385,7 +366,7 @@ std::string ClientCoreController::handleCloseSession(uint64_t sessionId) {
         {"type", "close_session"},
         {"session_id", sessionId}
     };
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
@@ -401,17 +382,43 @@ std::string ClientCoreController::handleSwitchSession(uint64_t sessionId) {
 std::string ClientCoreController::handleListSessions() {
     fmt::print("ClientCoreController: List sessions\n");
     
-    if (!this->wsClient || !this->wsClient->isConnected()) {
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
     
     json msg = {{"type", "list_sessions"}};
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     
     return "";
 }
 
-// WebSocket callbacks (called from libhv thread)
+// Main update tick
+
+void ClientCoreController::update() {
+    if (!this->webSocketController) {
+        return;
+    }
+    
+    using WsCtrl = WebSocketClientController;
+    
+    auto events = this->webSocketController->update();
+    for (auto& event : events) {
+        std::visit([this](auto&& e) {
+            using T = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<T, WsCtrl::OpenEvent>) {
+                this->onWebSocketOpen();
+            } else if constexpr (std::is_same_v<T, WsCtrl::MessageEvent>) {
+                this->onWebSocketMessage(e.message);
+            } else if constexpr (std::is_same_v<T, WsCtrl::CloseEvent>) {
+                this->onWebSocketClose();
+            } else if constexpr (std::is_same_v<T, WsCtrl::ErrorEvent>) {
+                this->onWebSocketError(e.error);
+            }
+        }, event);
+    }
+}
+
+// WebSocket event handlers (called from main thread via update())
 
 void ClientCoreController::onWebSocketOpen() {
     fmt::print("ClientCoreController::onWebSocketOpen [thread:{}]\n", 
@@ -425,7 +432,7 @@ void ClientCoreController::onWebSocketOpen() {
     
     // Request sessions list on connect
     json msg = {{"type", "list_sessions"}};
-    this->wsClient->send(msg.dump());
+    this->webSocketController->send(msg.dump());
     fmt::print("ClientCoreController: Requested sessions list\n");
 }
 
@@ -449,7 +456,7 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
             if (sessions.empty()) {
                 fmt::print("ClientCoreController: No sessions, creating new one\n");
                 json createMsg = {{"type", "create_session"}};
-                this->wsClient->send(createMsg.dump());
+                this->webSocketController->send(createMsg.dump());
             } else {
                 // Auto-select first session
                 uint64_t firstId = sessions[0].at("id").get<uint64_t>();
@@ -551,6 +558,10 @@ int pendingEventsCount() {
     return static_cast<int>(ClientCoreController::instance.pendingEventsCount());
 }
 
+void update() {
+    ClientCoreController::instance.update();
+}
+
 } // namespace termihui
 
 // C API implementation (extern "C")
@@ -583,6 +594,10 @@ const char* termihui_poll_event(void) {
 
 int termihui_pending_events_count(void) {
     return termihui::pendingEventsCount();
+}
+
+void termihui_update(void) {
+    termihui::update();
 }
 
 }

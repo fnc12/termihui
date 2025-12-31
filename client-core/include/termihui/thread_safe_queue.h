@@ -58,6 +58,15 @@ public:
         std::lock_guard<std::mutex> lock(this->mutex_);
         this->items_.clear();
     }
+    
+    /**
+     * Take all items from queue at once
+     * @return all items, queue is cleared
+     */
+    std::vector<T> takeAll() {
+        std::lock_guard<std::mutex> lock(this->mutex_);
+        return std::move(this->items_);
+    }
 
 private:
     mutable std::mutex mutex_;

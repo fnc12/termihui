@@ -147,6 +147,9 @@ class ViewController: NSViewController {
     private func pollEvents() {
         guard let clientCore = clientCore else { return }
         
+        // Process WebSocket events on main thread
+        clientCore.update()
+        
         while let event = clientCore.pollEvent() {
             handleEvent(event)
         }

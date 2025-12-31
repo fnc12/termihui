@@ -42,6 +42,10 @@ const char* termihui_poll_event(void);
 /// @return number of pending events
 int termihui_pending_events_count(void);
 
+/// Update tick - process WebSocket events on main thread
+/// Call this regularly (e.g. 60fps) before termihui_poll_event()
+void termihui_update(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -33,6 +33,7 @@ endif()
 add_library(termihui_client_core STATIC
     src/client_core.cpp
     src/ansi_parser.cpp
+    src/websocket_client_controller.cpp
 )
 
 # Публичные заголовочные файлы

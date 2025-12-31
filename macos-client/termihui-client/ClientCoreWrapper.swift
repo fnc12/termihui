@@ -88,4 +88,10 @@ class ClientCoreWrapper {
         }
         return events
     }
+    
+    /// Update tick - process WebSocket events on main thread
+    /// Call this regularly (e.g. 60fps) before pollEvent()
+    func update() {
+        termihui_update()
+    }
 }

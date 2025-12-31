@@ -7,10 +7,8 @@
 #include "thread_safe_queue.h"
 #include "thread_safe_string.h"
 
-// Forward declare libhv types
-namespace hv {
-    class WebSocketClient;
-}
+// Forward declare (outside namespace)
+class WebSocketClientController;
 
 namespace termihui {
 
@@ -81,6 +79,15 @@ public:
     void pushEvent(std::string event);
     
     /**
+     * Main update tick - processes WebSocket events on main thread.
+     * Should be called regularly (e.g. 60fps) from main thread.
+     * 
+     * WARNING: Do not perform long-running operations in this method
+     * as it blocks the main thread.
+     */
+    void update();
+    
+    /**
      * Get last response (for C API)
      */
     const char* getLastResponseCStr() const { return lastResponse.c_str(); }
@@ -118,8 +125,8 @@ private:
     
     bool initialized = false;
     
-    // WebSocket client
-    std::unique_ptr<hv::WebSocketClient> wsClient;
+    // WebSocket client controller (handles thread synchronization)
+    std::unique_ptr<WebSocketClientController> webSocketController;
     std::string serverAddress;
     ThreadSafeString lastSentCommand;
     
@@ -180,5 +187,11 @@ const char* pollEvent();
  * Get count of pending events
  */
 int pendingEventsCount();
+
+/**
+ * Update tick - process WebSocket events on main thread
+ * Call this regularly (e.g. 60fps) before pollEvent()
+ */
+void update();
 
 } // namespace termihui
