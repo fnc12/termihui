@@ -29,11 +29,37 @@ if(NOT TARGET hv_static)
     message(STATUS "libhv ready")
 endif()
 
+if(NOT TARGET platform_folders)
+    message(STATUS "Fetching platform_folders (standalone build)...")
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "")
+    FetchContent_Declare(
+        platform_folders
+        GIT_REPOSITORY https://github.com/sago007/PlatformFolders.git
+        GIT_TAG 4.2.0
+    )
+    FetchContent_MakeAvailable(platform_folders)
+    message(STATUS "platform_folders ready")
+endif()
+
+if(NOT TARGET sqlite_orm::sqlite_orm)
+    message(STATUS "Fetching sqlite_orm (standalone build)...")
+    FetchContent_Declare(
+        sqlite_orm
+        GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
+        GIT_TAG v1.9.1
+    )
+    FetchContent_MakeAvailable(sqlite_orm)
+    add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
+    message(STATUS "sqlite_orm ready")
+endif()
+
 # Создаём статическую библиотеку
 add_library(termihui_client_core STATIC
     src/client_core.cpp
     src/ansi_parser.cpp
     src/websocket_client_controller.cpp
+    src/client_storage.cpp
+    ${platform_folders_SOURCE_DIR}/sago/platform_folders.cpp
 )
 
 # Публичные заголовочные файлы
@@ -41,6 +67,8 @@ target_include_directories(termihui_client_core
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${platform_folders_SOURCE_DIR}
 )
 
 # Линкуем зависимости
@@ -48,6 +76,8 @@ target_link_libraries(termihui_client_core
     PRIVATE
         fmt::fmt
         hv_static
+        platform_folders
+        sqlite_orm::sqlite_orm
 )
 
 # Настройки выходного файла

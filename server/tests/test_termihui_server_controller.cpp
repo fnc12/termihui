@@ -22,57 +22,57 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
     
     SECTION("execute message calls handleExecuteMessage") {
         message.clientId = 42;
-        message.text = json{{"type", "execute"}, {"command", "ls -la"}}.dump();
+        message.text = json{{"type", "execute"}, {"session_id", 5}, {"command", "ls -la"}}.dump();
         controller.handleMessage(message);
         
-        expected = {Testable::ExecuteCall{42, "ls -la"}};
+        expected = {Testable::ExecuteCall{.clientId = 42, .sessionId = 5, .command = "ls -la"}};
         REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("input message calls handleInputMessage") {
         message.clientId = 123;
-        message.text = json{{"type", "input"}, {"text", "hello world"}}.dump();
+        message.text = json{{"type", "input"}, {"session_id", 1}, {"text", "hello world"}}.dump();
         controller.handleMessage(message);
         
-        expected = {Testable::InputCall{123, "hello world"}};
+        expected = {Testable::InputCall{.clientId = 123, .sessionId = 1, .text = "hello world"}};
         REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("completion message calls handleCompletionMessage") {
         message.clientId = 7;
-        message.text = json{{"type", "completion"}, {"text", "ls"}, {"cursor_position", 2}}.dump();
+        message.text = json{{"type", "completion"}, {"session_id", 2}, {"text", "ls"}, {"cursor_position", 2}}.dump();
         controller.handleMessage(message);
         
-        expected = {Testable::CompletionCall{7, "ls", 2}};
+        expected = {Testable::CompletionCall{.clientId = 7, .sessionId = 2, .text = "ls", .cursorPosition = 2}};
         REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("resize message calls handleResizeMessage") {
         message.clientId = 99;
-        message.text = json{{"type", "resize"}, {"cols", 120}, {"rows", 40}}.dump();
+        message.text = json{{"type", "resize"}, {"session_id", 3}, {"cols", 120}, {"rows", 40}}.dump();
         controller.handleMessage(message);
         
-        expected = {Testable::ResizeCall{99, 120, 40}};
+        expected = {Testable::ResizeCall{.clientId = 99, .sessionId = 3, .cols = 120, .rows = 40}};
         REQUIRE(webSocketServerMockPointer->calls.empty());
     }
     
     SECTION("multiple messages are recorded in order") {
         message.clientId = 1;
-        message.text = json{{"type", "execute"}, {"command", "pwd"}}.dump();
+        message.text = json{{"type", "execute"}, {"session_id", 10}, {"command", "pwd"}}.dump();
         controller.handleMessage(message);
         
         message.clientId = 2;
-        message.text = json{{"type", "input"}, {"text", "\n"}}.dump();
+        message.text = json{{"type", "input"}, {"session_id", 10}, {"text", "\n"}}.dump();
         controller.handleMessage(message);
         
         message.clientId = 3;
-        message.text = json{{"type", "resize"}, {"cols", 80}, {"rows", 24}}.dump();
+        message.text = json{{"type", "resize"}, {"session_id", 10}, {"cols", 80}, {"rows", 24}}.dump();
         controller.handleMessage(message);
         
         expected = {
-            Testable::ExecuteCall{1, "pwd"},
-            Testable::InputCall{2, "\n"},
-            Testable::ResizeCall{3, 80, 24}
+            Testable::ExecuteCall{.clientId = 1, .sessionId = 10, .command = "pwd"},
+            Testable::InputCall{.clientId = 2, .sessionId = 10, .text = "\n"},
+            Testable::ResizeCall{.clientId = 3, .sessionId = 10, .cols = 80, .rows = 24}
         };
         REQUIRE(webSocketServerMockPointer->calls.empty());
     }

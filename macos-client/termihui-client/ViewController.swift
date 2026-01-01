@@ -340,6 +340,7 @@ class ViewController: NSViewController {
         case "error":
             if let message = messageDict["message"] as? String {
                 print("❌ Server error: \(message)")
+                showErrorAlert(message: message)
             } else {
                 print("❌ error missing 'message': \(messageDict)")
             }
@@ -486,6 +487,15 @@ extension ViewController: TerminalViewControllerDelegate {
     func terminalViewControllerDidRequestDisconnect(_ controller: TerminalViewController) {
         controller.clearState()
         clientCore?.send(["type": "disconnectButtonClicked"])
+    }
+    
+    private func showErrorAlert(message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Server Error"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }
 

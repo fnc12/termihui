@@ -14,18 +14,21 @@ public:
     // Call record structures with default comparison (C++20)
     struct ExecuteCall {
         int clientId = 0;
+        uint64_t sessionId = 0;
         std::string command;
         auto operator<=>(const ExecuteCall&) const = default;
     };
 
     struct InputCall {
         int clientId = 0;
+        uint64_t sessionId = 0;
         std::string text;
         auto operator<=>(const InputCall&) const = default;
     };
 
     struct CompletionCall {
         int clientId = 0;
+        uint64_t sessionId = 0;
         std::string text;
         int cursorPosition = 0;
         auto operator<=>(const CompletionCall&) const = default;
@@ -33,6 +36,7 @@ public:
 
     struct ResizeCall {
         int clientId = 0;
+        uint64_t sessionId = 0;
         int cols = 0;
         int rows = 0;
         auto operator<=>(const ResizeCall&) const = default;
@@ -54,31 +58,31 @@ public:
     bool mockHandleCompletionMessage = true;
     bool mockHandleResizeMessage = true;
     
-    void handleExecuteMessage(int clientId, const std::string& command) override {
-        this->calls.push_back(ExecuteCall{clientId, command});
+    void handleExecuteMessage(int clientId, uint64_t sessionId, const std::string& command) override {
+        this->calls.push_back(ExecuteCall{.clientId = clientId, .sessionId = sessionId, .command = command});
         if (!this->mockHandleExecuteMessage) {
-            TermihuiServerController::handleExecuteMessage(clientId, command);
+            this->TermihuiServerController::handleExecuteMessage(clientId, sessionId, command);
         }
     }
     
-    void handleInputMessage(int clientId, const std::string& text) override {
-        this->calls.push_back(InputCall{clientId, text});
+    void handleInputMessage(int clientId, uint64_t sessionId, const std::string& text) override {
+        this->calls.push_back(InputCall{.clientId = clientId, .sessionId = sessionId, .text = text});
         if (!this->mockHandleInputMessage) {
-            TermihuiServerController::handleInputMessage(clientId, text);
+            this->TermihuiServerController::handleInputMessage(clientId, sessionId, text);
         }
     }
     
-    void handleCompletionMessage(int clientId, const std::string& text, int cursorPosition) override {
-        this->calls.push_back(CompletionCall{clientId, text, cursorPosition});
+    void handleCompletionMessage(int clientId, uint64_t sessionId, const std::string& text, int cursorPosition) override {
+        this->calls.push_back(CompletionCall{.clientId = clientId, .sessionId = sessionId, .text = text, .cursorPosition = cursorPosition});
         if (!this->mockHandleCompletionMessage) {
-            TermihuiServerController::handleCompletionMessage(clientId, text, cursorPosition);
+            this->TermihuiServerController::handleCompletionMessage(clientId, sessionId, text, cursorPosition);
         }
     }
     
-    void handleResizeMessage(int clientId, int cols, int rows) override {
-        this->calls.push_back(ResizeCall{clientId, cols, rows});
+    void handleResizeMessage(int clientId, uint64_t sessionId, int cols, int rows) override {
+        this->calls.push_back(ResizeCall{.clientId = clientId, .sessionId = sessionId, .cols = cols, .rows = rows});
         if (!this->mockHandleResizeMessage) {
-            TermihuiServerController::handleResizeMessage(clientId, cols, rows);
+            this->TermihuiServerController::handleResizeMessage(clientId, sessionId, cols, rows);
         }
     }
 };

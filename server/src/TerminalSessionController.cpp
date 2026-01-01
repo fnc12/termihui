@@ -308,27 +308,6 @@ void TerminalSessionController::checkChildStatus()
     }
 }
 
-std::vector<std::string> TerminalSessionController::getCompletions(const std::string& text, int cursorPosition) const
-{
-    // First try using lastKnownCwd from OSC markers (most reliable)
-    std::string currentDir = lastKnownCwd;
-    
-    // If lastKnownCwd is empty — fallback to lsof
-    if (currentDir.empty()) {
-        currentDir = getCurrentWorkingDirectory();
-    }
-    
-    if (currentDir.empty()) {
-        fmt::print(stderr, "Failed to get current directory, using '.'\n");
-        currentDir = ".";
-    }
-    
-    fmt::print("Current bash working directory: '{}'\n", currentDir);
-    
-    // Delegate to CompletionManager with correct directory
-    return completionManager.getCompletions(text, cursorPosition, currentDir);
-}
-
 void TerminalSessionController::setLastKnownCwd(const std::string& cwd)
 {
     if (!cwd.empty()) {

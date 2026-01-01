@@ -9,6 +9,7 @@
 
 // Forward declare (outside namespace)
 class WebSocketClientController;
+class ClientStorage;
 
 namespace termihui {
 
@@ -139,6 +140,9 @@ private:
     
     // ANSI parser for terminal output
     std::unique_ptr<ANSIParser> ansiParser;
+    
+    // Persistent storage for client settings
+    std::unique_ptr<ClientStorage> clientStorage;
     
     // Active session ID (0 = no session selected)
     uint64_t activeSessionId = 0;

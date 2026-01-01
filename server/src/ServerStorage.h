@@ -19,6 +19,7 @@ public:
     // Terminal session management
     uint64_t createTerminalSession(uint64_t serverRunId);
     void markTerminalSessionAsDeleted(uint64_t sessionId);
+    bool isActiveTerminalSession(uint64_t sessionId);
     std::optional<TerminalSession> getTerminalSession(uint64_t sessionId);
     std::vector<TerminalSession> getActiveTerminalSessions();
 

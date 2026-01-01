@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		EC175C232E420393005C4C31 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC175C222E420393005C4C31 /* SnapKit */; };
+		EC2F43B02F06D919005DE19E /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 		EC175BE32E41EF3F005C4C31 /* termihui-client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -56,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC2F43B02F06D919005DE19E /* libsqlite3.tbd in Frameworks */,
 				EC175C232E420393005C4C31 /* SnapKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -83,6 +86,7 @@
 				EC175BE52E41EF3F005C4C31 /* termihui-client */,
 				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
 				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
+				EC2F43AE2F06D919005DE19E /* Frameworks */,
 				EC175BE42E41EF3F005C4C31 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -95,6 +99,14 @@
 				EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		EC2F43AE2F06D919005DE19E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <variant>
 
-#include "CompletionManager.h"
 #include "SessionStorage.h"
 
 /**
@@ -149,14 +148,6 @@ public:
     virtual bool hasData() const;
     
     /**
-     * Get autocompletion options for text
-     * @param text text to autocomplete
-     * @param cursorPosition cursor position in text
-     * @return vector of strings with completion options
-     */
-    std::vector<std::string> getCompletions(const std::string& text, int cursorPosition) const;
-    
-    /**
      * Get current working directory of bash process
      * @return path to current directory or empty string on error
      */
@@ -246,9 +237,6 @@ private:
     
     // Last known cwd from OSC markers
     mutable std::string lastKnownCwd;
-    
-    // Completion manager
-    CompletionManager completionManager;
     
     // Session storage for persistent command history
     SessionStorage sessionStorage;

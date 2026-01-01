@@ -47,27 +47,18 @@ bool TermihuiServerController::start() {
         return false;
     }
     
-    // Create terminal session with session storage
-    // TODO: sessionId should come from TerminalSessionStorage (to be implemented)
-    auto sessionDbPath = this->fileSystemManager.getWritablePath() / "session_history.sqlite";
-    uint64_t sessionId = 1; // Temporary hardcoded, will be replaced with DB-generated ID
-    this->terminalSessionController = std::make_unique<TerminalSessionController>(
-        std::move(sessionDbPath), sessionId, this->currentRunId);
-    if (!this->terminalSessionController->createSession()) {
-        fmt::print(stderr, "Failed to create terminal session\n");
-        this->webSocketServer->stop();
-        return false;
-    }
-    
-    fmt::print("Terminal session started\n");
+    // Sessions are created on demand when client requests them
+    fmt::print("Server started, waiting for clients\n");
     return true;
 }
 
 void TermihuiServerController::stop() {
-    if (this->terminalSessionController) {
-        this->terminalSessionController->terminate();
-        this->terminalSessionController.reset();
+    // Terminate all sessions
+    for (auto& [sessionId, controller] : this->sessions) {
+        controller->terminate();
     }
+    this->sessions.clear();
+    
     this->webSocketServer->stop();
     
     // Record graceful stop
@@ -96,14 +87,19 @@ void TermihuiServerController::update() {
         this->handleMessage(incomingMessage);
     }
     
-    // Process terminal output
-    this->processTerminalOutput(*this->terminalSessionController);
+    // Process terminal output for all sessions
+    for (auto& [sessionId, controller] : this->sessions) {
+        this->processTerminalOutput(*controller);
     
     // Check session status and send completion notification
-    if (this->terminalSessionController->didJustFinishRunning()) {
-        fmt::print("Command completed\n");
-        std::string status = JsonHelper::createResponse("status", "", 0, false);
-        this->webSocketServer->broadcastMessage(status);
+        if (controller->didJustFinishRunning()) {
+            fmt::print("Session {} command completed\n", sessionId);
+            json status;
+            status["type"] = "status";
+            status["session_id"] = sessionId;
+            status["running"] = false;
+            this->webSocketServer->broadcastMessage(status.dump());
+        }
     }
     
     // Print statistics every 30 seconds
@@ -116,41 +112,17 @@ void TermihuiServerController::update() {
 void TermihuiServerController::handleNewConnection(int clientId) {
     fmt::print("Client connected: {}\n", clientId);
     
-    // Send welcome message with current cwd and home directory
+    // Send welcome message
     json welcomeMsg;
     welcomeMsg["type"] = "connected";
     welcomeMsg["server_version"] = "1.0.0";
-    std::string cwd = this->terminalSessionController->getLastKnownCwd();
-    if (!cwd.empty()) {
-        welcomeMsg["cwd"] = cwd;
-    }
     // Add home directory for path shortening on client
     if (const char* home = getenv("HOME")) {
         welcomeMsg["home"] = home;
     }
     this->webSocketServer->sendMessage(clientId, welcomeMsg.dump());
     
-    // Send command history from persistent storage
-    auto commandHistory = this->terminalSessionController->getCommandHistory();
-    if (!commandHistory.empty()) {
-        json historyMsg;
-        historyMsg["type"] = "history";
-        json commands = json::array();
-        for (const auto& record : commandHistory) {
-            json command = json::object();
-            command["id"] = record.id;
-            command["command"] = record.command;
-            command["output"] = record.output;
-            command["exit_code"] = record.exitCode;
-            command["cwd_start"] = record.cwdStart;
-            command["cwd_end"] = record.cwdEnd;
-            command["is_finished"] = record.isFinished;
-            commands.push_back(std::move(command));
-        }
-        historyMsg["commands"] = commands;
-        this->webSocketServer->sendMessage(clientId, historyMsg.dump());
-        fmt::print("Sent history: {} commands\n", commandHistory.size());
-    }
+    // Client will request session list and history separately
 }
 
 void TermihuiServerController::handleDisconnection(int clientId) {
@@ -165,18 +137,20 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
         std::string type = messageJson.at("type").get<std::string>();
         
         if (type == "execute") {
-            this->handleExecuteMessage(message.clientId, messageJson.at("command").get<std::string>());
+            this->handleExecuteMessage(message.clientId, messageJson.at("session_id").get<uint64_t>(), messageJson.at("command").get<std::string>());
         } else if (type == "input") {
-            this->handleInputMessage(message.clientId, messageJson.at("text").get<std::string>());
+            this->handleInputMessage(message.clientId, messageJson.at("session_id").get<uint64_t>(), messageJson.at("text").get<std::string>());
         } else if (type == "completion") {
             this->handleCompletionMessage(
                 message.clientId,
+                messageJson.at("session_id").get<uint64_t>(),
                 messageJson.at("text").get<std::string>(),
                 messageJson.at("cursor_position").get<int>()
             );
         } else if (type == "resize") {
             this->handleResizeMessage(
                 message.clientId,
+                messageJson.at("session_id").get<uint64_t>(),
                 messageJson.at("cols").get<int>(),
                 messageJson.at("rows").get<int>()
             );
@@ -184,6 +158,10 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
             this->handleListSessionsMessage(message.clientId);
         } else if (type == "create_session") {
             this->handleCreateSessionMessage(message.clientId);
+        } else if (type == "close_session") {
+            this->handleCloseSessionMessage(message.clientId, messageJson.at("session_id").get<uint64_t>());
+        } else if (type == "get_history") {
+            this->handleGetHistoryMessage(message.clientId, messageJson.at("session_id").get<uint64_t>());
         } else {
             std::string error = JsonHelper::createResponse("error", "Unknown message type: " + type);
             this->webSocketServer->sendMessage(message.clientId, error);
@@ -195,38 +173,90 @@ void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMess
     }
 }
 
-void TermihuiServerController::handleExecuteMessage(int clientId, const std::string& command) {
-    this->terminalSessionController->setPendingCommand(command);
+TerminalSessionController* TermihuiServerController::findSession(uint64_t sessionId) {
+    auto it = this->sessions.find(sessionId);
+    if (it != this->sessions.end()) {
+        return it->second.get();
+    }
+    
+    // Lazy initialization: check if session exists in DB
+    if (!this->serverStorage->isActiveTerminalSession(sessionId)) {
+        return nullptr;
+    }
+    
+    // Create controller on-demand
+    auto sessionDbPath = this->fileSystemManager.getWritablePath() / fmt::format("session_{}.sqlite", sessionId);
+    auto controller = std::make_unique<TerminalSessionController>(
+        sessionDbPath, sessionId, this->currentRunId);
+    
+    if (!controller->createSession()) {
+        fmt::print(stderr, "Failed to lazily create session {}\n", sessionId);
+        return nullptr;
+    }
+    
+    fmt::print("Lazily created session controller for session {}\n", sessionId);
+    auto* ptr = controller.get();
+    this->sessions[sessionId] = std::move(controller);
+    return ptr;
+}
+
+void TermihuiServerController::handleExecuteMessage(int clientId, uint64_t sessionId, const std::string& command) {
+    auto* terminalSessionController = this->findSession(sessionId);
+    if (!terminalSessionController) {
+        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
+        this->webSocketServer->sendMessage(clientId, error);
+        return;
+    }
+    
+    terminalSessionController->setPendingCommand(command);
     
     using ExecuteCommandResult = TerminalSessionController::ExecuteCommandResult;
-    
-    const ExecuteCommandResult executeCommandResult = this->terminalSessionController->executeCommand(command);
+    const ExecuteCommandResult executeCommandResult = terminalSessionController->executeCommand(command);
     
     if (executeCommandResult.isOk()) {
-                    fmt::print("Executed command: {}\n", command);
-                } else {
+        fmt::print("Session {}: Executed command: {}\n", sessionId, command);
+    } else {
         std::string errorText = fmt::format("Failed to execute command *{}*: {}", command, executeCommandResult.errorText());
         std::string error = JsonHelper::createResponse("error", std::move(errorText));
         this->webSocketServer->sendMessage(clientId, error);
-            }
+    }
 }
 
-void TermihuiServerController::handleInputMessage(int clientId, const std::string& text) {
-    ssize_t bytes = this->terminalSessionController->sendInput(text);
+void TermihuiServerController::handleInputMessage(int clientId, uint64_t sessionId, const std::string& text) {
+    auto* terminalSessionController = this->findSession(sessionId);
+    if (!terminalSessionController) {
+        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
+        this->webSocketServer->sendMessage(clientId, error);
+        return;
+    }
+    
+    ssize_t bytes = terminalSessionController->sendInput(text);
                 if (bytes >= 0) {
         std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
         this->webSocketServer->sendMessage(clientId, response);
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Failed to send input");
         this->webSocketServer->sendMessage(clientId, error);
-                }
-            }
+    }
+}
             
-void TermihuiServerController::handleCompletionMessage(int clientId, const std::string& text, int cursorPosition) {
-            fmt::print("Completion request: '{}' (position: {})\n", text, cursorPosition);
-            
-    auto completions = this->terminalSessionController->getCompletions(text, cursorPosition);
-            
+void TermihuiServerController::handleCompletionMessage(int clientId, uint64_t sessionId, const std::string& text, int cursorPosition) {
+    fmt::print("Completion request for session {}: '{}' (position: {})\n", sessionId, text, cursorPosition);
+    
+    auto* terminalSessionController = this->findSession(sessionId);
+    std::string currentDir = ".";
+    if (terminalSessionController) {
+        currentDir = terminalSessionController->getLastKnownCwd();
+        if (currentDir.empty()) {
+            currentDir = terminalSessionController->getCurrentWorkingDirectory();
+        }
+    }
+    if (currentDir.empty()) {
+        currentDir = ".";
+    }
+    
+    auto completions = this->completionManager.getCompletions(text, cursorPosition, currentDir);
+    
             json response;
             response["type"] = "completion_result";
             response["completions"] = completions;
@@ -236,14 +266,21 @@ void TermihuiServerController::handleCompletionMessage(int clientId, const std::
     this->webSocketServer->sendMessage(clientId, response.dump());
 }
 
-void TermihuiServerController::handleResizeMessage(int clientId, int cols, int rows) {
+void TermihuiServerController::handleResizeMessage(int clientId, uint64_t sessionId, int cols, int rows) {
     if (cols <= 0 || rows <= 0) {
         std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
         this->webSocketServer->sendMessage(clientId, error);
         return;
     }
     
-    if (this->terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
+    auto* terminalSessionController = this->findSession(sessionId);
+    if (!terminalSessionController) {
+        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
+        this->webSocketServer->sendMessage(clientId, error);
+        return;
+    }
+    
+    if (terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
                     json response;
                     response["type"] = "resize_ack";
                     response["cols"] = cols;
@@ -252,7 +289,7 @@ void TermihuiServerController::handleResizeMessage(int clientId, int cols, int r
                 } else {
                     std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
         this->webSocketServer->sendMessage(clientId, error);
-                }
+    }
 }
 
 void TermihuiServerController::handleListSessionsMessage(int clientId) {
@@ -274,7 +311,22 @@ void TermihuiServerController::handleListSessionsMessage(int clientId) {
 }
 
 void TermihuiServerController::handleCreateSessionMessage(int clientId) {
+    // Create session record in DB
     uint64_t sessionId = this->serverStorage->createTerminalSession(this->currentRunId);
+    
+    // Create terminal session controller
+    auto sessionDbPath = this->fileSystemManager.getWritablePath() / fmt::format("session_{}.sqlite", sessionId);
+    auto controller = std::make_unique<TerminalSessionController>(
+        sessionDbPath, sessionId, this->currentRunId);
+    
+    if (!controller->createSession()) {
+        std::string error = JsonHelper::createResponse("error", "Failed to create terminal session");
+        this->webSocketServer->sendMessage(clientId, error);
+        // TODO: cleanup DB record
+        return;
+    }
+    
+    this->sessions[sessionId] = std::move(controller);
     
     json response;
     response["type"] = "session_created";
@@ -282,6 +334,60 @@ void TermihuiServerController::handleCreateSessionMessage(int clientId) {
     
     this->webSocketServer->sendMessage(clientId, response.dump());
     fmt::print("Created session {} for client {}\n", sessionId, clientId);
+}
+
+void TermihuiServerController::handleCloseSessionMessage(int clientId, uint64_t sessionId) {
+    auto it = this->sessions.find(sessionId);
+    if (it == this->sessions.end()) {
+        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
+        this->webSocketServer->sendMessage(clientId, error);
+        return;
+    }
+    
+    // Terminate and remove session
+    it->second->terminate();
+    this->sessions.erase(it);
+    
+    // Mark as deleted in DB
+    this->serverStorage->markTerminalSessionAsDeleted(sessionId);
+    
+    json response;
+    response["type"] = "session_closed";
+    response["session_id"] = sessionId;
+    
+    this->webSocketServer->sendMessage(clientId, response.dump());
+    fmt::print("Closed session {} for client {}\n", sessionId, clientId);
+}
+
+void TermihuiServerController::handleGetHistoryMessage(int clientId, uint64_t sessionId) {
+    auto* terminalSessionController = this->findSession(sessionId);
+    if (!terminalSessionController) {
+        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
+        this->webSocketServer->sendMessage(clientId, error);
+        return;
+    }
+    
+    auto commandHistory = terminalSessionController->getCommandHistory();
+    
+    json historyMsg;
+    historyMsg["type"] = "history";
+    historyMsg["session_id"] = sessionId;
+    json commands = json::array();
+    for (const auto& record : commandHistory) {
+        json command = json::object();
+        command["id"] = record.id;
+        command["command"] = record.command;
+        command["output"] = record.output;
+        command["exit_code"] = record.exitCode;
+        command["cwd_start"] = record.cwdStart;
+        command["cwd_end"] = record.cwdEnd;
+        command["is_finished"] = record.isFinished;
+        commands.push_back(std::move(command));
+    }
+    historyMsg["commands"] = std::move(commands);
+    
+    this->webSocketServer->sendMessage(clientId, historyMsg.dump());
+    fmt::print("Sent history for session {} ({} commands) to client {}\n", sessionId, commandHistory.size(), clientId);
 }
 
 
@@ -515,7 +621,7 @@ void TermihuiServerController::printStats() {
     if (now - this->lastStatsTime > std::chrono::seconds(30)) {
         size_t connectedClients = this->webSocketServer->getConnectedClients();
         fmt::print("Connected clients: {}\n", connectedClients);
-        fmt::print("Terminal session active: {}\n", (this->terminalSessionController->isRunning() ? "yes" : "no"));
+        fmt::print("Active sessions: {}\n", this->sessions.size());
         this->lastStatsTime = now;
     }
 }

@@ -93,6 +93,12 @@ void ServerStorage::markTerminalSessionAsDeleted(uint64_t sessionId) {
     );
 }
 
+bool ServerStorage::isActiveTerminalSession(uint64_t sessionId) {
+    return this->storage.count<TerminalSession>(
+        where(c(&TerminalSession::id) == sessionId && c(&TerminalSession::isDeleted) == false)
+    ) > 0;
+}
+
 std::optional<TerminalSession> ServerStorage::getTerminalSession(uint64_t sessionId) {
     return this->storage.get_optional<TerminalSession>(sessionId);
 }

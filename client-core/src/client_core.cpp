@@ -2,9 +2,14 @@
 #include "termihui/client_core_c.h"
 #include "termihui/ansi_parser.h"
 #include "termihui/websocket_client_controller.h"
+#include "termihui/client_storage.h"
 #include <fmt/core.h>
 #include <thread>
 #include <hv/json.hpp>
+#include <sago/platform_folders.h>
+
+// Storage keys
+static constexpr const char* KEY_LAST_SESSION_ID = "last_session_id";
 
 using json = nlohmann::json;
 
@@ -78,6 +83,23 @@ bool ClientCoreController::initialize() {
     }
     
     fmt::print("ClientCoreController: Initializing v{}\n", VERSION);
+    
+    // Initialize persistent storage
+    std::filesystem::path storagePath = sago::getDataHome();
+    storagePath /= "termihui";
+    std::filesystem::create_directories(storagePath);
+    storagePath /= "client_state.sqlite";
+    
+    this->clientStorage = std::make_unique<ClientStorage>(storagePath);
+    fmt::print("ClientCoreController: Storage initialized at {}\n", storagePath.string());
+    
+    // Load last active session
+    auto lastSessionId = this->clientStorage->getUInt64(KEY_LAST_SESSION_ID);
+    if (lastSessionId) {
+        this->activeSessionId = *lastSessionId;
+        fmt::print("ClientCoreController: Restored last session ID: {}\n", this->activeSessionId);
+    }
+    
     this->initialized = true;
     fmt::print("ClientCoreController: Initialized successfully\n");
     
@@ -376,6 +398,20 @@ std::string ClientCoreController::handleSwitchSession(uint64_t sessionId) {
     
     this->activeSessionId = sessionId;
     
+    // Persist last session ID
+    if (this->clientStorage) {
+        this->clientStorage->setUInt64(KEY_LAST_SESSION_ID, sessionId);
+    }
+    
+    // Request history for new session
+    if (this->webSocketController && this->webSocketController->isConnected()) {
+        json msg = {
+            {"type", "get_history"},
+            {"session_id", sessionId}
+        };
+        this->webSocketController->send(msg.dump());
+    }
+    
     return "";
 }
 
@@ -458,15 +494,40 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
                 json createMsg = {{"type", "create_session"}};
                 this->webSocketController->send(createMsg.dump());
             } else {
-                // Auto-select first session
-                uint64_t firstId = sessions[0].at("id").get<uint64_t>();
-                this->activeSessionId = firstId;
-                fmt::print("ClientCoreController: Auto-selected session {}\n", firstId);
+                // Try to restore last session if it exists in the list
+                uint64_t selectedId = 0;
+                if (this->activeSessionId != 0) {
+                    for (const auto& s : sessions) {
+                        if (s.at("id").get<uint64_t>() == this->activeSessionId) {
+                            selectedId = this->activeSessionId;
+                            break;
+                        }
+                    }
+                }
+                // Fallback to first session
+                if (selectedId == 0) {
+                    selectedId = sessions[0].at("id").get<uint64_t>();
+                }
+                this->activeSessionId = selectedId;
+                if (this->clientStorage) {
+                    this->clientStorage->setUInt64(KEY_LAST_SESSION_ID, selectedId);
+                }
+                fmt::print("ClientCoreController: Selected session {}\n", selectedId);
+                
+                // Request history for selected session
+                json historyMsg = {
+                    {"type", "get_history"},
+                    {"session_id", selectedId}
+                };
+                this->webSocketController->send(historyMsg.dump());
             }
         } else if (msgType == "session_created") {
             // Handle session_created - auto-switch to new session
             uint64_t sessionId = serverData.at("session_id").get<uint64_t>();
             this->activeSessionId = sessionId;
+            if (this->clientStorage) {
+                this->clientStorage->setUInt64(KEY_LAST_SESSION_ID, sessionId);
+            }
             fmt::print("ClientCoreController: Session created and activated: {}\n", sessionId);
         } else if (msgType == "session_closed") {
             uint64_t sessionId = serverData.at("session_id").get<uint64_t>();
