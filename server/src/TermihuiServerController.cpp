@@ -284,6 +284,7 @@ void TermihuiServerController::handleCreateSessionMessage(int clientId) {
     fmt::print("Created session {} for client {}\n", sessionId, clientId);
 }
 
+
 // Helper: escape string for logging (show control chars)
 static std::string escapeForLog(const std::string& s) {
     std::string result;

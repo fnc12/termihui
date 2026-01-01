@@ -306,6 +306,33 @@ class ViewController: NSViewController {
                 print("❌ completion_result missing fields: \(messageDict)")
             }
             
+        case "sessions_list":
+            if let sessionsData = messageDict["sessions"],
+               let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
+               let sessions = try? JSONDecoder().decode([SessionInfo].self, from: jsonData) {
+                print("📋 Sessions list: \(sessions.count) sessions")
+                // Active session will be set by client-core via session_created
+                terminalViewController.updateSessionList(sessions, activeSessionId: sessions.first?.id)
+            } else {
+                print("❌ sessions_list failed to decode: \(messageDict)")
+            }
+            
+        case "session_created":
+            if let sessionId = messageDict["session_id"] as? UInt64 ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) {
+                print("✅ Session created: #\(sessionId)")
+                terminalViewController.setActiveSession(sessionId)
+            } else {
+                print("❌ session_created missing 'session_id': \(messageDict)")
+            }
+            
+        case "session_closed":
+            if let sessionId = messageDict["session_id"] as? UInt64 ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) {
+                print("🗑️ Session closed: #\(sessionId)")
+                // UI will be updated when new sessions_list arrives
+            } else {
+                print("❌ session_closed missing 'session_id': \(messageDict)")
+            }
+            
         case "input_sent", "resize_ack":
             // Acknowledgements - can be ignored
             break

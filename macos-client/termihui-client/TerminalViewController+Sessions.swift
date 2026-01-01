@@ -1,0 +1,37 @@
+import Cocoa
+
+// MARK: - SessionListViewControllerDelegate
+extension TerminalViewController: SessionListViewControllerDelegate {
+    func sessionListViewControllerDidRequestNewSession(_ controller: SessionListViewController) {
+        print("📱 Request new session")
+        clientCore?.send(["type": "createSession"])
+    }
+    
+    func sessionListViewController(_ controller: SessionListViewController, didSelectSession sessionId: UInt64) {
+        print("📱 Select session: #\(sessionId)")
+        // Update client-core's activeSessionId (local only, not sent to server)
+        clientCore?.send(["type": "switchSession", "sessionId": sessionId])
+        setActiveSession(sessionId)
+        clearState()
+        toggleSidebar()
+    }
+    
+    func sessionListViewController(_ controller: SessionListViewController, didRequestDeleteSession sessionId: UInt64) {
+        print("📱 Delete session: #\(sessionId)")
+        clientCore?.send(["type": "closeSession", "sessionId": sessionId])
+    }
+}
+
+// MARK: - Session Management (Public API)
+extension TerminalViewController {
+    /// Updates the session list from server data
+    func updateSessionList(_ sessions: [SessionInfo], activeSessionId: UInt64?) {
+        sessionListController?.updateSessions(sessions, activeId: activeSessionId ?? 0)
+    }
+    
+    /// Updates active session highlight
+    func setActiveSession(_ sessionId: UInt64) {
+        sessionListController?.setActiveSession(sessionId)
+    }
+}
+
