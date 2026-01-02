@@ -313,6 +313,7 @@ class ViewController: NSViewController {
                 print("📋 Sessions list: \(sessions.count) sessions")
                 // Active session will be set by client-core via session_created
                 terminalViewController.updateSessionList(sessions, activeSessionId: sessions.first?.id)
+                terminalViewController.updateSessionName(sessions.first?.id)
             } else {
                 print("❌ sessions_list failed to decode: \(messageDict)")
             }
@@ -321,6 +322,7 @@ class ViewController: NSViewController {
             if let sessionId = messageDict["session_id"] as? UInt64 ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) {
                 print("✅ Session created: #\(sessionId)")
                 terminalViewController.setActiveSession(sessionId)
+                terminalViewController.updateSessionName(sessionId)
             } else {
                 print("❌ session_created missing 'session_id': \(messageDict)")
             }

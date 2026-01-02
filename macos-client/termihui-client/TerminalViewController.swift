@@ -7,6 +7,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - UI Components
     private let topToolbarView = NSView()
     private let hamburgerButton = NSButton()
+    private let sessionLabel = NSTextField(labelWithString: "")
     
     let terminalScrollView = NSScrollView()
     var collectionView = NSCollectionView()
@@ -29,7 +30,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Properties
     weak var delegate: TerminalViewControllerDelegate?
     private var serverAddress: String = ""
-    private let baseTopInset: CGFloat = 8
+    private let baseTopInset: CGFloat = 16
     
     /// Client core instance for C++ functionality
     var clientCore: ClientCoreWrapper?
@@ -230,6 +231,16 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         hamburgerButton.target = self
         hamburgerButton.action = #selector(toggleSidebar)
         topToolbarView.addSubview(hamburgerButton)
+        
+        // Session label (centered)
+        sessionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        sessionLabel.textColor = .white
+        sessionLabel.alignment = .center
+        sessionLabel.backgroundColor = .clear
+        sessionLabel.isBordered = false
+        sessionLabel.isEditable = false
+        sessionLabel.isSelectable = false
+        topToolbarView.addSubview(sessionLabel)
     }
     
     private func setupSessionSidebar() {
@@ -420,6 +431,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.width.height.equalTo(28)
         }
         
+        sessionLabel.snp.makeConstraints { make in
+            make.center.equalToSuperview()
+        }
+        
         // Terminal view - занимает всё пространство от toolbar до input
         terminalScrollView.snp.makeConstraints { make in
             make.top.equalTo(topToolbarView.snp.bottom)
@@ -475,7 +490,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     /// Обновляет нижний constraint списка команд в зависимости от режима
     private func updateTerminalBottomConstraint(isRawMode: Bool) {
         terminalScrollView.snp.remakeConstraints { make in
-            make.top.leading.trailing.equalToSuperview()
+            make.top.equalTo(topToolbarView.snp.bottom)
+            make.leading.trailing.equalToSuperview()
             make.height.greaterThanOrEqualTo(200)
             
             if isRawMode {
@@ -552,6 +568,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         currentCwd = ""
         serverHome = ""
         cwdLabel.stringValue = "~"
+        sessionLabel.stringValue = ""
         collectionView.reloadData()
         
         // Reset raw input mode
@@ -614,6 +631,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         }
         cwdLabel.stringValue = displayCwd
         print("📂 CWD updated: \(displayCwd)")
+    }
+    
+    /// Обновляет название текущей сессии в toolbar
+    func updateSessionName(_ sessionId: UInt64?) {
+        if let id = sessionId {
+            sessionLabel.stringValue = "#\(id)"
+        } else {
+            sessionLabel.stringValue = ""
+        }
     }
     
     // MARK: - Actions

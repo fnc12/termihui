@@ -38,6 +38,7 @@ class SessionListViewController: NSViewController {
     // MARK: - Setup
     private func setupUI() {
         // Visual effect view for native macOS blur
+        visualEffectView.translatesAutoresizingMaskIntoConstraints = false
         visualEffectView.material = .sidebar
         visualEffectView.blendingMode = .behindWindow
         visualEffectView.state = .active
@@ -48,6 +49,7 @@ class SessionListViewController: NSViewController {
         }
         
         // Add session button at top
+        addSessionButton.translatesAutoresizingMaskIntoConstraints = false
         addSessionButton.title = "+ Session"
         addSessionButton.bezelStyle = .rounded
         addSessionButton.target = self
@@ -89,6 +91,7 @@ class SessionListViewController: NSViewController {
         outlineView.outlineTableColumn = column
         
         // Scroll view setup
+        outlineScrollView.translatesAutoresizingMaskIntoConstraints = false
         outlineScrollView.documentView = outlineView
         outlineScrollView.hasVerticalScroller = true
         outlineScrollView.autohidesScrollers = true

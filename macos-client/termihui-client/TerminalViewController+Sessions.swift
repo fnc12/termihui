@@ -13,6 +13,7 @@ extension TerminalViewController: SessionListViewControllerDelegate {
         clientCore?.send(["type": "switchSession", "sessionId": sessionId])
         setActiveSession(sessionId)
         clearState()
+        updateSessionName(sessionId)
         toggleSidebar()
     }
     
