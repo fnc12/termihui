@@ -76,6 +76,32 @@
       "problemMatcher": []
     },
     {
+      "label": "Build Client Core",
+      "type": "shell",
+      "command": "make termihui_client_core",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build macOS Client",
+      "type": "shell",
+      "command": "xcodebuild -project termihui-client.xcodeproj -scheme termihui-client -configuration Debug build",
+      "options": {
+        "cwd": "${workspaceFolder}/macos-client"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run Server Tests",
       "type": "shell",
       "command": "make unit_tests && ./server/unit_tests",

@@ -453,6 +453,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
+					"$(SRCROOT)/../client-core/build/shared",
 					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
 					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
 				);
@@ -460,6 +461,7 @@
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-ltermihui_client_core",
+					"-ltermihui_shared",
 					"-lfmt",
 					"-lhv_static",
 				);
@@ -495,6 +497,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
+					"$(SRCROOT)/../client-core/build/shared",
 					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
 					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
 				);
@@ -502,6 +505,7 @@
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-ltermihui_client_core",
+					"-ltermihui_shared",
 					"-lfmt",
 					"-lhv_static",
 				);
