@@ -90,4 +90,32 @@ std::string ClientCoreControllerTestable::handleListSessions() {
     return "";
 }
 
+void ClientCoreControllerTestable::handleWebSocketEvent(const WebSocketClientController::OpenEvent& openEvent) {
+    this->calls.push_back(OpenEventCall{});
+    if (!this->mockHandleWebSocketEvent) {
+        this->ClientCoreController::handleWebSocketEvent(openEvent);
+    }
+}
+
+void ClientCoreControllerTestable::handleWebSocketEvent(const WebSocketClientController::MessageEvent& messageEvent) {
+    this->calls.push_back(MessageEventCall{messageEvent.message});
+    if (!this->mockHandleWebSocketEvent) {
+        this->ClientCoreController::handleWebSocketEvent(messageEvent);
+    }
+}
+
+void ClientCoreControllerTestable::handleWebSocketEvent(const WebSocketClientController::CloseEvent& closeEvent) {
+    this->calls.push_back(CloseEventCall{});
+    if (!this->mockHandleWebSocketEvent) {
+        this->ClientCoreController::handleWebSocketEvent(closeEvent);
+    }
+}
+
+void ClientCoreControllerTestable::handleWebSocketEvent(const WebSocketClientController::ErrorEvent& errorEvent) {
+    this->calls.push_back(ErrorEventCall{errorEvent.error});
+    if (!this->mockHandleWebSocketEvent) {
+        this->ClientCoreController::handleWebSocketEvent(errorEvent);
+    }
+}
+
 } // namespace termihui

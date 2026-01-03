@@ -1,9 +1,10 @@
-#include "termihui/websocket_client_controller.h"
+#include "termihui/websocket_client_controller_impl.h"
 
-WebSocketClientController::WebSocketClientController()
+namespace termihui {
+
+WebSocketClientControllerImpl::WebSocketClientControllerImpl()
     : client(std::make_unique<hv::WebSocketClient>()) {
     
-    // Setup callbacks that queue events for main thread processing
     this->client->onopen = [this]() {
         this->eventQueue.push(OpenEvent{});
     };
@@ -17,31 +18,33 @@ WebSocketClientController::WebSocketClientController()
     };
 }
 
-WebSocketClientController::~WebSocketClientController() {
+WebSocketClientControllerImpl::~WebSocketClientControllerImpl() {
     this->close();
 }
 
-int WebSocketClientController::open(std::string_view url) {
+int WebSocketClientControllerImpl::open(std::string_view url) {
     return this->client->open(std::string(url).c_str());
 }
 
-void WebSocketClientController::close() {
+void WebSocketClientControllerImpl::close() {
     if (this->client) {
         this->client->close();
     }
 }
 
-bool WebSocketClientController::isConnected() const {
+bool WebSocketClientControllerImpl::isConnected() const {
     return this->client && this->client->isConnected();
 }
 
-int WebSocketClientController::send(const std::string& message) {
+int WebSocketClientControllerImpl::send(const std::string& message) {
     if (!this->client) {
         return -1;
     }
     return this->client->send(message);
 }
 
-std::vector<WebSocketClientController::Event> WebSocketClientController::update() {
+std::vector<WebSocketClientController::Event> WebSocketClientControllerImpl::update() {
     return this->eventQueue.takeAll();
 }
+
+} // namespace termihui

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "termihui/client_core.h"
+#include "termihui/websocket_client_controller.h"
 #include <cstdint>
 #include <variant>
 #include <vector>
@@ -13,6 +14,9 @@ namespace termihui {
  */
 class ClientCoreControllerTestable : public ClientCoreController {
 public:
+    // Inherit constructors
+    using ClientCoreController::ClientCoreController;
+    
     // Call record structures with default comparison (C++20)
     struct ConnectButtonClickedCall {
         std::string address;
@@ -68,6 +72,25 @@ public:
         auto operator<=>(const ListSessionsCall&) const = default;
     };
 
+    // WebSocket event call records
+    struct OpenEventCall {
+        auto operator<=>(const OpenEventCall&) const = default;
+    };
+
+    struct MessageEventCall {
+        std::string message;
+        auto operator<=>(const MessageEventCall&) const = default;
+    };
+
+    struct CloseEventCall {
+        auto operator<=>(const CloseEventCall&) const = default;
+    };
+
+    struct ErrorEventCall {
+        std::string error;
+        auto operator<=>(const ErrorEventCall&) const = default;
+    };
+
     using Call = std::variant<
         ConnectButtonClickedCall,
         RequestReconnectCall,
@@ -79,7 +102,11 @@ public:
         CreateSessionCall,
         CloseSessionCall,
         SwitchSessionCall,
-        ListSessionsCall
+        ListSessionsCall,
+        OpenEventCall,
+        MessageEventCall,
+        CloseEventCall,
+        ErrorEventCall
     >;
 
     // Call recording
@@ -97,6 +124,7 @@ public:
     bool mockHandleCloseSession = true;
     bool mockHandleSwitchSession = true;
     bool mockHandleListSessions = true;
+    bool mockHandleWebSocketEvent = true;
 
     std::string handleConnectButtonClicked(std::string_view address) override;
     std::string handleRequestReconnect(std::string_view address) override;
@@ -109,6 +137,12 @@ public:
     std::string handleCloseSession(uint64_t sessionId) override;
     std::string handleSwitchSession(uint64_t sessionId) override;
     std::string handleListSessions() override;
+    
+    // WebSocket event handlers
+    void handleWebSocketEvent(const WebSocketClientController::OpenEvent& openEvent) override;
+    void handleWebSocketEvent(const WebSocketClientController::MessageEvent& messageEvent) override;
+    void handleWebSocketEvent(const WebSocketClientController::CloseEvent& closeEvent) override;
+    void handleWebSocketEvent(const WebSocketClientController::ErrorEvent& errorEvent) override;
 };
 
 } // namespace termihui

@@ -24,7 +24,7 @@ class ClientCoreController {
 public:
     static ClientCoreController instance;
     
-    ClientCoreController();
+    explicit ClientCoreController(std::unique_ptr<WebSocketClientController> webSocketController);
     virtual ~ClientCoreController();
     
     // Disable copying and moving
@@ -116,12 +116,14 @@ protected:
     virtual std::string handleSwitchSession(uint64_t sessionId);
     virtual std::string handleListSessions();
 
+protected:
+    // WebSocket event handlers (overloads for std::visit dispatch, virtual for testability)
+    virtual void handleWebSocketEvent(const WebSocketClientController::OpenEvent& openEvent);
+    virtual void handleWebSocketEvent(const WebSocketClientController::MessageEvent& messageEvent);
+    virtual void handleWebSocketEvent(const WebSocketClientController::CloseEvent& closeEvent);
+    virtual void handleWebSocketEvent(const WebSocketClientController::ErrorEvent& errorEvent);
+    
 private:
-    // WebSocket event handlers (overloads for std::visit dispatch)
-    void handleWebSocketEvent(const WebSocketClientController::OpenEvent& event);
-    void handleWebSocketEvent(const WebSocketClientController::MessageEvent& event);
-    void handleWebSocketEvent(const WebSocketClientController::CloseEvent& event);
-    void handleWebSocketEvent(const WebSocketClientController::ErrorEvent& event);
     
     bool initialized = false;
     

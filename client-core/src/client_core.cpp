@@ -2,6 +2,7 @@
 #include "termihui/client_core_c.h"
 #include "termihui/ansi_parser.h"
 #include "termihui/websocket_client_controller.h"
+#include "termihui/websocket_client_controller_impl.h"
 #include "termihui/client_storage.h"
 #include <termihui/protocol/protocol.h>
 #include <fmt/core.h>
@@ -21,12 +22,12 @@ namespace termihui {
 static constexpr const char* VERSION = "1.0.0";
 
 // Static instance
-ClientCoreController ClientCoreController::instance;
+ClientCoreController ClientCoreController::instance(std::make_unique<WebSocketClientControllerImpl>());
 
 // ClientCoreController implementation
 
-ClientCoreController::ClientCoreController()
-    : webSocketController(std::make_unique<WebSocketClientController>())
+ClientCoreController::ClientCoreController(std::unique_ptr<WebSocketClientController> webSocketController)
+    : webSocketController(std::move(webSocketController))
     , ansiParser(std::make_unique<ANSIParser>()) {
 }
 
