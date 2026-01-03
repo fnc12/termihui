@@ -371,29 +371,18 @@ void ClientCoreController::update() {
         return;
     }
     
-    using WsCtrl = WebSocketClientController;
-    
     auto events = this->webSocketController->update();
-    for (auto& event : events) {
-        std::visit([this](auto&& e) {
-            using T = std::decay_t<decltype(e)>;
-            if constexpr (std::is_same_v<T, WsCtrl::OpenEvent>) {
-                this->onWebSocketOpen();
-            } else if constexpr (std::is_same_v<T, WsCtrl::MessageEvent>) {
-                this->onWebSocketMessage(e.message);
-            } else if constexpr (std::is_same_v<T, WsCtrl::CloseEvent>) {
-                this->onWebSocketClose();
-            } else if constexpr (std::is_same_v<T, WsCtrl::ErrorEvent>) {
-                this->onWebSocketError(e.error);
-            }
+    for (const auto& event : events) {
+        std::visit([this](const auto& event) {
+            this->handleWebSocketEvent(event);
         }, event);
     }
 }
 
 // WebSocket event handlers (called from main thread via update())
 
-void ClientCoreController::onWebSocketOpen() {
-    fmt::print("ClientCoreController::onWebSocketOpen [thread:{}]\n", 
+void ClientCoreController::handleWebSocketEvent(const WebSocketClientController::OpenEvent&) {
+    fmt::print("ClientCoreController::handleWebSocketEvent(OpenEvent) [thread:{}]\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()));
     
     this->pushEvent(json{
@@ -407,14 +396,14 @@ void ClientCoreController::onWebSocketOpen() {
     fmt::print("ClientCoreController: Requested sessions list\n");
 }
 
-void ClientCoreController::onWebSocketMessage(const std::string& message) {
-    fmt::print("ClientCoreController::onWebSocketMessage [thread:{}]: {}\n", 
+void ClientCoreController::handleWebSocketEvent(const WebSocketClientController::MessageEvent& messageEvent) {
+    fmt::print("ClientCoreController::handleWebSocketEvent(MessageEvent) [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()),
-               message.substr(0, 100)); // Truncate for debug
+               messageEvent.message.substr(0, 100)); // Truncate for debug
     
     // Forward message to UI as event
     try {
-        auto serverData = json::parse(message);
+        auto serverData = json::parse(messageEvent.message);
         std::string_view messageType = serverData.at("type").get<std::string_view>();
         
         // Handle sessions_list - log and create if empty
@@ -495,8 +484,8 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
     }
 }
 
-void ClientCoreController::onWebSocketClose() {
-    fmt::print("ClientCoreController::onWebSocketClose [thread:{}]\n", 
+void ClientCoreController::handleWebSocketEvent(const WebSocketClientController::CloseEvent&) {
+    fmt::print("ClientCoreController::handleWebSocketEvent(CloseEvent) [thread:{}]\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()));
     
     this->activeSessionId = 0;
@@ -507,14 +496,14 @@ void ClientCoreController::onWebSocketClose() {
     }.dump());
 }
 
-void ClientCoreController::onWebSocketError(const std::string& error) {
-    fmt::print("ClientCoreController::onWebSocketError [thread:{}]: {}\n", 
+void ClientCoreController::handleWebSocketEvent(const WebSocketClientController::ErrorEvent& errorEvent) {
+    fmt::print("ClientCoreController::handleWebSocketEvent(ErrorEvent) [thread:{}]: {}\n", 
                std::hash<std::thread::id>{}(std::this_thread::get_id()),
-               error);
+               errorEvent.error);
     
     this->pushEvent(json{
         {"type", "error"},
-        {"message", error}
+        {"message", errorEvent.error}
     }.dump());
 }
 

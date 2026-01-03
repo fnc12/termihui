@@ -6,9 +6,9 @@
 #include <memory>
 #include "thread_safe_queue.h"
 #include "thread_safe_string.h"
+#include "websocket_client_controller.h"
 
 // Forward declare (outside namespace)
-class WebSocketClientController;
 class ClientStorage;
 
 namespace termihui {
@@ -117,12 +117,11 @@ protected:
     virtual std::string handleListSessions();
 
 private:
-    
-    // WebSocket callbacks (called from libhv thread)
-    void onWebSocketOpen();
-    void onWebSocketMessage(const std::string& message);
-    void onWebSocketClose();
-    void onWebSocketError(const std::string& error);
+    // WebSocket event handlers (overloads for std::visit dispatch)
+    void handleWebSocketEvent(const WebSocketClientController::OpenEvent& event);
+    void handleWebSocketEvent(const WebSocketClientController::MessageEvent& event);
+    void handleWebSocketEvent(const WebSocketClientController::CloseEvent& event);
+    void handleWebSocketEvent(const WebSocketClientController::ErrorEvent& event);
     
     bool initialized = false;
     
