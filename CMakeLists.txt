@@ -73,6 +73,9 @@ message(STATUS "")
 # Подпроекты
 # ============================================
 
+# Shared library (protocol messages)
+add_subdirectory(shared)
+
 # Client Core (C++ библиотека для клиентов)
 add_subdirectory(client-core)
 

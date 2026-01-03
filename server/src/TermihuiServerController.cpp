@@ -1,6 +1,6 @@
 #include "TermihuiServerController.h"
 #include "JsonHelper.h"
-#include "hv/json.hpp"
+#include <termihui/protocol/protocol.h>
 #include <fmt/core.h>
 #include <thread>
 
@@ -94,11 +94,8 @@ void TermihuiServerController::update() {
     // Check session status and send completion notification
         if (controller->didJustFinishRunning()) {
             fmt::print("Session {} command completed\n", sessionId);
-            json status;
-            status["type"] = "status";
-            status["session_id"] = sessionId;
-            status["running"] = false;
-            this->webSocketServer->broadcastMessage(status.dump());
+            StatusMessage statusMessage{sessionId, false};
+            this->webSocketServer->broadcastMessage(serialize(statusMessage));
         }
     }
     
@@ -112,15 +109,13 @@ void TermihuiServerController::update() {
 void TermihuiServerController::handleNewConnection(int clientId) {
     fmt::print("Client connected: {}\n", clientId);
     
-    // Send welcome message
-    json welcomeMsg;
-    welcomeMsg["type"] = "connected";
-    welcomeMsg["server_version"] = "1.0.0";
+    ConnectedMessage connectedMessage;
+    connectedMessage.serverVersion = "1.0.0";
     // Add home directory for path shortening on client
     if (const char* home = getenv("HOME")) {
-        welcomeMsg["home"] = home;
+        connectedMessage.home = home;
     }
-    this->webSocketServer->sendMessage(clientId, welcomeMsg.dump());
+    this->webSocketServer->sendMessage(clientId, serialize(connectedMessage));
     
     // Client will request session list and history separately
 }
@@ -129,47 +124,20 @@ void TermihuiServerController::handleDisconnection(int clientId) {
     fmt::print("Client disconnected: {}\n", clientId);
 }
 
-void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMessage& message) {
-    fmt::print("Processing message from {}: {}\n", message.clientId, message.text);
+void TermihuiServerController::handleMessage(const WebSocketServer::IncomingMessage& incomingMessage) {
+    fmt::print("Processing message from {}: {}\n", incomingMessage.clientId, incomingMessage.text);
     
     try {
-        json messageJson = json::parse(message.text);
-        std::string type = messageJson.at("type").get<std::string>();
+        ClientMessage clientMessage = parseClientMessage(incomingMessage.text);
         
-        if (type == "execute") {
-            this->handleExecuteMessage(message.clientId, messageJson.at("session_id").get<uint64_t>(), messageJson.at("command").get<std::string>());
-        } else if (type == "input") {
-            this->handleInputMessage(message.clientId, messageJson.at("session_id").get<uint64_t>(), messageJson.at("text").get<std::string>());
-        } else if (type == "completion") {
-            this->handleCompletionMessage(
-                message.clientId,
-                messageJson.at("session_id").get<uint64_t>(),
-                messageJson.at("text").get<std::string>(),
-                messageJson.at("cursor_position").get<int>()
-            );
-        } else if (type == "resize") {
-            this->handleResizeMessage(
-                message.clientId,
-                messageJson.at("session_id").get<uint64_t>(),
-                messageJson.at("cols").get<int>(),
-                messageJson.at("rows").get<int>()
-            );
-        } else if (type == "list_sessions") {
-            this->handleListSessionsMessage(message.clientId);
-        } else if (type == "create_session") {
-            this->handleCreateSessionMessage(message.clientId);
-        } else if (type == "close_session") {
-            this->handleCloseSessionMessage(message.clientId, messageJson.at("session_id").get<uint64_t>());
-        } else if (type == "get_history") {
-            this->handleGetHistoryMessage(message.clientId, messageJson.at("session_id").get<uint64_t>());
-        } else {
-            std::string error = JsonHelper::createResponse("error", "Unknown message type: " + type);
-            this->webSocketServer->sendMessage(message.clientId, error);
-        }
-    } catch (const json::exception& e) {
-        fmt::print(stderr, "JSON error: {}\n", e.what());
-        std::string error = JsonHelper::createResponse("error", std::string("Invalid message: ") + e.what());
-        this->webSocketServer->sendMessage(message.clientId, error);
+        std::visit([this, clientId = incomingMessage.clientId](const auto& message) {
+            this->handleMessageFromClient(clientId, message);
+        }, clientMessage);
+        
+    } catch (const std::exception& e) {
+        fmt::print(stderr, "Message parsing error: {}\n", e.what());
+        ErrorMessage errorMessage{std::string("Invalid message: ") + e.what(), "PARSE_ERROR"};
+        this->webSocketServer->sendMessage(incomingMessage.clientId, serialize(errorMessage));
     }
 }
 
@@ -200,50 +168,49 @@ TerminalSessionController* TermihuiServerController::findSession(uint64_t sessio
     return ptr;
 }
 
-void TermihuiServerController::handleExecuteMessage(int clientId, uint64_t sessionId, const std::string& command) {
-    auto* terminalSessionController = this->findSession(sessionId);
+void TermihuiServerController::handleMessageFromClient(int clientId, const ExecuteMessage& message) {
+    auto* terminalSessionController = this->findSession(message.sessionId);
     if (!terminalSessionController) {
-        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Session {} not found", message.sessionId), "SESSION_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
-    terminalSessionController->setPendingCommand(command);
+    terminalSessionController->setPendingCommand(message.command);
     
     using ExecuteCommandResult = TerminalSessionController::ExecuteCommandResult;
-    const ExecuteCommandResult executeCommandResult = terminalSessionController->executeCommand(command);
+    const ExecuteCommandResult executeCommandResult = terminalSessionController->executeCommand(message.command);
     
     if (executeCommandResult.isOk()) {
-        fmt::print("Session {}: Executed command: {}\n", sessionId, command);
+        fmt::print("Session {}: Executed command: {}\n", message.sessionId, message.command);
     } else {
-        std::string errorText = fmt::format("Failed to execute command *{}*: {}", command, executeCommandResult.errorText());
-        std::string error = JsonHelper::createResponse("error", std::move(errorText));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Failed to execute command *{}*: {}", message.command, executeCommandResult.errorText()), "COMMAND_FAILED"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
     }
 }
 
-void TermihuiServerController::handleInputMessage(int clientId, uint64_t sessionId, const std::string& text) {
-    auto* terminalSessionController = this->findSession(sessionId);
+void TermihuiServerController::handleMessageFromClient(int clientId, const InputMessage& message) {
+    auto* terminalSessionController = this->findSession(message.sessionId);
     if (!terminalSessionController) {
-        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Session {} not found", message.sessionId), "SESSION_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
-    ssize_t bytes = terminalSessionController->sendInput(text);
-                if (bytes >= 0) {
-        std::string response = JsonHelper::createResponse("input_sent", "", int(bytes));
-        this->webSocketServer->sendMessage(clientId, response);
-                } else {
-                    std::string error = JsonHelper::createResponse("error", "Failed to send input");
-        this->webSocketServer->sendMessage(clientId, error);
+    ssize_t bytes = terminalSessionController->sendInput(message.text);
+    if (bytes >= 0) {
+        InputSentMessage inputSentMessage{static_cast<int>(bytes)};
+        this->webSocketServer->sendMessage(clientId, serialize(inputSentMessage));
+    } else {
+        ErrorMessage errorMessage{"Failed to send input", "INPUT_FAILED"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
     }
 }
             
-void TermihuiServerController::handleCompletionMessage(int clientId, uint64_t sessionId, const std::string& text, int cursorPosition) {
-    fmt::print("Completion request for session {}: '{}' (position: {})\n", sessionId, text, cursorPosition);
+void TermihuiServerController::handleMessageFromClient(int clientId, const CompletionMessage& message) {
+    fmt::print("Completion request for session {}: '{}' (position: {})\n", message.sessionId, message.text, message.cursorPosition);
     
-    auto* terminalSessionController = this->findSession(sessionId);
+    auto* terminalSessionController = this->findSession(message.sessionId);
     std::string currentDir = ".";
     if (terminalSessionController) {
         currentDir = terminalSessionController->getLastKnownCwd();
@@ -255,62 +222,53 @@ void TermihuiServerController::handleCompletionMessage(int clientId, uint64_t se
         currentDir = ".";
     }
     
-    auto completions = this->completionManager.getCompletions(text, cursorPosition, currentDir);
+    auto completions = this->completionManager.getCompletions(message.text, message.cursorPosition, currentDir);
     
-            json response;
-            response["type"] = "completion_result";
-            response["completions"] = completions;
-            response["original_text"] = text;
-            response["cursor_position"] = cursorPosition;
-            
-    this->webSocketServer->sendMessage(clientId, response.dump());
+    CompletionResultMessage completionResultMessage{
+        std::move(completions),
+        message.text,
+        message.cursorPosition
+    };
+    this->webSocketServer->sendMessage(clientId, serialize(completionResultMessage));
 }
 
-void TermihuiServerController::handleResizeMessage(int clientId, uint64_t sessionId, int cols, int rows) {
-    if (cols <= 0 || rows <= 0) {
-        std::string error = JsonHelper::createResponse("error", "Invalid terminal size");
-        this->webSocketServer->sendMessage(clientId, error);
+void TermihuiServerController::handleMessageFromClient(int clientId, const ResizeMessage& message) {
+    if (message.cols <= 0 || message.rows <= 0) {
+        ErrorMessage errorMessage{"Invalid terminal size", "INVALID_SIZE"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
-    auto* terminalSessionController = this->findSession(sessionId);
+    auto* terminalSessionController = this->findSession(message.sessionId);
     if (!terminalSessionController) {
-        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Session {} not found", message.sessionId), "SESSION_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
-    if (terminalSessionController->setWindowSize(static_cast<unsigned short>(cols), static_cast<unsigned short>(rows))) {
-                    json response;
-                    response["type"] = "resize_ack";
-                    response["cols"] = cols;
-                    response["rows"] = rows;
-        this->webSocketServer->sendMessage(clientId, response.dump());
-                } else {
-                    std::string error = JsonHelper::createResponse("error", "Failed to set terminal size");
-        this->webSocketServer->sendMessage(clientId, error);
+    if (terminalSessionController->setWindowSize(static_cast<unsigned short>(message.cols), static_cast<unsigned short>(message.rows))) {
+        ResizeAckMessage resizeAckMessage{message.cols, message.rows};
+        this->webSocketServer->sendMessage(clientId, serialize(resizeAckMessage));
+    } else {
+        ErrorMessage errorMessage{"Failed to set terminal size", "RESIZE_FAILED"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
     }
 }
 
-void TermihuiServerController::handleListSessionsMessage(int clientId) {
-    auto sessions = this->serverStorage->getActiveTerminalSessions();
+void TermihuiServerController::handleMessageFromClient(int clientId, const ListSessionsMessage&) {
+    auto storageSessions = this->serverStorage->getActiveTerminalSessions();
     
-    json response;
-    response["type"] = "sessions_list";
-    json sessionsArray = json::array();
-    for (const auto& s : sessions) {
-        sessionsArray.push_back({
-            {"id", s.id},
-            {"created_at", s.createdAt}
-        });
+    SessionsListMessage sessionsListMessage;
+    sessionsListMessage.sessions.reserve(storageSessions.size());
+    for (const auto& s : storageSessions) {
+        sessionsListMessage.sessions.push_back(SessionInfo{s.id, s.createdAt});
     }
-    response["sessions"] = std::move(sessionsArray);
     
-    this->webSocketServer->sendMessage(clientId, response.dump());
-    fmt::print("Sent sessions list ({} sessions) to client {}\n", sessions.size(), clientId);
+    this->webSocketServer->sendMessage(clientId, serialize(sessionsListMessage));
+    fmt::print("Sent sessions list ({} sessions) to client {}\n", storageSessions.size(), clientId);
 }
 
-void TermihuiServerController::handleCreateSessionMessage(int clientId) {
+void TermihuiServerController::handleMessageFromClient(int clientId, const CreateSessionMessage&) {
     // Create session record in DB
     uint64_t sessionId = this->serverStorage->createTerminalSession(this->currentRunId);
     
@@ -320,27 +278,24 @@ void TermihuiServerController::handleCreateSessionMessage(int clientId) {
         sessionDbPath, sessionId, this->currentRunId);
     
     if (!controller->createSession()) {
-        std::string error = JsonHelper::createResponse("error", "Failed to create terminal session");
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{"Failed to create terminal session", "SESSION_CREATE_FAILED"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         // TODO: cleanup DB record
         return;
     }
     
     this->sessions[sessionId] = std::move(controller);
     
-    json response;
-    response["type"] = "session_created";
-    response["session_id"] = sessionId;
-    
-    this->webSocketServer->sendMessage(clientId, response.dump());
+    SessionCreatedMessage sessionCreatedMessage{sessionId};
+    this->webSocketServer->sendMessage(clientId, serialize(sessionCreatedMessage));
     fmt::print("Created session {} for client {}\n", sessionId, clientId);
 }
 
-void TermihuiServerController::handleCloseSessionMessage(int clientId, uint64_t sessionId) {
-    auto it = this->sessions.find(sessionId);
+void TermihuiServerController::handleMessageFromClient(int clientId, const CloseSessionMessage& message) {
+    auto it = this->sessions.find(message.sessionId);
     if (it == this->sessions.end()) {
-        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Session {} not found", message.sessionId), "SESSION_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
@@ -349,45 +304,40 @@ void TermihuiServerController::handleCloseSessionMessage(int clientId, uint64_t 
     this->sessions.erase(it);
     
     // Mark as deleted in DB
-    this->serverStorage->markTerminalSessionAsDeleted(sessionId);
+    this->serverStorage->markTerminalSessionAsDeleted(message.sessionId);
     
-    json response;
-    response["type"] = "session_closed";
-    response["session_id"] = sessionId;
-    
-    this->webSocketServer->sendMessage(clientId, response.dump());
-    fmt::print("Closed session {} for client {}\n", sessionId, clientId);
+    SessionClosedMessage sessionClosedMessage{message.sessionId};
+    this->webSocketServer->sendMessage(clientId, serialize(sessionClosedMessage));
+    fmt::print("Closed session {} for client {}\n", message.sessionId, clientId);
 }
 
-void TermihuiServerController::handleGetHistoryMessage(int clientId, uint64_t sessionId) {
-    auto* terminalSessionController = this->findSession(sessionId);
+void TermihuiServerController::handleMessageFromClient(int clientId, const GetHistoryMessage& message) {
+    auto* terminalSessionController = this->findSession(message.sessionId);
     if (!terminalSessionController) {
-        std::string error = JsonHelper::createResponse("error", fmt::format("Session {} not found", sessionId));
-        this->webSocketServer->sendMessage(clientId, error);
+        ErrorMessage errorMessage{fmt::format("Session {} not found", message.sessionId), "SESSION_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
     
     auto commandHistory = terminalSessionController->getCommandHistory();
     
-    json historyMsg;
-    historyMsg["type"] = "history";
-    historyMsg["session_id"] = sessionId;
-    json commands = json::array();
+    HistoryMessage historyMessage;
+    historyMessage.sessionId = message.sessionId;
+    historyMessage.commands.reserve(commandHistory.size());
     for (const auto& record : commandHistory) {
-        json command = json::object();
-        command["id"] = record.id;
-        command["command"] = record.command;
-        command["output"] = record.output;
-        command["exit_code"] = record.exitCode;
-        command["cwd_start"] = record.cwdStart;
-        command["cwd_end"] = record.cwdEnd;
-        command["is_finished"] = record.isFinished;
-        commands.push_back(std::move(command));
+        historyMessage.commands.push_back(CommandRecord{
+            record.id,
+            record.command,
+            record.output,
+            record.exitCode,
+            record.cwdStart,
+            record.cwdEnd,
+            record.isFinished
+        });
     }
-    historyMsg["commands"] = std::move(commands);
     
-    this->webSocketServer->sendMessage(clientId, historyMsg.dump());
-    fmt::print("Sent history for session {} ({} commands) to client {}\n", sessionId, commandHistory.size(), clientId);
+    this->webSocketServer->sendMessage(clientId, serialize(historyMessage));
+    fmt::print("Sent history for session {} ({} commands) to client {}\n", message.sessionId, commandHistory.size(), clientId);
 }
 
 
@@ -459,7 +409,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                 if (!chunk.empty()) {
                     fmt::print("[OSC-PARSE] Final text chunk: {}\n", escapeForLog(chunk));
                     session.appendOutputToCurrentCommand(chunk);
-                    this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
+                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
                 }
             }
             break;
@@ -471,7 +421,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Text before OSC: {}\n", escapeForLog(chunk));
                 session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
+                this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
             }
         }
 
@@ -492,7 +442,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
                 session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(JsonHelper::createResponse("output", chunk));
+                this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
             }
             break;
         }
@@ -522,12 +472,11 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             session.startCommandInHistory(cwd);
             
             if (session.hasActiveCommand()) {
-                json ev;
-                ev["type"] = "command_start";
+                CommandStartMessage commandStartMessage;
                 if (!cwd.empty()) {
-                    ev["cwd"] = cwd;
+                    commandStartMessage.cwd = cwd;
                 }
-                this->webSocketServer->broadcastMessage(ev.dump());
+                this->webSocketServer->broadcastMessage(serialize(commandStartMessage));
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
             // OSC 133;B - Command end (our marker)
@@ -543,26 +492,21 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (session.hasActiveCommand()) {
                 session.finishCurrentCommand(exitCode, cwd);
                 
-                json ev;
-                ev["type"] = "command_end";
-                ev["exit_code"] = exitCode;
+                CommandEndMessage commandEndMessage;
+                commandEndMessage.exitCode = exitCode;
                 if (!cwd.empty()) {
-                    ev["cwd"] = cwd;
+                    commandEndMessage.cwd = cwd;
                 }
-                this->webSocketServer->broadcastMessage(ev.dump());
+                this->webSocketServer->broadcastMessage(serialize(commandEndMessage));
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
             // OSC 133;C - Prompt start
             fmt::print("[OSC-PARSE] >>> OSC 133;C (prompt_start)\n");
-            json ev;
-            ev["type"] = "prompt_start";
-            this->webSocketServer->broadcastMessage(ev.dump());
+            this->webSocketServer->broadcastMessage(serialize(PromptStartMessage{}));
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
             // OSC 133;D - Prompt end
             fmt::print("[OSC-PARSE] >>> OSC 133;D (prompt_end)\n");
-            json ev;
-            ev["type"] = "prompt_end";
-            this->webSocketServer->broadcastMessage(ev.dump());
+            this->webSocketServer->broadcastMessage(serialize(PromptEndMessage{}));
         } else if (osc.rfind("\x1b]2;", 0) == 0) {
             // OSC 2 - Window title (often contains user@host:path)
             // Extract title content between "ESC]2;" and BEL/ST
@@ -576,10 +520,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                     session.setLastKnownCwd(path);
                     
                     // Send cwd_update event to client
-                    json ev;
-                    ev["type"] = "cwd_update";
-                    ev["cwd"] = path;
-                    this->webSocketServer->broadcastMessage(ev.dump());
+                    this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
                 }
             }
         } else if (osc.rfind("\x1b]7;", 0) == 0) {
@@ -597,10 +538,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                         session.setLastKnownCwd(path);
                         
                         // Send cwd_update event to client
-                        json ev;
-                        ev["type"] = "cwd_update";
-                        ev["cwd"] = path;
-                        this->webSocketServer->broadcastMessage(ev.dump());
+                        this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
                     }
                 }
             } else {
@@ -625,4 +563,3 @@ void TermihuiServerController::printStats() {
         this->lastStatsTime = now;
     }
 }
-

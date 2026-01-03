@@ -2,6 +2,7 @@
 #include "TermihuiServerControllerTestable.h"
 #include "TerminalSessionControllerMock.h"
 #include "WebSocketServerMock.h"
+#include <termihui/protocol/protocol.h>
 
 using json = nlohmann::json;
 
@@ -12,10 +13,10 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
     WebSocketServerMock* webSocketServerMockPointer = webSocketServerMock.get();
     
     Testable controller(std::move(webSocketServerMock));
-    controller.mockHandleExecuteMessage = true;
-    controller.mockHandleInputMessage = true;
-    controller.mockHandleCompletionMessage = true;
-    controller.mockHandleResizeMessage = true;
+    controller.mockExecute = true;
+    controller.mockInput = true;
+    controller.mockCompletion = true;
+    controller.mockResize = true;
     
     WebSocketServer::IncomingMessage message;
     std::vector<Testable::Call> expected;

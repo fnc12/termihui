@@ -4,6 +4,11 @@ project(termihui-server VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Add shared library (with guard for when building as part of parent project)
+if(NOT TARGET termihui_shared)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
+endif()
+
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
 if(NOT TARGET fmt::fmt OR NOT TARGET hv_static OR NOT TARGET Catch2::Catch2WithMain)
 include(FetchContent)
@@ -121,6 +126,7 @@ if(NOT WIN32)
         fmt::fmt
         platform_folders
         sqlite_orm::sqlite_orm
+        termihui_shared
     )
 endif()
 
@@ -180,6 +186,7 @@ if(NOT WIN32)
         hv_static
         platform_folders
         sqlite_orm::sqlite_orm
+        termihui_shared
     )
 endif()
 

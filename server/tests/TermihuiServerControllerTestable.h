@@ -1,10 +1,12 @@
 #pragma once
 
 #include "TermihuiServerController.h"
+#include <termihui/protocol/protocol.h>
 #include <variant>
 #include <vector>
 #include <string>
 #include <memory>
+
 
 /**
  * Testable version of TermihuiServerController that records handler calls
@@ -53,36 +55,36 @@ public:
     std::vector<Call> calls;
     
     // Mock flags (true = mock, false = call real implementation)
-    bool mockHandleExecuteMessage = true;
-    bool mockHandleInputMessage = true;
-    bool mockHandleCompletionMessage = true;
-    bool mockHandleResizeMessage = true;
+    bool mockExecute = true;
+    bool mockInput = true;
+    bool mockCompletion = true;
+    bool mockResize = true;
     
-    void handleExecuteMessage(int clientId, uint64_t sessionId, const std::string& command) override {
-        this->calls.push_back(ExecuteCall{.clientId = clientId, .sessionId = sessionId, .command = command});
-        if (!this->mockHandleExecuteMessage) {
-            this->TermihuiServerController::handleExecuteMessage(clientId, sessionId, command);
+    void handleMessageFromClient(int clientId, const ExecuteMessage& message) override {
+        this->calls.push_back(ExecuteCall{.clientId = clientId, .sessionId = message.sessionId, .command = message.command});
+        if (!this->mockExecute) {
+            this->TermihuiServerController::handleMessageFromClient(clientId, message);
         }
     }
     
-    void handleInputMessage(int clientId, uint64_t sessionId, const std::string& text) override {
-        this->calls.push_back(InputCall{.clientId = clientId, .sessionId = sessionId, .text = text});
-        if (!this->mockHandleInputMessage) {
-            this->TermihuiServerController::handleInputMessage(clientId, sessionId, text);
+    void handleMessageFromClient(int clientId, const InputMessage& message) override {
+        this->calls.push_back(InputCall{.clientId = clientId, .sessionId = message.sessionId, .text = message.text});
+        if (!this->mockInput) {
+            this->TermihuiServerController::handleMessageFromClient(clientId, message);
         }
     }
     
-    void handleCompletionMessage(int clientId, uint64_t sessionId, const std::string& text, int cursorPosition) override {
-        this->calls.push_back(CompletionCall{.clientId = clientId, .sessionId = sessionId, .text = text, .cursorPosition = cursorPosition});
-        if (!this->mockHandleCompletionMessage) {
-            this->TermihuiServerController::handleCompletionMessage(clientId, sessionId, text, cursorPosition);
+    void handleMessageFromClient(int clientId, const CompletionMessage& message) override {
+        this->calls.push_back(CompletionCall{.clientId = clientId, .sessionId = message.sessionId, .text = message.text, .cursorPosition = message.cursorPosition});
+        if (!this->mockCompletion) {
+            this->TermihuiServerController::handleMessageFromClient(clientId, message);
         }
     }
     
-    void handleResizeMessage(int clientId, uint64_t sessionId, int cols, int rows) override {
-        this->calls.push_back(ResizeCall{.clientId = clientId, .sessionId = sessionId, .cols = cols, .rows = rows});
-        if (!this->mockHandleResizeMessage) {
-            this->TermihuiServerController::handleResizeMessage(clientId, sessionId, cols, rows);
+    void handleMessageFromClient(int clientId, const ResizeMessage& message) override {
+        this->calls.push_back(ResizeCall{.clientId = clientId, .sessionId = message.sessionId, .cols = message.cols, .rows = message.rows});
+        if (!this->mockResize) {
+            this->TermihuiServerController::handleMessageFromClient(clientId, message);
         }
     }
 };

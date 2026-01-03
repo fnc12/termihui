@@ -5,6 +5,7 @@
 #include "FileSystemManager.h"
 #include "ServerStorage.h"
 #include "CompletionManager.h"
+#include <termihui/protocol/protocol.h>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -72,15 +73,15 @@ public:
     void processTerminalOutput(TerminalSessionController& session);
 
 protected:
-    // Message handlers (virtual for testability)
-    virtual void handleExecuteMessage(int clientId, uint64_t sessionId, const std::string& command);
-    virtual void handleInputMessage(int clientId, uint64_t sessionId, const std::string& text);
-    virtual void handleCompletionMessage(int clientId, uint64_t sessionId, const std::string& text, int cursorPosition);
-    virtual void handleResizeMessage(int clientId, uint64_t sessionId, int cols, int rows);
-    virtual void handleListSessionsMessage(int clientId);
-    virtual void handleCreateSessionMessage(int clientId);
-    virtual void handleCloseSessionMessage(int clientId, uint64_t sessionId);
-    virtual void handleGetHistoryMessage(int clientId, uint64_t sessionId);
+    // Type-safe message handlers (virtual for testability)
+    virtual void handleMessageFromClient(int clientId, const ExecuteMessage& message);
+    virtual void handleMessageFromClient(int clientId, const InputMessage& message);
+    virtual void handleMessageFromClient(int clientId, const CompletionMessage& message);
+    virtual void handleMessageFromClient(int clientId, const ResizeMessage& message);
+    virtual void handleMessageFromClient(int clientId, const ListSessionsMessage& message);
+    virtual void handleMessageFromClient(int clientId, const CreateSessionMessage& message);
+    virtual void handleMessageFromClient(int clientId, const CloseSessionMessage& message);
+    virtual void handleMessageFromClient(int clientId, const GetHistoryMessage& message);
     
     /**
      * Get session by ID, returns nullptr if not found

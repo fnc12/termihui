@@ -4,6 +4,11 @@ project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Add shared library (with guard for when building as part of parent project)
+if(NOT TARGET termihui_shared)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
+endif()
+
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
 include(FetchContent)
 
@@ -78,6 +83,8 @@ target_link_libraries(termihui_client_core
         hv_static
         platform_folders
         sqlite_orm::sqlite_orm
+    PUBLIC
+        termihui_shared
 )
 
 # Настройки выходного файла

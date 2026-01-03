@@ -3,10 +3,12 @@
 #include "termihui/ansi_parser.h"
 #include "termihui/websocket_client_controller.h"
 #include "termihui/client_storage.h"
+#include <termihui/protocol/protocol.h>
 #include <fmt/core.h>
 #include <thread>
 #include <hv/json.hpp>
 #include <sago/platform_folders.h>
+
 
 // Storage keys
 static constexpr const char* KEY_LAST_SESSION_ID = "last_session_id";
@@ -287,12 +289,8 @@ std::string ClientCoreController::handleExecuteCommand(std::string_view command)
     // Save for block header
     this->lastSentCommand.set(std::string(command));
     
-    json msg = {
-        {"type", "execute"},
-        {"session_id", this->activeSessionId},
-        {"command", std::string(command)}
-    };
-    this->webSocketController->send(msg.dump());
+    ExecuteMessage message{this->activeSessionId, std::string(command)};
+    this->webSocketController->send(serialize(message));
     
     return "";
 }
@@ -308,12 +306,8 @@ std::string ClientCoreController::handleSendInput(std::string_view text) {
         return "No active session";
     }
     
-    json msg = {
-        {"type", "input"},
-        {"session_id", this->activeSessionId},
-        {"text", std::string(text)}
-    };
-    this->webSocketController->send(msg.dump());
+    InputMessage message{this->activeSessionId, std::string(text)};
+    this->webSocketController->send(serialize(message));
     
     return "";
 }
@@ -329,13 +323,8 @@ std::string ClientCoreController::handleResize(int cols, int rows) {
         return "No active session";
     }
     
-    json msg = {
-        {"type", "resize"},
-        {"session_id", this->activeSessionId},
-        {"cols", cols},
-        {"rows", rows}
-    };
-    this->webSocketController->send(msg.dump());
+    ResizeMessage message{this->activeSessionId, cols, rows};
+    this->webSocketController->send(serialize(message));
     
     return "";
 }
@@ -351,13 +340,8 @@ std::string ClientCoreController::handleRequestCompletion(std::string_view text,
         return "No active session";
     }
     
-    json msg = {
-        {"type", "completion"},
-        {"session_id", this->activeSessionId},
-        {"text", std::string(text)},
-        {"cursor_position", cursorPosition}
-    };
-    this->webSocketController->send(msg.dump());
+    CompletionMessage message{this->activeSessionId, std::string(text), cursorPosition};
+    this->webSocketController->send(serialize(message));
     
     return "";
 }
@@ -371,8 +355,7 @@ std::string ClientCoreController::handleCreateSession() {
         return "Not connected to server";
     }
     
-    json msg = {{"type", "create_session"}};
-    this->webSocketController->send(msg.dump());
+    this->webSocketController->send(serialize(CreateSessionMessage{}));
     
     return "";
 }
@@ -384,11 +367,7 @@ std::string ClientCoreController::handleCloseSession(uint64_t sessionId) {
         return "Not connected to server";
     }
     
-    json msg = {
-        {"type", "close_session"},
-        {"session_id", sessionId}
-    };
-    this->webSocketController->send(msg.dump());
+    this->webSocketController->send(serialize(CloseSessionMessage{sessionId}));
     
     return "";
 }
@@ -405,11 +384,7 @@ std::string ClientCoreController::handleSwitchSession(uint64_t sessionId) {
     
     // Request history for new session
     if (this->webSocketController && this->webSocketController->isConnected()) {
-        json msg = {
-            {"type", "get_history"},
-            {"session_id", sessionId}
-        };
-        this->webSocketController->send(msg.dump());
+        this->webSocketController->send(serialize(GetHistoryMessage{sessionId}));
     }
     
     return "";
@@ -422,8 +397,7 @@ std::string ClientCoreController::handleListSessions() {
         return "Not connected to server";
     }
     
-    json msg = {{"type", "list_sessions"}};
-    this->webSocketController->send(msg.dump());
+    this->webSocketController->send(serialize(ListSessionsMessage{}));
     
     return "";
 }
@@ -467,8 +441,7 @@ void ClientCoreController::onWebSocketOpen() {
     }.dump());
     
     // Request sessions list on connect
-    json msg = {{"type", "list_sessions"}};
-    this->webSocketController->send(msg.dump());
+    this->webSocketController->send(serialize(ListSessionsMessage{}));
     fmt::print("ClientCoreController: Requested sessions list\n");
 }
 
@@ -480,10 +453,10 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
     // Forward message to UI as event
     try {
         auto serverData = json::parse(message);
-        std::string msgType = serverData.at("type").get<std::string>();
+        std::string_view messageType = serverData.at("type").get<std::string_view>();
         
         // Handle sessions_list - log and create if empty
-        if (msgType == "sessions_list") {
+        if (messageType == "sessions_list") {
             auto& sessions = serverData.at("sessions");
             fmt::print("ClientCoreController: Received {} sessions:\n", sessions.size());
             for (const auto& s : sessions) {
@@ -491,8 +464,7 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
             }
             if (sessions.empty()) {
                 fmt::print("ClientCoreController: No sessions, creating new one\n");
-                json createMsg = {{"type", "create_session"}};
-                this->webSocketController->send(createMsg.dump());
+                this->webSocketController->send(serialize(CreateSessionMessage{}));
             } else {
                 // Try to restore last session if it exists in the list
                 uint64_t selectedId = 0;
@@ -515,13 +487,9 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
                 fmt::print("ClientCoreController: Selected session {}\n", selectedId);
                 
                 // Request history for selected session
-                json historyMsg = {
-                    {"type", "get_history"},
-                    {"session_id", selectedId}
-                };
-                this->webSocketController->send(historyMsg.dump());
+                this->webSocketController->send(serialize(GetHistoryMessage{selectedId}));
             }
-        } else if (msgType == "session_created") {
+        } else if (messageType == "session_created") {
             // Handle session_created - auto-switch to new session
             uint64_t sessionId = serverData.at("session_id").get<uint64_t>();
             this->activeSessionId = sessionId;
@@ -529,22 +497,22 @@ void ClientCoreController::onWebSocketMessage(const std::string& message) {
                 this->clientStorage->setUInt64(KEY_LAST_SESSION_ID, sessionId);
             }
             fmt::print("ClientCoreController: Session created and activated: {}\n", sessionId);
-        } else if (msgType == "session_closed") {
+        } else if (messageType == "session_closed") {
             uint64_t sessionId = serverData.at("session_id").get<uint64_t>();
             if (this->activeSessionId == sessionId) {
                 this->activeSessionId = 0;
                 fmt::print("ClientCoreController: Active session {} closed, resetting to 0\n", sessionId);
             }
-        } else if (msgType == "command_start") {
+        } else if (messageType == "command_start") {
             if (auto cmd = this->lastSentCommand.take()) {
                 serverData["command"] = std::move(*cmd);
             }
-        } else if (msgType == "output") {
+        } else if (messageType == "output") {
             std::string_view rawOutput = serverData.at("data").get<std::string_view>();
             auto segments = this->ansiParser->parse(rawOutput);
             serverData["segments"] = std::move(segments);
             serverData.erase("data");
-        } else if (msgType == "history") {
+        } else if (messageType == "history") {
             auto& commands = serverData.at("commands");
             for (auto& cmd : commands) {
                 if (auto it = cmd.find("output"); it != cmd.end() && it->is_string()) {
