@@ -17,44 +17,6 @@ using json = nlohmann::json;
 
 namespace termihui {
 
-// ADL to_json for Color
-void to_json(json& j, const Color& color) {
-    switch (color.type) {
-        case Color::Type::Standard:
-            j = std::string(colorName(color.index));
-            break;
-        case Color::Type::Bright:
-            j = std::string("bright_") + std::string(colorName(color.index));
-            break;
-        case Color::Type::Indexed:
-            j = json{{"index", color.index}};
-            break;
-        case Color::Type::RGB:
-            j = json{{"rgb", fmt::format("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)}};
-            break;
-    }
-}
-
-// ADL to_json for TextStyle
-void to_json(json& j, const TextStyle& style) {
-    j["fg"] = style.fg ? json(*style.fg) : json(nullptr);
-    j["bg"] = style.bg ? json(*style.bg) : json(nullptr);
-    j["bold"] = style.bold;
-    j["dim"] = style.dim;
-    j["italic"] = style.italic;
-    j["underline"] = style.underline;
-    j["reverse"] = style.reverse;
-    j["strikethrough"] = style.strikethrough;
-}
-
-// ADL to_json for StyledSegment
-void to_json(json& j, const StyledSegment& segment) {
-    j = json{
-        {"text", segment.text},
-        {"style", segment.style}
-    };
-}
-
 // Version
 static constexpr const char* VERSION = "1.0.0";
 

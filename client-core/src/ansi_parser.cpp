@@ -1,5 +1,6 @@
 #include "termihui/ansi_parser.h"
 #include <charconv>
+#include <fmt/core.h>
 
 namespace termihui {
 
@@ -295,6 +296,43 @@ std::optional<Color> ANSIParser::parseColor(const std::vector<int>& codes, size_
     }
     
     return std::nullopt;
+}
+
+// JSON serialization
+
+void to_json(nlohmann::json& j, const Color& color) {
+    switch (color.type) {
+        case Color::Type::Standard:
+            j = std::string(colorName(color.index));
+            break;
+        case Color::Type::Bright:
+            j = std::string("bright_") + std::string(colorName(color.index));
+            break;
+        case Color::Type::Indexed:
+            j = nlohmann::json{{"index", color.index}};
+            break;
+        case Color::Type::RGB:
+            j = nlohmann::json{{"rgb", fmt::format("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)}};
+            break;
+    }
+}
+
+void to_json(nlohmann::json& j, const TextStyle& textStyle) {
+    j["fg"] = textStyle.fg ? nlohmann::json(*textStyle.fg) : nlohmann::json(nullptr);
+    j["bg"] = textStyle.bg ? nlohmann::json(*textStyle.bg) : nlohmann::json(nullptr);
+    j["bold"] = textStyle.bold;
+    j["dim"] = textStyle.dim;
+    j["italic"] = textStyle.italic;
+    j["underline"] = textStyle.underline;
+    j["reverse"] = textStyle.reverse;
+    j["strikethrough"] = textStyle.strikethrough;
+}
+
+void to_json(nlohmann::json& j, const StyledSegment& styledSegment) {
+    j = nlohmann::json{
+        {"text", styledSegment.text},
+        {"style", styledSegment.style}
+    };
 }
 
 } // namespace termihui

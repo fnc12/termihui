@@ -5,6 +5,7 @@
 #include <vector>
 #include <optional>
 #include <variant>
+#include <hv/json.hpp>
 
 namespace termihui {
 
@@ -109,6 +110,11 @@ inline std::string_view colorName(int index) {
     if (index >= 0 && index < 8) return names[index];
     return "unknown";
 }
+
+// JSON serialization for styled segments
+void to_json(nlohmann::json& j, const Color& color);
+void to_json(nlohmann::json& j, const TextStyle& textStyle);
+void to_json(nlohmann::json& j, const StyledSegment& styledSegment);
 
 } // namespace termihui
 
