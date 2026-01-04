@@ -2,9 +2,9 @@
 
 # Build directories
 build/
-server/build-xcode/
+**/build/
+**/build-*/
 server/xcode-build/
-*/build/
 
 # libhv logs  
 server/libhv.*.log

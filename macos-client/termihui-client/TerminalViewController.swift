@@ -19,9 +19,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
     private var inputUnderlineView: NSView!
     
-    // Session sidebar
+    // Session sidebar (lazy - created on first toggle)
     var sessionListController: SessionListViewController?
     private var isSidebarVisible = false
+    
+    // Cached session data (applied when sidebar is created)
+    var cachedSessions: [SessionInfo] = []
+    var cachedActiveSessionId: UInt64 = 0
     
     // Current working directory and server home
     private var currentCwd: String = ""
@@ -86,6 +90,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Raw Input Mode (when command is running)
     var isCommandRunning: Bool = false
     
+    override func loadView() {
+        view = NSView()
+        view.wantsLayer = true
+        // NOTE: Don't disable translatesAutoresizingMaskIntoConstraints for root view
+        // because parent ViewController uses frame-based layout for child view controllers
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -103,12 +114,6 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Force update parent view layout
         view.superview?.layoutSubtreeIfNeeded()
         view.layoutSubtreeIfNeeded()
-        
-        print("🔧 viewDidAppear: Parent view size: \(view.frame)")
-        print("🔧 viewDidAppear: ScrollView size after layout: \(terminalScrollView.frame)")
-        
-        // Hide sidebar initially (after layout so we know the width)
-        hideSidebar()
         
         // Small delay to ensure layout is complete
         DispatchQueue.main.async {
@@ -178,7 +183,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             lastTerminalCols = cols
             lastTerminalRows = rows
             
-            print("📐 Terminal size changed: \(cols)x\(rows)")
+            // print("📐 Terminal size changed: \(cols)x\(rows)")
             clientCore?.send(["type": "resize", "cols": cols, "rows": rows])
         }
     }
@@ -189,14 +194,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         lastTerminalCols = cols
         lastTerminalRows = rows
         
-        print("📐 Initial terminal size: \(cols)x\(rows)")
+        // print("📐 Initial terminal size: \(cols)x\(rows)")
         clientCore?.send(["type": "resize", "cols": cols, "rows": rows])
     }
     
     // MARK: - Setup Methods
     private func setupUI() {
-        view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        
+        // IMPORTANT: Disable autoresizing mask BEFORE adding to view hierarchy
+        topToolbarView.translatesAutoresizingMaskIntoConstraints = false
+        terminalScrollView.translatesAutoresizingMaskIntoConstraints = false
+        inputContainerView.translatesAutoresizingMaskIntoConstraints = false
         
         setupToolbarView()
         setupTerminalView()
@@ -207,13 +216,16 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         view.addSubview(inputContainerView)
         view.addSubview(topToolbarView) // Toolbar on top (last = front)
         
-        // Sidebar must be added after topToolbarView (for constraint)
-        setupSessionSidebar()
+        // NOTE: Sidebar is created lazily on first toggle to prevent flash on startup
     }
     
     private func setupToolbarView() {
         topToolbarView.wantsLayer = true
         topToolbarView.layer?.backgroundColor = NSColor(white: 0.15, alpha: 1.0).cgColor
+        
+        // Disable autoresizing for subviews
+        hamburgerButton.translatesAutoresizingMaskIntoConstraints = false
+        sessionLabel.translatesAutoresizingMaskIntoConstraints = false
         
         // Hamburger button (menu icon)
         hamburgerButton.bezelStyle = .regularSquare
@@ -243,14 +255,23 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         topToolbarView.addSubview(sessionLabel)
     }
     
-    private func setupSessionSidebar() {
+    /// Creates sidebar lazily - called on first toggle
+    private func createSidebarIfNeeded() {
+        guard sessionListController == nil else { return }
+        
         let controller = SessionListViewController()
         controller.delegate = self
         
-        // Add as child view controller
         addChild(controller)
-        view.addSubview(controller.view)
+        
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
         controller.view.wantsLayer = true
+        
+        // Start hidden (off-screen to the left)
+        controller.view.alphaValue = 0
+        controller.setInteractive(false)
+        
+        view.addSubview(controller.view)
         
         // Position sidebar
         controller.view.snp.makeConstraints { make in
@@ -262,12 +283,17 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         sessionListController = controller
         
-        // Initially hidden - apply transform after layout
-        DispatchQueue.main.async { [weak self] in
-            guard let sidebarView = self?.sessionListController?.view else { return }
-            let sidebarWidth = sidebarView.bounds.width > 0 ? sidebarView.bounds.width : 300
-            sidebarView.layer?.setAffineTransform(CGAffineTransform(translationX: -sidebarWidth, y: 0))
+        // Apply cached session data
+        if !cachedSessions.isEmpty {
+            controller.updateSessions(cachedSessions, activeId: cachedActiveSessionId)
         }
+        
+        // Force layout to get correct width
+        view.layoutSubtreeIfNeeded()
+        
+        // Set initial transform (hidden off-screen)
+        let sidebarWidth = controller.view.bounds.width > 0 ? controller.view.bounds.width : 300
+        controller.view.layer?.setAffineTransform(CGAffineTransform(translationX: -sidebarWidth, y: 0))
     }
     
     private func setupTerminalView() {
@@ -296,7 +322,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Set initial collection frame manually to current scrollView contentSize
         collectionView.frame = NSRect(origin: .zero, size: terminalScrollView.contentSize)
 
-        print("🔧 CollectionView enabled. TerminalScrollView size: \(terminalScrollView.frame)")
+        // print("🔧 CollectionView enabled. TerminalScrollView size: \(terminalScrollView.frame)")
 
         // Gestures for unified selection
         setupSelectionGestures()
@@ -338,6 +364,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private func setupInputView() {
         inputContainerView.wantsLayer = true
         inputContainerView.layer?.backgroundColor = NSColor.black.cgColor
+        
+        // Disable autoresizing for subviews
+        cwdLabel.translatesAutoresizingMaskIntoConstraints = false
+        commandTextField.translatesAutoresizingMaskIntoConstraints = false
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
         
         // CWD label — фиолетовый, как в Warp
         cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
@@ -381,6 +412,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Тонкая линия снизу — более контрастная на чёрном фоне
         let underlineView = NSView()
+        underlineView.translatesAutoresizingMaskIntoConstraints = false
         underlineView.wantsLayer = true
         underlineView.layer?.backgroundColor = NSColor(white: 0.3, alpha: 1.0).cgColor
         inputContainerView.addSubview(underlineView)
@@ -411,7 +443,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     private func setupLayout() {
-        print("🔧 setupLayout: Sizes before constraints:")
+        // print("🔧 setupLayout: Sizes before constraints:")
         print("   View: \(view.frame)")
         print("   ScrollView: \(terminalScrollView.frame)")
         print("   InputContainer: \(inputContainerView.frame)")
@@ -445,7 +477,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Сохраняем constraint для динамического изменения при raw mode
         updateTerminalBottomConstraint(isRawMode: false)
         
-        print("🔧 Terminal constraints set with minimum height 200")
+        // print("🔧 Terminal constraints set with minimum height 200")
         
         // Input container - динамическая высота
         inputContainerView.snp.makeConstraints { make in
@@ -484,7 +516,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.equalTo(1)
         }
         
-        print("🔧 setupLayout completed: all constraints set")
+        // print("🔧 setupLayout completed: all constraints set")
     }
     
     /// Обновляет нижний constraint списка команд в зависимости от режима
@@ -515,6 +547,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - Sidebar Animation
     @objc func toggleSidebar() {
+        // Create sidebar on first use (lazy initialization)
+        createSidebarIfNeeded()
+        
         guard let sidebarView = sessionListController?.view else { return }
         
         // Toggle state
@@ -522,32 +557,46 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         let sidebarWidth = sidebarView.frame.width > 0 ? sidebarView.frame.width : 250
         let targetX: CGFloat = isSidebarVisible ? 0 : -sidebarWidth
+        let targetAlpha: CGFloat = isSidebarVisible ? 1.0 : 0.0
+        
+        // Enable interaction before showing
+        if isSidebarVisible {
+            sessionListController?.setInteractive(true)
+        }
         
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.15
             context.allowsImplicitAnimation = true
             sidebarView.layer?.setAffineTransform(CGAffineTransform(translationX: targetX, y: 0))
+            sidebarView.alphaValue = targetAlpha
         }, completionHandler: { [weak self] in
-            // Restore focus to command field after closing
-            if !(self?.isSidebarVisible ?? false) {
-                self?.view.window?.makeFirstResponder(self?.commandTextField)
+            guard let self = self else { return }
+            // Disable interaction after hiding
+            if !self.isSidebarVisible {
+                self.sessionListController?.setInteractive(false)
+                self.view.window?.makeFirstResponder(self.commandTextField)
             }
         })
     }
     
     /// Hides sidebar without animation (for cleanup)
     func hideSidebar() {
-        guard let sidebarView = sessionListController?.view else { return }
+        guard let sidebarView = sessionListController?.view else {
+            isSidebarVisible = false
+            return
+        }
         
         isSidebarVisible = false
-        let sidebarWidth = sidebarView.bounds.width
+        let sidebarWidth = sidebarView.bounds.width > 0 ? sidebarView.bounds.width : 300
         sidebarView.layer?.setAffineTransform(CGAffineTransform(translationX: -sidebarWidth, y: 0))
+        sidebarView.alphaValue = 0
+        sessionListController?.setInteractive(false)
     }
     
     /// Updates sidebar position when view size changes
     private func updateSidebarTransform() {
         guard !isSidebarVisible, let sidebarView = sessionListController?.view else { return }
-        let sidebarWidth = sidebarView.bounds.width
+        let sidebarWidth = sidebarView.bounds.width > 0 ? sidebarView.bounds.width : 300
         sidebarView.layer?.setAffineTransform(CGAffineTransform(translationX: -sidebarWidth, y: 0))
     }
     
@@ -630,7 +679,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             displayCwd = cwd
         }
         cwdLabel.stringValue = displayCwd
-        print("📂 CWD updated: \(displayCwd)")
+        // print("📂 CWD updated: \(displayCwd)")
     }
     
     /// Обновляет название текущей сессии в toolbar

@@ -5,7 +5,11 @@ extension TerminalViewController {
     override func mouseDown(with event: NSEvent) {
         guard view.window != nil else { return }
         let locationInView = view.convert(event.locationInWindow, from: nil)
-        guard let (_, localIndex) = hitTestGlobalIndex(at: locationInView) else { return }
+        print("🖱️ TerminalViewController.mouseDown at \(locationInView)")
+        guard let (_, localIndex) = hitTestGlobalIndex(at: locationInView) else {
+            print("🖱️ mouseDown: hitTest returned nil, ignoring")
+            return
+        }
         let globalIndex = localIndex
         isSelecting = true
         selectionAnchor = globalIndex

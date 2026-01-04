@@ -27,11 +27,17 @@ extension TerminalViewController: SessionListViewControllerDelegate {
 extension TerminalViewController {
     /// Updates the session list from server data
     func updateSessionList(_ sessions: [SessionInfo], activeSessionId: UInt64?) {
-        sessionListController?.updateSessions(sessions, activeId: activeSessionId ?? 0)
+        // Cache for lazy sidebar creation
+        cachedSessions = sessions
+        cachedActiveSessionId = activeSessionId ?? 0
+        
+        // Update sidebar if it exists
+        sessionListController?.updateSessions(sessions, activeId: cachedActiveSessionId)
     }
     
     /// Updates active session highlight
     func setActiveSession(_ sessionId: UInt64) {
+        cachedActiveSessionId = sessionId
         sessionListController?.setActiveSession(sessionId)
     }
 }

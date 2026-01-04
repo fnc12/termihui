@@ -156,7 +156,7 @@ class ViewController: NSViewController {
     }
     
     private func handleEvent(_ event: String) {
-        print("📥 ClientCore event: \(event)")
+        // print("📥 ClientCore event: \(event)")
         
         guard let data = event.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -279,7 +279,7 @@ class ViewController: NSViewController {
             if let commands = messageDict["commands"] {
                 if let commandsData = try? JSONSerialization.data(withJSONObject: commands),
                    let records = try? JSONDecoder().decode([CommandHistoryRecord].self, from: commandsData) {
-                    print("📜 History: \(records.count) commands")
+                    // print("📜 History: \(records.count) commands")
                     terminalViewController.loadHistory(records)
                 } else {
                     print("❌ history failed to decode 'commands': \(commands)")
@@ -310,7 +310,7 @@ class ViewController: NSViewController {
             if let sessionsData = messageDict["sessions"],
                let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
                let sessions = try? JSONDecoder().decode([SessionInfo].self, from: jsonData) {
-                print("📋 Sessions list: \(sessions.count) sessions")
+                // print("📋 Sessions list: \(sessions.count) sessions")
                 // Active session will be set by client-core via session_created
                 terminalViewController.updateSessionList(sessions, activeSessionId: sessions.first?.id)
                 terminalViewController.updateSessionName(sessions.first?.id)

@@ -26,7 +26,7 @@ extension TerminalViewController {
 extension TerminalViewController {
     // Пока просто фиксация событий, без изменения текста.
     func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
-        print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
+        // print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
         let block = CommandBlock(id: UUID(), command: command, outputSegments: [], isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
@@ -38,7 +38,7 @@ extension TerminalViewController {
     }
     
     func didFinishCommandBlock(exitCode: Int, cwd: String? = nil) {
-        print("🏁 Finished command block (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
+        // print("🏁 Finished command block (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
         if let idx = currentBlockIndex {
             commandBlocks[idx].isFinished = true
             commandBlocks[idx].exitCode = exitCode
@@ -58,7 +58,7 @@ extension TerminalViewController {
     
     /// Loads command history from server
     func loadHistory(_ history: [CommandHistoryRecord]) {
-        print("📜 Loading history: \(history.count) commands")
+        // print("📜 Loading history: \(history.count) commands")
         
         // Clear current state
         commandBlocks.removeAll()
@@ -91,7 +91,7 @@ extension TerminalViewController {
             // If so, set currentBlockIndex to continue appending output to it
             if let lastIndex = commandBlocks.indices.last, !commandBlocks[lastIndex].isFinished {
                 currentBlockIndex = lastIndex
-                print("📜 Resuming unfinished command block at index \(lastIndex)")
+                // print("📜 Resuming unfinished command block at index \(lastIndex)")
                 enterRawInputMode()
             }
             
@@ -109,7 +109,7 @@ extension TerminalViewController {
             }
         }
         
-        print("📜 History loaded")
+        // print("📜 History loaded")
     }
 }
 

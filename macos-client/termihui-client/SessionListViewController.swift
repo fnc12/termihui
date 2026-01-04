@@ -1,6 +1,17 @@
 import Cocoa
 import SnapKit
 
+/// Custom view that can disable hit testing when not interactive
+class SidebarContainerView: NSView {
+    var isInteractive: Bool = false
+    
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Ignore all mouse events when not interactive
+        guard isInteractive else { return nil }
+        return super.hitTest(point)
+    }
+}
+
 /// Delegate for session list actions
 protocol SessionListViewControllerDelegate: AnyObject {
     func sessionListViewControllerDidRequestNewSession(_ controller: SessionListViewController)
@@ -26,8 +37,19 @@ class SessionListViewController: NSViewController {
     
     // MARK: - Lifecycle
     override func loadView() {
-        view = NSView()
-        view.wantsLayer = true
+        // Use custom view that ignores hits when hidden
+        let sidebarView = SidebarContainerView()
+        sidebarView.wantsLayer = true
+        sidebarView.translatesAutoresizingMaskIntoConstraints = false
+        // Start completely hidden
+        sidebarView.alphaValue = 0
+        sidebarView.isInteractive = false
+        view = sidebarView
+    }
+    
+    /// Enable/disable mouse interaction
+    func setInteractive(_ interactive: Bool) {
+        (view as? SidebarContainerView)?.isInteractive = interactive
     }
     
     override func viewDidLoad() {
@@ -110,9 +132,11 @@ class SessionListViewController: NSViewController {
         self.activeSessionId = activeId
         outlineView.reloadData()
         
-        // Select active session
+        // Select active session (programmatically - don't trigger delegate)
         if let index = sessions.firstIndex(where: { $0.id == activeId }) {
+            isProgrammaticSelection = true
             outlineView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
+            isProgrammaticSelection = false
         }
     }
     
