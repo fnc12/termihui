@@ -1,5 +1,8 @@
 # TermiHUI Project .gitignore
 
+# Private docs
+MONETIZATION.md
+
 # Build directories
 build/
 **/build/

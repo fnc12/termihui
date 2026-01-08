@@ -1,7 +1,7 @@
 #pragma once
 
 #include "websocket_client_controller.h"
-#include "thread_safe_queue.h"
+#include <termihui/thread_safe_queue.h>
 #include <hv/WebSocketClient.h>
 #include <memory>
 

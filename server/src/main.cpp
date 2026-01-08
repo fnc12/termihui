@@ -1,4 +1,5 @@
 #include "TermihuiServerController.h"
+#include "WebSocketServerImpl.h"
 #include <csignal>
 #include <memory>
 #include <fmt/core.h>

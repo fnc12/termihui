@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 #include <memory>
-#include "thread_safe_queue.h"
+#include <termihui/thread_safe_queue.h>
 #include "thread_safe_string.h"
 #include "websocket_client_controller.h"
 

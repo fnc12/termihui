@@ -1,4 +1,4 @@
-#include "WebSocketServer.h"
+#include "WebSocketServerImpl.h"
 #include <iostream>
 #include <cstring>
 #include <fmt/core.h>
@@ -87,23 +87,9 @@ void WebSocketServerImpl::stop()
     }
     
     // Clear all queues
-    {
-        std::lock_guard<std::mutex> lock(this->incomingMutex);
-        std::queue<IncomingMessage> empty;
-        this->incomingQueue.swap(empty);
-    }
-    
-    {
-        std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
-        std::queue<ConnectionEvent> empty;
-        this->connectionEventsQueue.swap(empty);
-    }
-    
-    {
-        std::lock_guard<std::mutex> lock(this->outgoingMutex);
-        std::queue<OutgoingMessage> empty;
-        this->outgoingQueue.swap(empty);
-    }
+    this->incomingQueue.clear();
+    this->connectionEventsQueue.clear();
+    this->outgoingQueue.clear();
     
     fmt::print("WebSocket server stopped\n");
 }
@@ -118,24 +104,10 @@ WebSocketServerImpl::UpdateResult WebSocketServerImpl::update()
     UpdateResult result;
     
     // Get all incoming messages
-    {
-        std::lock_guard<std::mutex> lock(this->incomingMutex);
-        result.incomingMessages.reserve(this->incomingQueue.size());
-        while (!this->incomingQueue.empty()) {
-            result.incomingMessages.push_back(std::move(this->incomingQueue.front()));
-            this->incomingQueue.pop();
-        }
-    }
+    result.incomingMessages = this->incomingQueue.takeAll();
     
     // Get all connection events
-    {
-        std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
-        result.connectionEvents.reserve(this->connectionEventsQueue.size());
-        while (!this->connectionEventsQueue.empty()) {
-            result.connectionEvents.push_back(std::move(this->connectionEventsQueue.front()));
-            this->connectionEventsQueue.pop();
-        }
-    }
+    result.connectionEvents = this->connectionEventsQueue.takeAll();
     
     // Process outgoing messages
     this->processOutgoingMessages();
@@ -145,13 +117,11 @@ WebSocketServerImpl::UpdateResult WebSocketServerImpl::update()
 
 void WebSocketServerImpl::sendMessage(int clientId, const std::string& message)
 {
-    std::lock_guard<std::mutex> lock(this->outgoingMutex);
     this->outgoingQueue.push({clientId, message});
 }
 
 void WebSocketServerImpl::broadcastMessage(const std::string& message)
 {
-    std::lock_guard<std::mutex> lock(this->outgoingMutex);
     this->outgoingQueue.push({0, message}); // 0 = broadcast to all
 }
 
@@ -181,10 +151,7 @@ void WebSocketServerImpl::onConnection(const WebSocketChannelPtr& channel)
     fmt::print("WebSocket connection: {} (address: {})\n", clientId, channel->peeraddr());
     
     // Add event to queue for processing in main thread
-    {
-        std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
-        this->connectionEventsQueue.push({clientId, true});
-    }
+    this->connectionEventsQueue.push({clientId, true});
 }
 
 void WebSocketServerImpl::onMessage(const WebSocketChannelPtr& channel, const std::string& message)
@@ -204,10 +171,7 @@ void WebSocketServerImpl::onMessage(const WebSocketChannelPtr& channel, const st
     fmt::print("Received message from {}: {}\n", clientId, message);
     
     // Add message to queue for processing in main thread
-    {
-        std::lock_guard<std::mutex> lock(this->incomingMutex);
-        this->incomingQueue.push({clientId, message});
-    }
+    this->incomingQueue.push({clientId, message});
 }
 
 void WebSocketServerImpl::onClose(const WebSocketChannelPtr& channel)
@@ -230,26 +194,14 @@ void WebSocketServerImpl::onClose(const WebSocketChannelPtr& channel)
         fmt::print("WebSocket disconnect: {}\n", clientId);
         
         // Add event to queue for processing in main thread
-        {
-            std::lock_guard<std::mutex> lock(this->connectionEventsMutex);
-            this->connectionEventsQueue.push({clientId, false});
-        }
+        this->connectionEventsQueue.push({clientId, false});
     }
 }
 
 void WebSocketServerImpl::processOutgoingMessages()
 {
-    std::vector<OutgoingMessage> messages;
-    
     // Get all outgoing messages
-    {
-        std::lock_guard<std::mutex> lock(this->outgoingMutex);
-        messages.reserve(this->outgoingQueue.size());
-        while (!this->outgoingQueue.empty()) {
-            messages.push_back(std::move(this->outgoingQueue.front()));
-            this->outgoingQueue.pop();
-        }
-    }
+    auto messages = this->outgoingQueue.takeAll();
     
     // Send messages
     std::lock_guard<std::mutex> clientsLock(this->clientsMutex);

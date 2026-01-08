@@ -77,4 +77,3 @@ private:
 using StringQueue = ThreadSafeQueue<std::string>;
 
 } // namespace termihui
-
