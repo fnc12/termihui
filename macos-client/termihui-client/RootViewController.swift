@@ -2,7 +2,7 @@ import Cocoa
 import SnapKit
 
 /// Root application controller managing navigation between screens
-class ViewController: NSViewController {
+class RootViewController: NSViewController {
     
     // MARK: - Child View Controllers
     private lazy var welcomeViewController = WelcomeViewController()
@@ -465,7 +465,7 @@ class ViewController: NSViewController {
 }
 
 // MARK: - WelcomeViewControllerDelegate
-extension ViewController: WelcomeViewControllerDelegate {
+extension RootViewController: WelcomeViewControllerDelegate {
     func welcomeViewController(_ controller: WelcomeViewController, didClickConnectButton serverAddress: String) {
         // Send event to core - it will handle connection and state updates
         clientCore?.send(["type": "connectButtonClicked", "address": serverAddress])
@@ -473,14 +473,14 @@ extension ViewController: WelcomeViewControllerDelegate {
 }
 
 // MARK: - ConnectingViewControllerDelegate  
-extension ViewController: ConnectingViewControllerDelegate {
+extension RootViewController: ConnectingViewControllerDelegate {
     func connectingViewControllerDidCancel(_ controller: ConnectingViewController) {
         currentState = .welcome
     }
 }
 
 // MARK: - TerminalViewControllerDelegate
-extension ViewController: TerminalViewControllerDelegate {
+extension RootViewController: TerminalViewControllerDelegate {
     func terminalViewController(_ controller: TerminalViewController, didSendCommand command: String) {
         // Send command through ClientCore (it saves command for block header)
         clientCore?.send(["type": "executeCommand", "command": command])
@@ -502,7 +502,7 @@ extension ViewController: TerminalViewControllerDelegate {
 }
 
 // MARK: - Public Methods (для меню)
-extension ViewController {
+extension RootViewController {
     /// Вызывается из AppDelegate при нажатии Client -> Disconnect
     func requestDisconnect() {
         // Очищаем состояние терминала перед отключением

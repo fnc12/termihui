@@ -75,7 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ?? NSApplication.shared.keyWindow 
             ?? NSApplication.shared.windows.first
         
-        if let viewController = window?.contentViewController as? ViewController {
+        if let viewController = window?.contentViewController as? RootViewController {
             print("📲 Passing clientCore to ViewController")
             viewController.clientCore = core
             clientCorePassedToVC = true
@@ -122,7 +122,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func disconnectAction(_ sender: Any?) {
         // Find ViewController and request disconnect
         if let window = NSApplication.shared.mainWindow,
-           let viewController = window.contentViewController as? ViewController {
+           let viewController = window.contentViewController as? RootViewController {
             viewController.requestDisconnect()
         }
     }
