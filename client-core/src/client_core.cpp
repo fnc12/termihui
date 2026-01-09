@@ -5,10 +5,10 @@
 #include "termihui/websocket_client_controller_impl.h"
 #include "termihui/client_storage.h"
 #include <termihui/protocol/protocol.h>
+#include <termihui/filesystem/file_system_manager.h>
 #include <fmt/core.h>
 #include <thread>
 #include <hv/json.hpp>
-#include <sago/platform_folders.h>
 
 
 // Storage keys
@@ -49,12 +49,13 @@ bool ClientCoreController::initialize() {
     
     fmt::print("ClientCoreController: Initializing v{}\n", VERSION);
     
-    // Initialize persistent storage
-    std::filesystem::path storagePath = sago::getDataHome();
-    storagePath /= "termihui";
-    std::filesystem::create_directories(storagePath);
-    storagePath /= "client_state.sqlite";
+    // Initialize file system manager (platform-specific)
+    this->fileSystemManager = std::make_unique<FileSystemManager>();
+    this->fileSystemManager->initialize();
+    fmt::print("ClientCoreController: Platform: {}\n", this->fileSystemManager->getPlatformName());
     
+    // Initialize persistent storage
+    std::filesystem::path storagePath = this->fileSystemManager->getWritablePath() / "client_state.sqlite";
     this->clientStorage = std::make_unique<ClientStorage>(storagePath);
     fmt::print("ClientCoreController: Storage initialized at {}\n", storagePath.string());
     

@@ -15,6 +15,7 @@ namespace termihui {
 
 // Forward declare
 class ANSIParser;
+class FileSystemManager;
 
 /**
  * TermiHUI Client Core Controller
@@ -141,6 +142,9 @@ private:
     
     // ANSI parser for terminal output
     std::unique_ptr<ANSIParser> ansiParser;
+    
+    // Platform-specific file system manager
+    std::unique_ptr<FileSystemManager> fileSystemManager;
     
     // Persistent storage for client settings
     std::unique_ptr<ClientStorage> clientStorage;

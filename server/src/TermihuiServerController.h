@@ -2,7 +2,7 @@
 
 #include "TerminalSessionController.h"
 #include "WebSocketServer.h"
-#include "FileSystemManager.h"
+#include <termihui/filesystem/file_system_manager.h>
 #include "ServerStorage.h"
 #include "CompletionManager.h"
 #include <termihui/protocol/protocol.h>
@@ -109,7 +109,7 @@ private:
     static std::atomic<bool> shouldExit;
     
     // Server components
-    FileSystemManager fileSystemManager;
+    termihui::FileSystemManager fileSystemManager;
     std::unique_ptr<ServerStorage> serverStorage;
     std::unique_ptr<WebSocketServer> webSocketServer;
     CompletionManager completionManager;

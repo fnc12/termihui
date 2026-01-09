@@ -83,7 +83,6 @@ set(SOURCES
     src/CompletionManager.cpp
     src/JsonHelper.cpp
     src/TermihuiServerController.cpp
-    src/FileSystemManager.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
     src/main.cpp
@@ -95,7 +94,6 @@ set(HEADERS
     src/CompletionManager.h
     src/JsonHelper.h
     src/TermihuiServerController.h
-    src/FileSystemManager.h
     src/ServerStorage.h
     src/ServerStorageModels.h
     src/SessionStorage.h
@@ -141,6 +139,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG)
 endif()
 
+# Install target
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION bin
+)
+
 # Create executable for unit tests
 set(TEST_SOURCES
     tests/test_main.cpp
@@ -152,7 +155,6 @@ set(TEST_SOURCES
     src/TermihuiServerController.cpp
     src/WebSocketServer.cpp
     src/JsonHelper.cpp
-    src/FileSystemManager.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
 )
