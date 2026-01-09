@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # FetchContent для всех зависимостей
 include(FetchContent)
 
+# Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
+set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.deps" CACHE PATH "Dependencies cache")
+
 # ============================================
 # Общие зависимости (скачиваются один раз)
 # ============================================
