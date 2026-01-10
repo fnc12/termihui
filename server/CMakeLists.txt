@@ -63,6 +63,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sqlite_orm)
 add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
+add_compile_definitions(SQLITE_ORM_OMITS_CODECVT)
     endif()
 endif()
 

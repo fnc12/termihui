@@ -27,7 +27,7 @@ extension TerminalViewController {
     // Пока просто фиксация событий, без изменения текста.
     func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
         // print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
-        let block = CommandBlock(id: UUID(), command: command, outputSegments: [], isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
+        let block = CommandBlock(commandId: nil, command: command, outputSegments: [], isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
         commandBlocks.append(block)
         currentBlockIndex = commandBlocks.count - 1
         insertBlock(at: currentBlockIndex!)
@@ -70,7 +70,7 @@ extension TerminalViewController {
         // Create blocks from history
         for record in history {
             let block = CommandBlock(
-                id: UUID(),
+                commandId: record.id,
                 command: record.command.isEmpty ? nil : record.command,
                 outputSegments: record.segments,
                 isFinished: record.isFinished,

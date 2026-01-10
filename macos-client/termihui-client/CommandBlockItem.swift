@@ -9,23 +9,55 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let cwdLabel = NSTextField(labelWithString: "")
     private let headerLabel = NSTextField(labelWithString: "")
     private let bodyTextView = NSTextView()
-    private let container = NSView()
+    private let container = CommandBlockContainerView()
     private let separatorView = NSView()
     
     // Current highlight state (for reset)
     private var lastHeaderHighlight: NSRange?
     private var hasBodyHighlight: Bool = false
     
+    // Server command ID for context menu actions (nil = currently executing command)
+    private var commandId: UInt64?
+    
+    // Delegate for context menu actions
+    weak var delegate: CommandBlockItemDelegate?
+    
     override func loadView() {
         view = container
+        container.item = self
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        setupContextMenu()
     }
     
-    func configure(command: String?, outputSegments: [StyledSegment], isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
+    // MARK: - Context Menu
+    
+    private func setupContextMenu() {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Copy", action: #selector(copyAll), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Copy Command", action: #selector(copyCommand), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Copy Output", action: #selector(copyOutput), keyEquivalent: ""))
+        container.menu = menu
+    }
+    
+    @objc private func copyAll() {
+        delegate?.commandBlockItem(self, didRequestCopyAll: commandId)
+    }
+    
+    @objc private func copyCommand() {
+        delegate?.commandBlockItem(self, didRequestCopyCommand: commandId)
+    }
+    
+    @objc private func copyOutput() {
+        delegate?.commandBlockItem(self, didRequestCopyOutput: commandId)
+    }
+    
+    func configure(commandId: UInt64?, command: String?, outputSegments: [StyledSegment], isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
+        self.commandId = commandId
+        
         // CWD label — gray, above command
         if let cwd = cwdStart, !cwd.isEmpty {
             cwdLabel.stringValue = shortenHomePath(cwd, serverHome: serverHome)
@@ -262,5 +294,3 @@ final class CommandBlockItem: NSCollectionViewItem {
         return max(0, min(idx, text.count))
     }
 }
-
-

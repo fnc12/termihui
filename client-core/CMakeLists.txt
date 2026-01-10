@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX)
+
+# Enable Objective-C++ on Apple platforms
+if(APPLE)
+    project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX OBJCXX)
+else()
+    project(termihui_client_core VERSION 1.0.0 LANGUAGES CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,7 +49,19 @@ if(NOT TARGET sqlite_orm::sqlite_orm)
     )
     FetchContent_MakeAvailable(sqlite_orm)
     add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
+    add_compile_definitions(SQLITE_ORM_OMITS_CODECVT)
     message(STATUS "sqlite_orm ready")
+endif()
+
+# Platform-specific clipboard sources
+if(APPLE)
+    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_macos.mm)
+elseif(WIN32)
+    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_windows.cpp)
+elseif(ANDROID)
+    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_android.cpp)
+else()
+    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_linux.cpp)
 endif()
 
 # Создаём статическую библиотеку
@@ -52,6 +70,7 @@ add_library(termihui_client_core STATIC
     src/ansi_parser.cpp
     src/websocket_client_controller.cpp
     src/client_storage.cpp
+    ${CLIPBOARD_SOURCES}
 )
 
 # Публичные заголовочные файлы
@@ -70,6 +89,11 @@ target_link_libraries(termihui_client_core
     PUBLIC
         termihui_shared
 )
+
+# Platform-specific frameworks
+if(APPLE)
+    target_link_libraries(termihui_client_core PRIVATE "-framework AppKit")
+endif()
 
 # Настройки выходного файла
 set_target_properties(termihui_client_core PROPERTIES

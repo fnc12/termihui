@@ -38,7 +38,8 @@ extension TerminalViewController: NSCollectionViewDataSource, NSCollectionViewDe
         let item = collectionView.makeItem(withIdentifier: CommandBlockItem.reuseId, for: indexPath)
         guard let blockItem = item as? CommandBlockItem else { return item }
         let block = commandBlocks[indexPath.item]
-        blockItem.configure(command: block.command, outputSegments: block.outputSegments, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart, serverHome: serverHome)
+        blockItem.configure(commandId: block.commandId, command: block.command, outputSegments: block.outputSegments, isFinished: block.isFinished, exitCode: block.exitCode, cwdStart: block.cwdStart, serverHome: serverHome)
+        blockItem.delegate = self
         // apply highlight for current selection if it intersects this block
         applySelectionHighlightIfNeeded(to: blockItem, at: indexPath.item)
         return blockItem

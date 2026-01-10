@@ -16,6 +16,7 @@ namespace termihui {
 // Forward declare
 class ANSIParser;
 class FileSystemManager;
+class ClipboardManager;
 
 /**
  * TermiHUI Client Core Controller
@@ -116,6 +117,9 @@ protected:
     virtual std::string handleCloseSession(uint64_t sessionId);
     virtual std::string handleSwitchSession(uint64_t sessionId);
     virtual std::string handleListSessions();
+    
+    // Copy block handler
+    virtual std::string handleCopyBlock(std::optional<uint64_t> commandId, std::string_view copyType);
 
 protected:
     // WebSocket event handlers (overloads for std::visit dispatch, virtual for testability)
@@ -148,6 +152,9 @@ private:
     
     // Persistent storage for client settings
     std::unique_ptr<ClientStorage> clientStorage;
+    
+    // Platform-specific clipboard manager
+    std::unique_ptr<ClipboardManager> clipboardManager;
     
     // Active session ID (0 = no session selected)
     uint64_t activeSessionId = 0;

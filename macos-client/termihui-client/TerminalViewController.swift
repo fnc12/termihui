@@ -47,7 +47,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - Command Blocks Model (in-memory only, no UI yet)
     struct CommandBlock {
-        let id: UUID
+        var commandId: UInt64?  // Server command ID, nil for currently executing command
         var command: String?
         var outputSegments: [StyledSegment]  // Pre-parsed styled segments from C++ core
         var isFinished: Bool
@@ -643,7 +643,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             rebuildGlobalDocument(startingAt: idx)
         } else {
             // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
-            let block = CommandBlock(id: UUID(), command: nil, outputSegments: segments, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
+            let block = CommandBlock(commandId: nil, command: nil, outputSegments: segments, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
             insertBlock(at: newIndex)

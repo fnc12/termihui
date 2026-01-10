@@ -4,10 +4,20 @@
 #include "termihui/websocket_client_controller.h"
 #include "termihui/websocket_client_controller_impl.h"
 #include "termihui/client_storage.h"
+#if defined(__APPLE__)
+    #include "termihui/clipboard/clipboard_manager_macos.h"
+#elif defined(_WIN32)
+    #include "termihui/clipboard/clipboard_manager_windows.h"
+#elif defined(__ANDROID__)
+    #include "termihui/clipboard/clipboard_manager_android.h"
+#else
+    #include "termihui/clipboard/clipboard_manager_linux.h"
+#endif
 #include <termihui/protocol/protocol.h>
 #include <termihui/filesystem/file_system_manager.h>
 #include <fmt/core.h>
 #include <thread>
+#include <chrono>
 #include <hv/json.hpp>
 
 
@@ -58,6 +68,18 @@ bool ClientCoreController::initialize() {
     std::filesystem::path storagePath = this->fileSystemManager->getWritablePath() / "client_state.sqlite";
     this->clientStorage = std::make_unique<ClientStorage>(storagePath);
     fmt::print("ClientCoreController: Storage initialized at {}\n", storagePath.string());
+    
+    // Initialize clipboard manager (platform-specific)
+#if defined(__APPLE__)
+    this->clipboardManager = std::make_unique<ClipboardManagerMacOS>();
+#elif defined(_WIN32)
+    this->clipboardManager = std::make_unique<ClipboardManagerWindows>();
+#elif defined(__ANDROID__)
+    this->clipboardManager = std::make_unique<ClipboardManagerAndroid>();
+#else
+    this->clipboardManager = std::make_unique<ClipboardManagerLinux>();
+#endif
+    fmt::print("ClientCoreController: Clipboard manager initialized\n");
     
     // Load last active session
     auto lastSessionId = this->clientStorage->getUInt64(KEY_LAST_SESSION_ID);
@@ -134,6 +156,15 @@ std::string ClientCoreController::sendMessage(std::string_view message) {
             return setResponse(this->handleSwitchSession(j.at("sessionId").get<uint64_t>()));
         } else if (type == "listSessions") {
             return setResponse(this->handleListSessions());
+        } else if (type == "copyBlock") {
+            std::optional<uint64_t> commandId;
+            if (auto it = j.find("commandId"); it != j.end() && !it->is_null()) {
+                commandId = it->get<uint64_t>();
+            }
+            return setResponse(this->handleCopyBlock(
+                commandId,
+                j.at("copyType").get<std::string>()
+            ));
         } else {
             return setResponse(fmt::format("Unknown message type: {}", type));
         }
@@ -366,6 +397,51 @@ std::string ClientCoreController::handleListSessions() {
     return "";
 }
 
+std::string ClientCoreController::handleCopyBlock(std::optional<uint64_t> commandId, std::string_view copyType) {
+    if (commandId) {
+        fmt::print("ClientCoreController: Copy command {} (type: {})\n", *commandId, copyType);
+    } else {
+        fmt::print("ClientCoreController: Copy last command (type: {})\n", copyType);
+    }
+    
+    // Get command block from SQLite
+    std::optional<CommandBlock> block;
+    if (commandId) {
+        block = this->clientStorage->getByCommandId(*commandId);
+    } else if (this->activeSessionId != 0) {
+        block = this->clientStorage->getLastBlock(this->activeSessionId);
+    }
+    
+    if (!block) {
+        fmt::print("ClientCoreController: Command not found in local DB\n");
+        return "Command not found";
+    }
+    
+    // Build text based on copyType
+    std::string textToCopy;
+    if (copyType == "command") {
+        textToCopy = block->command;
+    } else if (copyType == "output") {
+        textToCopy = block->output;
+    } else { // "all"
+        textToCopy = block->command + "\n" + block->output;
+    }
+    
+    fmt::print("ClientCoreController: Text to copy ({} bytes): {}\n", 
+               textToCopy.size(), 
+               textToCopy.substr(0, std::min(textToCopy.size(), size_t(100))));
+    
+    // Copy to clipboard
+    if (this->clipboardManager->copy(textToCopy)) {
+        fmt::print("ClientCoreController: Copied to clipboard\n");
+    } else {
+        fmt::print("ClientCoreController: Failed to copy to clipboard\n");
+        return "Failed to copy to clipboard";
+    }
+    
+    return "";
+}
+
 // Main update tick
 
 void ClientCoreController::update() {
@@ -460,21 +536,102 @@ void ClientCoreController::handleWebSocketEvent(const WebSocketClientController:
             if (auto cmd = this->lastSentCommand.take()) {
                 serverData["command"] = std::move(*cmd);
             }
+            
+            // Create new command block in SQLite
+            uint64_t sessionId = serverData.value("session_id", this->activeSessionId);
+            if (this->clientStorage && sessionId != 0) {
+                CommandBlock block;
+                block.sessionId = sessionId;
+                if (auto it = serverData.find("command"); it != serverData.end()) {
+                    block.command = it->get<std::string>();
+                }
+                if (auto it = serverData.find("cwd"); it != serverData.end()) {
+                    block.cwdStart = it->get<std::string>();
+                }
+                block.timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now().time_since_epoch()
+                ).count();
+                int64_t localId = this->clientStorage->insertCommandBlock(block);
+                serverData["localId"] = localId;
+                fmt::print("ClientCoreController: Created command block localId={} for session {}\n", localId, sessionId);
+            }
         } else if (messageType == "output") {
             std::string_view rawOutput = serverData.at("data").get<std::string_view>();
             auto segments = this->ansiParser->parse(rawOutput);
             serverData["segments"] = std::move(segments);
             serverData.erase("data");
+            
+            // Append output to unfinished command block for this session
+            uint64_t sessionId = serverData.value("session_id", this->activeSessionId);
+            if (this->clientStorage && sessionId != 0) {
+                if (auto block = this->clientStorage->getUnfinishedBlock(sessionId)) {
+                    this->clientStorage->appendOutput(block->localId, rawOutput);
+                }
+            }
+        } else if (messageType == "command_end") {
+            // Finish command block in SQLite
+            uint64_t sessionId = serverData.value("session_id", this->activeSessionId);
+            if (this->clientStorage && sessionId != 0) {
+                if (auto block = this->clientStorage->getUnfinishedBlock(sessionId)) {
+                    int exitCode = serverData.value("exit_code", 0);
+                    std::optional<uint64_t> commandId;
+                    if (auto it = serverData.find("command_id"); it != serverData.end() && !it->is_null()) {
+                        commandId = it->get<uint64_t>();
+                    }
+                    std::string cwdEnd;
+                    if (auto it = serverData.find("cwd"); it != serverData.end()) {
+                        cwdEnd = it->get<std::string>();
+                    }
+                    this->clientStorage->finishCommand(block->localId, exitCode, commandId, cwdEnd);
+                    fmt::print("ClientCoreController: Finished command block localId={}, commandId={}, exitCode={}\n", 
+                               block->localId, commandId.value_or(0), exitCode);
+                }
+            }
         } else if (messageType == "history") {
+            uint64_t sessionId = serverData.value("session_id", this->activeSessionId);
             auto& commands = serverData.at("commands");
+            
+            // Clear existing blocks for this session and store new ones
+            this->clientStorage->clearSession(sessionId);
+            
             for (auto& cmd : commands) {
+                CommandBlock block;
+                block.sessionId = sessionId;
+                block.isFinished = true;
+                
+                if (auto it = cmd.find("id"); it != cmd.end() && !it->is_null()) {
+                    block.commandId = it->get<uint64_t>();
+                }
+                if (auto it = cmd.find("command"); it != cmd.end()) {
+                    block.command = it->get<std::string>();
+                }
+                if (auto it = cmd.find("exit_code"); it != cmd.end()) {
+                    block.exitCode = it->get<int>();
+                }
+                if (auto it = cmd.find("cwd_start"); it != cmd.end()) {
+                    block.cwdStart = it->get<std::string>();
+                }
+                if (auto it = cmd.find("cwd_end"); it != cmd.end()) {
+                    block.cwdEnd = it->get<std::string>();
+                }
+                if (auto it = cmd.find("timestamp"); it != cmd.end()) {
+                    block.timestamp = it->get<int64_t>();
+                }
+                
+                // Store raw output
+                std::string rawOutput;
                 if (auto it = cmd.find("output"); it != cmd.end() && it->is_string()) {
-                    std::string_view rawOutput = it->get<std::string_view>();
+                    rawOutput = it->get<std::string>();
                     auto segments = this->ansiParser->parse(rawOutput);
                     cmd["segments"] = std::move(segments);
                     cmd.erase(it);
                 }
+                block.output = std::move(rawOutput);
+                
+                int64_t localId = this->clientStorage->insertCommandBlock(block);
+                cmd["localId"] = localId;
             }
+            fmt::print("ClientCoreController: Cached {} history blocks for session {}\n", commands.size(), sessionId);
         }
         
         this->pushEvent(json{
