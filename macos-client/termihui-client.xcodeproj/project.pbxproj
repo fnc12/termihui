@@ -29,9 +29,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		EC175BE32E41EF3F005C4C31 /* termihui-client.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-clientUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC175BE32E41EF3F005C4C31 /* termihui-client-macos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client-macos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -94,9 +94,9 @@
 		EC175BE42E41EF3F005C4C31 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				EC175BE32E41EF3F005C4C31 /* termihui-client.app */,
-				EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */,
-				EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */,
+				EC175BE32E41EF3F005C4C31 /* termihui-client-macos.app */,
+				EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */,
+				EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -112,9 +112,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		EC175BE22E41EF3F005C4C31 /* termihui-client */ = {
+		EC175BE22E41EF3F005C4C31 /* termihui-client-macos */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client" */;
+			buildConfigurationList = EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macos" */;
 			buildPhases = (
 				EC3566EF2E47551500312FBC /* ShellScript */,
 				EC175BDF2E41EF3F005C4C31 /* Sources */,
@@ -128,17 +128,17 @@
 			fileSystemSynchronizedGroups = (
 				EC175BE52E41EF3F005C4C31 /* termihui-client */,
 			);
-			name = "termihui-client";
+			name = "termihui-client-macos";
 			packageProductDependencies = (
 				EC175C222E420393005C4C31 /* SnapKit */,
 			);
 			productName = "termihui-client";
-			productReference = EC175BE32E41EF3F005C4C31 /* termihui-client.app */;
+			productReference = EC175BE32E41EF3F005C4C31 /* termihui-client-macos.app */;
 			productType = "com.apple.product-type.application";
 		};
-		EC175BF32E41EF40005C4C31 /* termihui-clientTests */ = {
+		EC175BF32E41EF40005C4C31 /* termihui-client-macosTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientTests" */;
+			buildConfigurationList = EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macosTests" */;
 			buildPhases = (
 				EC175BF02E41EF40005C4C31 /* Sources */,
 				EC175BF12E41EF40005C4C31 /* Frameworks */,
@@ -152,16 +152,16 @@
 			fileSystemSynchronizedGroups = (
 				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
 			);
-			name = "termihui-clientTests";
+			name = "termihui-client-macosTests";
 			packageProductDependencies = (
 			);
 			productName = "termihui-clientTests";
-			productReference = EC175BF42E41EF40005C4C31 /* termihui-clientTests.xctest */;
+			productReference = EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		EC175BFD2E41EF40005C4C31 /* termihui-clientUITests */ = {
+		EC175BFD2E41EF40005C4C31 /* termihui-client-macosUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientUITests" */;
+			buildConfigurationList = EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macosUITests" */;
 			buildPhases = (
 				EC175BFA2E41EF40005C4C31 /* Sources */,
 				EC175BFB2E41EF40005C4C31 /* Frameworks */,
@@ -175,11 +175,11 @@
 			fileSystemSynchronizedGroups = (
 				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
 			);
-			name = "termihui-clientUITests";
+			name = "termihui-client-macosUITests";
 			packageProductDependencies = (
 			);
 			productName = "termihui-clientUITests";
-			productReference = EC175BFE2E41EF40005C4C31 /* termihui-clientUITests.xctest */;
+			productReference = EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -222,9 +222,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				EC175BE22E41EF3F005C4C31 /* termihui-client */,
-				EC175BF32E41EF40005C4C31 /* termihui-clientTests */,
-				EC175BFD2E41EF40005C4C31 /* termihui-clientUITests */,
+				EC175BE22E41EF3F005C4C31 /* termihui-client-macos */,
+				EC175BF32E41EF40005C4C31 /* termihui-client-macosTests */,
+				EC175BFD2E41EF40005C4C31 /* termihui-client-macosUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -300,12 +300,12 @@
 /* Begin PBXTargetDependency section */
 		EC175BF62E41EF40005C4C31 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EC175BE22E41EF3F005C4C31 /* termihui-client */;
+			target = EC175BE22E41EF3F005C4C31 /* termihui-client-macos */;
 			targetProxy = EC175BF52E41EF40005C4C31 /* PBXContainerItemProxy */;
 		};
 		EC175C002E41EF40005C4C31 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EC175BE22E41EF3F005C4C31 /* termihui-client */;
+			target = EC175BE22E41EF3F005C4C31 /* termihui-client-macos */;
 			targetProxy = EC175BFF2E41EF40005C4C31 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -597,7 +597,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client" */ = {
+		EC175C082E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macos" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EC175C092E41EF40005C4C31 /* Debug */,
@@ -606,7 +606,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientTests" */ = {
+		EC175C0B2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macosTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EC175C0C2E41EF40005C4C31 /* Debug */,
@@ -615,7 +615,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-clientUITests" */ = {
+		EC175C0E2E41EF40005C4C31 /* Build configuration list for PBXNativeTarget "termihui-client-macosUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EC175C0F2E41EF40005C4C31 /* Debug */,
