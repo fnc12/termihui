@@ -26,6 +26,20 @@
 			remoteGlobalIDString = EC175BE22E41EF3F005C4C31;
 			remoteInfo = "termihui-client";
 		};
+		ECA742F92F142C3500B74D3D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC175BDB2E41EF3F005C4C31 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ECA742E22F142C3300B74D3D;
+			remoteInfo = "termihui-client-ios";
+		};
+		ECA743032F142C3500B74D3D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC175BDB2E41EF3F005C4C31 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ECA742E22F142C3300B74D3D;
+			remoteInfo = "termihui-client-ios";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -33,7 +47,20 @@
 		EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		ECA742E32F142C3300B74D3D /* termihui-client-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECA742F82F142C3500B74D3D /* termihui-client-iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECA743022F142C3500B74D3D /* termihui-client-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		ECA7430A2F142C3500B74D3D /* Exceptions for "termihui-client-ios" folder in "termihui-client-ios" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ECA742E22F142C3300B74D3D /* termihui-client-ios */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EC175BE52E41EF3F005C4C31 /* termihui-client */ = {
@@ -49,6 +76,24 @@
 		EC175C012E41EF40005C4C31 /* termihui-clientUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "termihui-clientUITests";
+			sourceTree = "<group>";
+		};
+		ECA742E42F142C3300B74D3D /* termihui-client-ios */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ECA7430A2F142C3500B74D3D /* Exceptions for "termihui-client-ios" folder in "termihui-client-ios" target */,
+			);
+			path = "termihui-client-ios";
+			sourceTree = "<group>";
+		};
+		ECA742FB2F142C3500B74D3D /* termihui-client-iosTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "termihui-client-iosTests";
+			sourceTree = "<group>";
+		};
+		ECA743052F142C3500B74D3D /* termihui-client-iosUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "termihui-client-iosUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -77,6 +122,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECA742E02F142C3300B74D3D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742F52F142C3500B74D3D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742FF2F142C3500B74D3D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -86,6 +152,9 @@
 				EC175BE52E41EF3F005C4C31 /* termihui-client */,
 				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
 				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
+				ECA742E42F142C3300B74D3D /* termihui-client-ios */,
+				ECA742FB2F142C3500B74D3D /* termihui-client-iosTests */,
+				ECA743052F142C3500B74D3D /* termihui-client-iosUITests */,
 				EC2F43AE2F06D919005DE19E /* Frameworks */,
 				EC175BE42E41EF3F005C4C31 /* Products */,
 			);
@@ -97,6 +166,9 @@
 				EC175BE32E41EF3F005C4C31 /* termihui-client-macos.app */,
 				EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */,
 				EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */,
+				ECA742E32F142C3300B74D3D /* termihui-client-ios.app */,
+				ECA742F82F142C3500B74D3D /* termihui-client-iosTests.xctest */,
+				ECA743022F142C3500B74D3D /* termihui-client-iosUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -182,6 +254,74 @@
 			productReference = EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		ECA742E22F142C3300B74D3D /* termihui-client-ios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECA7430B2F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-ios" */;
+			buildPhases = (
+				ECA742DF2F142C3300B74D3D /* Sources */,
+				ECA742E02F142C3300B74D3D /* Frameworks */,
+				ECA742E12F142C3300B74D3D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				ECA742E42F142C3300B74D3D /* termihui-client-ios */,
+			);
+			name = "termihui-client-ios";
+			packageProductDependencies = (
+			);
+			productName = "termihui-client-ios";
+			productReference = ECA742E32F142C3300B74D3D /* termihui-client-ios.app */;
+			productType = "com.apple.product-type.application";
+		};
+		ECA742F72F142C3500B74D3D /* termihui-client-iosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECA7430E2F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-iosTests" */;
+			buildPhases = (
+				ECA742F42F142C3500B74D3D /* Sources */,
+				ECA742F52F142C3500B74D3D /* Frameworks */,
+				ECA742F62F142C3500B74D3D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ECA742FA2F142C3500B74D3D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				ECA742FB2F142C3500B74D3D /* termihui-client-iosTests */,
+			);
+			name = "termihui-client-iosTests";
+			packageProductDependencies = (
+			);
+			productName = "termihui-client-iosTests";
+			productReference = ECA742F82F142C3500B74D3D /* termihui-client-iosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		ECA743012F142C3500B74D3D /* termihui-client-iosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECA743112F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-iosUITests" */;
+			buildPhases = (
+				ECA742FE2F142C3500B74D3D /* Sources */,
+				ECA742FF2F142C3500B74D3D /* Frameworks */,
+				ECA743002F142C3500B74D3D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ECA743042F142C3500B74D3D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				ECA743052F142C3500B74D3D /* termihui-client-iosUITests */,
+			);
+			name = "termihui-client-iosUITests";
+			packageProductDependencies = (
+			);
+			productName = "termihui-client-iosUITests";
+			productReference = ECA743022F142C3500B74D3D /* termihui-client-iosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,7 +329,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					EC175BE22E41EF3F005C4C31 = {
@@ -202,6 +342,17 @@
 					EC175BFD2E41EF40005C4C31 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = EC175BE22E41EF3F005C4C31;
+					};
+					ECA742E22F142C3300B74D3D = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					ECA742F72F142C3500B74D3D = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = ECA742E22F142C3300B74D3D;
+					};
+					ECA743012F142C3500B74D3D = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = ECA742E22F142C3300B74D3D;
 					};
 				};
 			};
@@ -225,6 +376,9 @@
 				EC175BE22E41EF3F005C4C31 /* termihui-client-macos */,
 				EC175BF32E41EF40005C4C31 /* termihui-client-macosTests */,
 				EC175BFD2E41EF40005C4C31 /* termihui-client-macosUITests */,
+				ECA742E22F142C3300B74D3D /* termihui-client-ios */,
+				ECA742F72F142C3500B74D3D /* termihui-client-iosTests */,
+				ECA743012F142C3500B74D3D /* termihui-client-iosUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -245,6 +399,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		EC175BFC2E41EF40005C4C31 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742E12F142C3300B74D3D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742F62F142C3500B74D3D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA743002F142C3500B74D3D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -295,6 +470,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECA742DF2F142C3300B74D3D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742F42F142C3500B74D3D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECA742FE2F142C3500B74D3D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -307,6 +503,16 @@
 			isa = PBXTargetDependency;
 			target = EC175BE22E41EF3F005C4C31 /* termihui-client-macos */;
 			targetProxy = EC175BFF2E41EF40005C4C31 /* PBXContainerItemProxy */;
+		};
+		ECA742FA2F142C3500B74D3D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ECA742E22F142C3300B74D3D /* termihui-client-ios */;
+			targetProxy = ECA742F92F142C3500B74D3D /* PBXContainerItemProxy */;
+		};
+		ECA743042F142C3500B74D3D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ECA742E22F142C3300B74D3D /* termihui-client-ios */;
+			targetProxy = ECA743032F142C3500B74D3D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -585,6 +791,167 @@
 			};
 			name = Release;
 		};
+		ECA7430C2F142C3500B74D3D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "termihui-client-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		ECA7430D2F142C3500B74D3D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "termihui-client-ios/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		ECA7430F2F142C3500B74D3D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/termihui-client-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/termihui-client-ios";
+			};
+			name = Debug;
+		};
+		ECA743102F142C3500B74D3D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/termihui-client-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/termihui-client-ios";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		ECA743122F142C3500B74D3D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "termihui-client-ios";
+			};
+			name = Debug;
+		};
+		ECA743132F142C3500B74D3D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QDTPG5DB79;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "termihui-client-ios";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -620,6 +987,33 @@
 			buildConfigurations = (
 				EC175C0F2E41EF40005C4C31 /* Debug */,
 				EC175C102E41EF40005C4C31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECA7430B2F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECA7430C2F142C3500B74D3D /* Debug */,
+				ECA7430D2F142C3500B74D3D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECA7430E2F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-iosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECA7430F2F142C3500B74D3D /* Debug */,
+				ECA743102F142C3500B74D3D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECA743112F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-iosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECA743122F142C3500B74D3D /* Debug */,
+				ECA743132F142C3500B74D3D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
