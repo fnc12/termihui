@@ -1,10 +1,3 @@
-//
-//  SceneDelegate.swift
-//  termihui-client-ios
-//
-//  Created by Yevgeniy Zakharov on 12.01.2026.
-//
-
 import UIKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {

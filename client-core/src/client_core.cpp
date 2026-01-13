@@ -5,7 +5,12 @@
 #include "termihui/websocket_client_controller_impl.h"
 #include "termihui/client_storage.h"
 #if defined(__APPLE__)
-    #include "termihui/clipboard/clipboard_manager_macos.h"
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IPHONE
+        #include "termihui/clipboard/clipboard_manager_ios.h"
+    #else
+        #include "termihui/clipboard/clipboard_manager_macos.h"
+    #endif
 #elif defined(_WIN32)
     #include "termihui/clipboard/clipboard_manager_windows.h"
 #elif defined(__ANDROID__)
@@ -71,7 +76,11 @@ bool ClientCoreController::initialize() {
     
     // Initialize clipboard manager (platform-specific)
 #if defined(__APPLE__)
-    this->clipboardManager = std::make_unique<ClipboardManagerMacOS>();
+    #if TARGET_OS_IPHONE
+        this->clipboardManager = std::make_unique<ClipboardManagerIOS>();
+    #else
+        this->clipboardManager = std::make_unique<ClipboardManagerMacOS>();
+    #endif
 #elif defined(_WIN32)
     this->clipboardManager = std::make_unique<ClipboardManagerWindows>();
 #elif defined(__ANDROID__)

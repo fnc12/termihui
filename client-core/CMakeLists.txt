@@ -10,13 +10,21 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
+# ВАЖНО: должно быть установлено ДО любых FetchContent и add_subdirectory
+include(FetchContent)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps-ios" CACHE PATH "Dependencies cache" FORCE)
+else()
+    set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps" CACHE PATH "Dependencies cache" FORCE)
+endif()
+
 # Add shared library (with guard for when building as part of parent project)
 if(NOT TARGET termihui_shared)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
 endif()
 
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
-include(FetchContent)
 
 if(NOT TARGET fmt::fmt)
     message(STATUS "Fetching fmt (standalone build)...")
@@ -54,7 +62,9 @@ if(NOT TARGET sqlite_orm::sqlite_orm)
 endif()
 
 # Platform-specific clipboard sources
-if(APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_ios.mm)
+elseif(APPLE)
     set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_macos.mm)
 elseif(WIN32)
     set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_windows.cpp)
@@ -91,7 +101,9 @@ target_link_libraries(termihui_client_core
 )
 
 # Platform-specific frameworks
-if(APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    target_link_libraries(termihui_client_core PRIVATE "-framework UIKit")
+elseif(APPLE)
     target_link_libraries(termihui_client_core PRIVATE "-framework AppKit")
 endif()
 

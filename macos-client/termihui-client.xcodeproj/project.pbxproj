@@ -9,6 +9,14 @@
 /* Begin PBXBuildFile section */
 		EC175C232E420393005C4C31 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC175C222E420393005C4C31 /* SnapKit */; };
 		EC2F43B02F06D919005DE19E /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */; };
+		EC4E73052F1585A10050750B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73002F1585A10050750B /* AppSettings.swift */; };
+		EC4E73062F1585A10050750B /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73012F1585A10050750B /* AppState.swift */; };
+		EC4E73092F1585A10050750B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73002F1585A10050750B /* AppSettings.swift */; };
+		EC4E730A2F1585A10050750B /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73012F1585A10050750B /* AppState.swift */; };
+		EC4E730B2F1585A10050750B /* ClientCoreWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */; };
+		EC4E730C2F1585A10050750B /* SessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73032F1585A10050750B /* SessionInfo.swift */; };
+		EC6AAE462F162067007CB410 /* ClientCoreWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */; };
+		EC6AAE472F162069007CB410 /* SessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73032F1585A10050750B /* SessionInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +55,10 @@
 		EC175BF42E41EF40005C4C31 /* termihui-client-macosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC175BFE2E41EF40005C4C31 /* termihui-client-macosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-macosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		EC4E73002F1585A10050750B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		EC4E73012F1585A10050750B /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientCoreWrapper.swift; sourceTree = "<group>"; };
+		EC4E73032F1585A10050750B /* SessionInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionInfo.swift; sourceTree = "<group>"; };
 		ECA742E32F142C3300B74D3D /* termihui-client-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECA742F82F142C3500B74D3D /* termihui-client-iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECA743022F142C3500B74D3D /* termihui-client-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -149,6 +161,7 @@
 		EC175BDA2E41EF3F005C4C31 = {
 			isa = PBXGroup;
 			children = (
+				EC4E73042F1585A10050750B /* Shared */,
 				EC175BE52E41EF3F005C4C31 /* termihui-client */,
 				EC175BF72E41EF40005C4C31 /* termihui-clientTests */,
 				EC175C012E41EF40005C4C31 /* termihui-clientUITests */,
@@ -179,6 +192,17 @@
 				EC2F43AF2F06D919005DE19E /* libsqlite3.tbd */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		EC4E73042F1585A10050750B /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				EC4E73002F1585A10050750B /* AppSettings.swift */,
+				EC4E73012F1585A10050750B /* AppState.swift */,
+				EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */,
+				EC4E73032F1585A10050750B /* SessionInfo.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -258,6 +282,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = ECA7430B2F142C3500B74D3D /* Build configuration list for PBXNativeTarget "termihui-client-ios" */;
 			buildPhases = (
+				EC4E72FF2F1581590050750B /* ShellScript */,
 				ECA742DF2F142C3300B74D3D /* Sources */,
 				ECA742E02F142C3300B74D3D /* Frameworks */,
 				ECA742E12F142C3300B74D3D /* Resources */,
@@ -446,6 +471,24 @@
 			shellPath = /bin/bash;
 			shellScript = "# Build C++ client core\nset -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nif ! command -v cmake &> /dev/null; then\n    echo \"Error: cmake not found. Install: brew install cmake\"\n    exit 1\nfi\n\ncd \"${SRCROOT}/../client-core\"\nmkdir -p build && cd build\ncmake .. -DCMAKE_BUILD_TYPE=Release\ncmake --build . -j4\n";
 		};
+		EC4E72FF2F1581590050750B /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\nset -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\ncd \"${SRCROOT}/../client-core\"\nrm -rf build-ios && mkdir -p build-ios && cd build-ios\n\ncmake .. \\\n    -DCMAKE_SYSTEM_NAME=iOS \\\n    -DCMAKE_OSX_ARCHITECTURES=arm64 \\\n    -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \\\n    -DCMAKE_BUILD_TYPE=Release\n\ncmake --build . -j4\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -453,6 +496,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC4E73052F1585A10050750B /* AppSettings.swift in Sources */,
+				EC6AAE462F162067007CB410 /* ClientCoreWrapper.swift in Sources */,
+				EC6AAE472F162069007CB410 /* SessionInfo.swift in Sources */,
+				EC4E73062F1585A10050750B /* AppState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -474,6 +521,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC4E73092F1585A10050750B /* AppSettings.swift in Sources */,
+				EC4E730A2F1585A10050750B /* AppState.swift in Sources */,
+				EC4E730B2F1585A10050750B /* ClientCoreWrapper.swift in Sources */,
+				EC4E730C2F1585A10050750B /* SessionInfo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -660,8 +711,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
 					"$(SRCROOT)/../client-core/build/shared",
-					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
-					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
+					"$(SRCROOT)/../.deps/fmt-build",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
@@ -670,6 +720,8 @@
 					"-ltermihui_shared",
 					"-lfmt",
 					"-lhv_static",
+					"-lsqlite3",
+					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -704,8 +756,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(SRCROOT)/../client-core/build/lib",
 					"$(SRCROOT)/../client-core/build/shared",
-					"$(SRCROOT)/../client-core/build/_deps/fmt-build",
-					"$(SRCROOT)/../client-core/build/_deps/libhv-build",
+					"$(SRCROOT)/../.deps/fmt-build",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
 				MARKETING_VERSION = 1.0;
@@ -714,6 +765,8 @@
 					"-ltermihui_shared",
 					"-lfmt",
 					"-lhv_static",
+					"-lsqlite3",
+					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -800,6 +853,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QDTPG5DB79;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../client-core/include";
 				INFOPLIST_FILE = "termihui-client-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -811,7 +865,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../client-core/build-ios/lib",
+					"$(SRCROOT)/../client-core/build-ios/shared",
+					"$(SRCROOT)/../.deps-ios/fmt-build",
+				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-ltermihui_client_core",
+					"-ltermihui_shared",
+					"-lfmt",
+					"-lhv_static",
+					"-lsqlite3",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -819,6 +886,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/TermiHUI-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -834,6 +902,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QDTPG5DB79;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../client-core/include";
 				INFOPLIST_FILE = "termihui-client-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -845,7 +914,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../client-core/build-ios/lib",
+					"$(SRCROOT)/../client-core/build-ios/shared",
+					"$(SRCROOT)/../.deps-ios/fmt-build",
+				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-ltermihui_client_core",
+					"-ltermihui_shared",
+					"-lfmt",
+					"-lhv_static",
+					"-lsqlite3",
+					"-lc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "studio.eugenezakharov.termihui-client-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -853,6 +935,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/TermiHUI-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
