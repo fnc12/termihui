@@ -5,6 +5,7 @@
 
 #if defined(__APPLE__)
 
+#include <TargetConditionals.h>
 #include <termihui/filesystem/file_system_manager.h>
 #include <Foundation/Foundation.h>
 

@@ -17,6 +17,7 @@
 		EC4E730C2F1585A10050750B /* SessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73032F1585A10050750B /* SessionInfo.swift */; };
 		EC6AAE462F162067007CB410 /* ClientCoreWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */; };
 		EC6AAE472F162069007CB410 /* SessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73032F1585A10050750B /* SessionInfo.swift */; };
+		EC6AB0AD2F16A154007CB410 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC6AB0AC2F16A154007CB410 /* SnapKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +139,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC6AB0AD2F16A154007CB410 /* SnapKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,6 +298,7 @@
 			);
 			name = "termihui-client-ios";
 			packageProductDependencies = (
+				EC6AB0AC2F16A154007CB410 /* SnapKit */,
 			);
 			productName = "termihui-client-ios";
 			productReference = ECA742E32F142C3300B74D3D /* termihui-client-ios.app */;
@@ -1116,6 +1119,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		EC175C222E420393005C4C31 /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EC175C212E420393005C4C31 /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
+		};
+		EC6AB0AC2F16A154007CB410 /* SnapKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EC175C212E420393005C4C31 /* XCRemoteSwiftPackageReference "SnapKit" */;
 			productName = SnapKit;
