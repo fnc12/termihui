@@ -50,6 +50,20 @@ endif()
 
 if(NOT TARGET sqlite_orm::sqlite_orm)
     message(STATUS "Fetching sqlite_orm (standalone build)...")
+    
+    # On macOS, prefer homebrew sqlite over any stale framework paths (e.g. Mono)
+    if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        # Try homebrew paths first (Apple Silicon, then Intel)
+        foreach(_brew_prefix "/opt/homebrew" "/usr/local")
+            if(EXISTS "${_brew_prefix}/opt/sqlite/include/sqlite3.h")
+                set(SQLite3_INCLUDE_DIR "${_brew_prefix}/opt/sqlite/include" CACHE PATH "SQLite3 include dir")
+                set(SQLite3_LIBRARY "${_brew_prefix}/opt/sqlite/lib/libsqlite3.dylib" CACHE FILEPATH "SQLite3 library")
+                message(STATUS "Using homebrew SQLite3 from ${_brew_prefix}")
+                break()
+            endif()
+        endforeach()
+    endif()
+    
     FetchContent_Declare(
         sqlite_orm
         GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
