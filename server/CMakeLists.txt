@@ -9,13 +9,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(FetchContent)
 set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps" CACHE PATH "Dependencies cache" FORCE)
 
-# Add shared library (with guard for when building as part of parent project)
-if(NOT TARGET termihui_shared)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
-endif()
-
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
 if(NOT TARGET fmt::fmt OR NOT TARGET hv_static OR NOT TARGET Catch2::Catch2WithMain)
+
+    # Отключаем install для всех зависимостей — устанавливаем только сервер
+    set(CATCH_INSTALL_DOCS OFF CACHE BOOL "" FORCE)
+    set(CATCH_INSTALL_EXTRAS OFF CACHE BOOL "" FORCE)
+    set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
+    set(SQLITE_ORM_ENABLE_CXX_20 ON CACHE BOOL "" FORCE)
+    set(SqliteOrm_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED OFF CACHE BOOL "" FORCE)  # libhv: don't build shared lib
 
     if(NOT TARGET Catch2::Catch2WithMain)
         message(STATUS "Fetching Catch2 (standalone build)...")
@@ -29,12 +32,16 @@ FetchContent_MakeAvailable(Catch2)
 
     if(NOT TARGET hv_static)
         message(STATUS "Fetching libhv (standalone build)...")
-FetchContent_Declare(
-    libhv
-    GIT_REPOSITORY https://github.com/ithewei/libhv.git
-    GIT_TAG v1.3.2
-)
-FetchContent_MakeAvailable(libhv)
+        FetchContent_Declare(
+            libhv
+            GIT_REPOSITORY https://github.com/ithewei/libhv.git
+            GIT_TAG v1.3.2
+        )
+        FetchContent_GetProperties(libhv)
+        if(NOT libhv_POPULATED)
+            FetchContent_Populate(libhv)
+            add_subdirectory(${libhv_SOURCE_DIR} ${libhv_BINARY_DIR} EXCLUDE_FROM_ALL)
+        endif()
     endif()
 
     if(NOT TARGET fmt::fmt)
@@ -82,6 +89,11 @@ FetchContent_MakeAvailable(sqlite_orm)
 add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
 add_compile_definitions(SQLITE_ORM_OMITS_CODECVT)
     endif()
+endif()
+
+# Add shared library (after dependencies so it uses our EXCLUDE_FROM_ALL libhv)
+if(NOT TARGET termihui_shared)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared EXCLUDE_FROM_ALL)
 endif()
 
 # For macOS/Linux check for required libraries

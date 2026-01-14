@@ -1,5 +1,6 @@
 #include "SessionStorage.h"
 #include <chrono>
+#include <fmt/format.h>
 
 using namespace sqlite_orm;
 
@@ -7,10 +8,17 @@ SessionStorage::SessionStorage(std::filesystem::path dbPath)
     : dbPath(std::move(dbPath))
     , storage(makeSessionStorage(this->dbPath.string()))
 {
+    fmt::print("[SessionStorage] Created with path: {}\n", this->dbPath.string());
 }
 
 void SessionStorage::initialize() {
+    auto countBefore = this->storage.count<SessionCommand>();
+    fmt::print("[SessionStorage] Commands before sync_schema: {}\n", countBefore);
+    
     this->storage.sync_schema();
+    
+    auto countAfter = this->storage.count<SessionCommand>();
+    fmt::print("[SessionStorage] Commands after sync_schema: {}\n", countAfter);
 }
 
 uint64_t SessionStorage::addCommand(uint64_t serverRunId, const std::string& command, const std::string& cwdStart) {

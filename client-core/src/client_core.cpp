@@ -524,6 +524,9 @@ void ClientCoreController::handleWebSocketEvent(const WebSocketClientController:
                 }
                 fmt::print("ClientCoreController: Selected session {}\n", selectedId);
                 
+                // Add active session id to event data for UI
+                serverData["active_session_id"] = selectedId;
+                
                 // Request history for selected session
                 this->webSocketController->send(serialize(GetHistoryMessage{selectedId}));
             }

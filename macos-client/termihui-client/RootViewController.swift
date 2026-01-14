@@ -311,9 +311,12 @@ class RootViewController: NSViewController {
                let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
                let sessions = try? JSONDecoder().decode([SessionInfo].self, from: jsonData) {
                 // print("📋 Sessions list: \(sessions.count) sessions")
-                // Active session will be set by client-core via session_created
-                terminalViewController.updateSessionList(sessions, activeSessionId: sessions.first?.id)
-                terminalViewController.updateSessionName(sessions.first?.id)
+                // Use active_session_id from client-core (restored from storage or first session)
+                let activeSessionId = (messageDict["active_session_id"] as? UInt64)
+                    ?? (messageDict["active_session_id"] as? Int).map { UInt64($0) }
+                    ?? sessions.first?.id
+                terminalViewController.updateSessionList(sessions, activeSessionId: activeSessionId)
+                terminalViewController.updateSessionName(activeSessionId)
             } else {
                 print("❌ sessions_list failed to decode: \(messageDict)")
             }
