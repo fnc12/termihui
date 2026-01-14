@@ -453,7 +453,7 @@ void TerminalSessionController::finishCurrentCommand(int exitCode, const std::st
 }
 
 std::vector<SessionCommand> TerminalSessionController::getCommandHistory() {
-    return this->sessionStorage.getCommandsForRun(this->serverRunId);
+    return this->sessionStorage.getAllCommands();
 }
 
 bool TerminalSessionController::hasActiveCommand() const {

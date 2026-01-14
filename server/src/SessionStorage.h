@@ -24,9 +24,6 @@ public:
     // Get command by id
     std::optional<SessionCommand> getCommand(uint64_t commandId);
     
-    // Get all commands for specific server run
-    std::vector<SessionCommand> getCommandsForRun(uint64_t serverRunId);
-    
     // Get all commands
     std::vector<SessionCommand> getAllCommands();
 

@@ -46,13 +46,6 @@ std::optional<SessionCommand> SessionStorage::getCommand(uint64_t commandId) {
     return this->storage.get_optional<SessionCommand>(commandId);
 }
 
-std::vector<SessionCommand> SessionStorage::getCommandsForRun(uint64_t serverRunId) {
-    return this->storage.get_all<SessionCommand>(
-        where(c(&SessionCommand::serverRunId) == serverRunId),
-        order_by(&SessionCommand::id)
-    );
-}
-
 std::vector<SessionCommand> SessionStorage::getAllCommands() {
     return this->storage.get_all<SessionCommand>(order_by(&SessionCommand::id));
 }

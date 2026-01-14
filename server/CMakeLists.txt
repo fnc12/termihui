@@ -4,6 +4,11 @@ project(termihui-server VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
+# ВАЖНО: должно быть установлено ДО любых FetchContent и add_subdirectory
+include(FetchContent)
+set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps" CACHE PATH "Dependencies cache" FORCE)
+
 # Add shared library (with guard for when building as part of parent project)
 if(NOT TARGET termihui_shared)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
@@ -11,7 +16,6 @@ endif()
 
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
 if(NOT TARGET fmt::fmt OR NOT TARGET hv_static OR NOT TARGET Catch2::Catch2WithMain)
-include(FetchContent)
 
     if(NOT TARGET Catch2::Catch2WithMain)
         message(STATUS "Fetching Catch2 (standalone build)...")
@@ -56,6 +60,19 @@ FetchContent_MakeAvailable(platform_folders)
 
     if(NOT TARGET sqlite_orm::sqlite_orm)
         message(STATUS "Fetching sqlite_orm (standalone build)...")
+        
+        # On macOS, prefer homebrew sqlite over any stale framework paths (e.g. Mono)
+        if(APPLE)
+            foreach(_brew_prefix "/opt/homebrew" "/usr/local")
+                if(EXISTS "${_brew_prefix}/opt/sqlite/include/sqlite3.h")
+                    set(SQLite3_INCLUDE_DIR "${_brew_prefix}/opt/sqlite/include" CACHE PATH "SQLite3 include dir")
+                    set(SQLite3_LIBRARY "${_brew_prefix}/opt/sqlite/lib/libsqlite3.dylib" CACHE FILEPATH "SQLite3 library")
+                    message(STATUS "Using homebrew SQLite3 from ${_brew_prefix}")
+                    break()
+                endif()
+            endforeach()
+        endif()
+        
 FetchContent_Declare(
     sqlite_orm
     GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
