@@ -3,6 +3,7 @@ import SnapKit
 
 protocol SessionListViewControllerDelegate: AnyObject {
     func sessionListViewControllerDidRequestDisconnect(_ controller: SessionListViewController)
+    func sessionListViewController(_ controller: SessionListViewController, didSelectSession sessionId: UInt64)
 }
 
 /// Session list screen for connected server
@@ -17,6 +18,7 @@ class SessionListViewController: UIViewController {
     var serverAddress: String = ""
     weak var delegate: SessionListViewControllerDelegate?
     var sessions: [SessionInfo] = []
+    var activeSessionId: UInt64 = 0
     var isConnected = false
     
     // MARK: - Lifecycle
@@ -91,8 +93,11 @@ class SessionListViewController: UIViewController {
         statusLabel.text = "Connected"
     }
     
-    func updateSessions(_ newSessions: [SessionInfo]) {
+    func updateSessions(_ newSessions: [SessionInfo], activeId: UInt64? = nil) {
         sessions = newSessions
+        if let activeId = activeId {
+            activeSessionId = activeId
+        }
         tableView.reloadData()
         updateEmptyState()
     }

@@ -17,6 +17,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var navigationController: UINavigationController?
     private var serverListVC: ServerListViewController?
     var sessionListVC: SessionListViewController?
+    var terminalVC: TerminalViewController?
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
@@ -152,9 +153,52 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             if let sessionsData = messageDict["sessions"],
                let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
                let sessions = try? JSONDecoder().decode([SessionInfo].self, from: jsonData) {
-                print("📋 Sessions: \(sessions.count)")
-                sessionListVC?.updateSessions(sessions)
+                // Get active session id from client-core
+                let activeSessionId = (messageDict["active_session_id"] as? UInt64)
+                    ?? (messageDict["active_session_id"] as? Int).map { UInt64($0) }
+                print("📋 Sessions: \(sessions.count), active: \(activeSessionId ?? 0)")
+                sessionListVC?.updateSessions(sessions, activeId: activeSessionId)
             }
+            
+        case "output":
+            // New format: segments array from C++ ANSI parser
+            if let segmentsData = messageDict["segments"] {
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: segmentsData)
+                    let segments = try JSONDecoder().decode([StyledSegmentShared].self, from: jsonData)
+                    terminalVC?.appendStyledOutput(segments)
+                } catch {
+                    print("❌ Failed to decode segments: \(error)")
+                }
+            }
+            // Fallback: raw data
+            else if let outputData = messageDict["data"] as? String {
+                terminalVC?.appendOutput(outputData)
+            }
+            
+        case "history":
+            if let commandsData = messageDict["commands"] {
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: commandsData)
+                    let records = try JSONDecoder().decode([CommandHistoryRecordShared].self, from: jsonData)
+                    print("📜 History: \(records.count) commands")
+                    terminalVC?.loadHistory(records)
+                } catch {
+                    print("❌ Failed to decode history: \(error)")
+                }
+            }
+            
+        case "command_start":
+            let cwd = messageDict["cwd"] as? String
+            let command = messageDict["command"] as? String
+            print("▶️ Command start: '\(command ?? "nil")', cwd=\(cwd ?? "nil")")
+            terminalVC?.didStartCommandBlock(command: command, cwd: cwd)
+            
+        case "command_end":
+            let exitCode = messageDict["exit_code"] as? Int ?? 0
+            let cwd = messageDict["cwd"] as? String
+            print("🏁 Command end, exitCode=\(exitCode), cwd=\(cwd ?? "nil")")
+            terminalVC?.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
             
         case "error":
             if let message = messageDict["message"] as? String {
@@ -162,7 +206,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             }
             
         default:
-            // Ignore other messages for MVP
+            // Ignore other messages
             break
         }
     }

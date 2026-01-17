@@ -18,6 +18,9 @@ extension SessionListViewController: UITableViewDataSource {
         config.image = UIImage(systemName: "terminal")
         cell.contentConfiguration = config
         
+        // Show checkmark for active session
+        cell.accessoryType = (session.id == activeSessionId) ? .checkmark : .disclosureIndicator
+        
         return cell
     }
     
@@ -37,7 +40,12 @@ extension SessionListViewController: UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        // TODO: Open terminal session in the future
+        
+        let session = sessions[indexPath.row]
+        activeSessionId = session.id
+        tableView.reloadData() // Update checkmarks
+        
+        delegate?.sessionListViewController(self, didSelectSession: session.id)
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
