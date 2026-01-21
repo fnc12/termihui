@@ -24,8 +24,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     var sessionListController: SessionListViewController?
     private var isSidebarVisible = false
     
-    // Chat sidebar (lazy - created on first toggle)
-    var chatSidebarController: ChatSidebarViewController?
+    // Chat sidebar (controller created lazily on first access, view setup on first toggle)
+    lazy var chatSidebarController: ChatSidebarViewController = {
+        let controller = ChatSidebarViewController()
+        controller.delegate = self
+        addChild(controller)
+        return controller
+    }()
     private var isChatSidebarVisible = false
     
     // Cached session data (applied when sidebar is created)
@@ -631,48 +636,45 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // MARK: - Chat Sidebar
     
-    /// Creates chat sidebar lazily - called on first toggle
-    private func createChatSidebarIfNeeded() {
-        guard chatSidebarController == nil else { return }
+    /// Sets up chat sidebar view on first toggle (controller already created in viewDidLoad)
+    private var isChatSidebarViewSetup = false
+    
+    private func setupChatSidebarViewIfNeeded() {
+        guard !isChatSidebarViewSetup else { return }
+        isChatSidebarViewSetup = true
         
-        let controller = ChatSidebarViewController()
-        controller.delegate = self
-        controller.sessionId = cachedActiveSessionId
+        chatSidebarController.sessionId = cachedActiveSessionId
         
-        addChild(controller)
-        
-        controller.view.translatesAutoresizingMaskIntoConstraints = false
-        controller.view.wantsLayer = true
+        chatSidebarController.view.translatesAutoresizingMaskIntoConstraints = false
+        chatSidebarController.view.wantsLayer = true
         
         // Start hidden (off-screen to the right)
-        controller.view.alphaValue = 0
-        controller.setInteractive(false)
+        chatSidebarController.view.alphaValue = 0
+        chatSidebarController.setInteractive(false)
         
-        view.addSubview(controller.view)
+        view.addSubview(chatSidebarController.view)
         
         // Position chat sidebar on the right
-        controller.view.snp.makeConstraints { make in
+        chatSidebarController.view.snp.makeConstraints { make in
             make.top.equalTo(topToolbarView.snp.bottom)
             make.bottom.equalToSuperview()
             make.trailing.equalToSuperview()
             make.width.equalToSuperview().multipliedBy(0.35)
         }
         
-        chatSidebarController = controller
-        
         // Force layout to get correct width
         view.layoutSubtreeIfNeeded()
         
         // Set initial transform (hidden off-screen to the right)
-        let sidebarWidth = controller.view.bounds.width > 0 ? controller.view.bounds.width : 300
-        controller.view.layer?.setAffineTransform(CGAffineTransform(translationX: sidebarWidth, y: 0))
+        let sidebarWidth = chatSidebarController.view.bounds.width > 0 ? chatSidebarController.view.bounds.width : 300
+        chatSidebarController.view.layer?.setAffineTransform(CGAffineTransform(translationX: sidebarWidth, y: 0))
     }
     
     @objc func toggleChatSidebar() {
-        // Create chat sidebar on first use (lazy initialization)
-        createChatSidebarIfNeeded()
+        // Setup view on first use (controller already exists)
+        setupChatSidebarViewIfNeeded()
         
-        guard let chatView = chatSidebarController?.view else { return }
+        let chatView = chatSidebarController.view
         
         // Toggle state
         isChatSidebarVisible = !isChatSidebarVisible
@@ -683,7 +685,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Enable interaction before showing
         if isChatSidebarVisible {
-            chatSidebarController?.setInteractive(true)
+            chatSidebarController.setInteractive(true)
         }
         
         NSAnimationContext.runAnimationGroup({ context in
@@ -695,14 +697,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             guard let self = self else { return }
             // Disable interaction after hiding
             if !self.isChatSidebarVisible {
-                self.chatSidebarController?.setInteractive(false)
+                self.chatSidebarController.setInteractive(false)
             }
         })
     }
     
     /// Updates chat sidebar position when view size changes
     private func updateChatSidebarTransform() {
-        guard !isChatSidebarVisible, let chatView = chatSidebarController?.view else { return }
+        guard !isChatSidebarVisible else { return }
+        let chatView = chatSidebarController.view
         let sidebarWidth = chatView.bounds.width > 0 ? chatView.bounds.width : 300
         chatView.layer?.setAffineTransform(CGAffineTransform(translationX: sidebarWidth, y: 0))
     }
@@ -711,27 +714,27 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     /// Start streaming assistant response
     func aiStartResponse() {
-        chatSidebarController?.startAssistantMessage()
+        chatSidebarController.startAssistantMessage()
     }
     
     /// Append chunk to current streaming response
     func aiAppendChunk(_ text: String) {
-        chatSidebarController?.appendChunk(text)
+        chatSidebarController.appendChunk(text)
     }
     
     /// Finish streaming response
     func aiFinishResponse() {
-        chatSidebarController?.finishAssistantMessage()
+        chatSidebarController.finishAssistantMessage()
     }
     
     /// Show AI error
     func aiShowError(_ error: String) {
-        chatSidebarController?.showError(error)
+        chatSidebarController.showError(error)
     }
     
     /// Update LLM providers
     func updateLLMProviders(_ providers: [LLMProvider]) {
-        chatSidebarController?.updateProviders(providers)
+        chatSidebarController.updateProviders(providers)
     }
     
     /// Access to chat sidebar for delegate setting
