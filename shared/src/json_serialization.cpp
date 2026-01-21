@@ -99,6 +99,88 @@ void from_json(const json& j, GetHistoryMessage& message) {
     j.at("session_id").get_to(message.sessionId);
 }
 
+void to_json(json& j, const AIChatMessage& message) {
+    j = json{
+        {"type", AIChatMessage::type},
+        {"session_id", message.sessionId},
+        {"provider_id", message.providerId},
+        {"message", message.message}
+    };
+}
+
+void from_json(const json& j, AIChatMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+    j.at("provider_id").get_to(message.providerId);
+    j.at("message").get_to(message.message);
+}
+
+// LLM Provider client messages
+
+void to_json(json& j, const ListLLMProvidersMessage&) {
+    j = json{{"type", ListLLMProvidersMessage::type}};
+}
+
+void from_json(const json&, ListLLMProvidersMessage&) {
+    // No fields
+}
+
+void to_json(json& j, const AddLLMProviderMessage& message) {
+    j = json{
+        {"type", AddLLMProviderMessage::type},
+        {"name", message.name},
+        {"provider_type", message.providerType},
+        {"url", message.url},
+        {"model", message.model},
+        {"api_key", message.apiKey}
+    };
+}
+
+void from_json(const json& j, AddLLMProviderMessage& message) {
+    j.at("name").get_to(message.name);
+    j.at("provider_type").get_to(message.providerType);
+    j.at("url").get_to(message.url);
+    if (auto it = j.find("model"); it != j.end()) {
+        it->get_to(message.model);
+    }
+    if (auto it = j.find("api_key"); it != j.end()) {
+        it->get_to(message.apiKey);
+    }
+}
+
+void to_json(json& j, const UpdateLLMProviderMessage& message) {
+    j = json{
+        {"type", UpdateLLMProviderMessage::type},
+        {"id", message.id},
+        {"name", message.name},
+        {"url", message.url},
+        {"model", message.model},
+        {"api_key", message.apiKey}
+    };
+}
+
+void from_json(const json& j, UpdateLLMProviderMessage& message) {
+    j.at("id").get_to(message.id);
+    j.at("name").get_to(message.name);
+    j.at("url").get_to(message.url);
+    if (auto it = j.find("model"); it != j.end()) {
+        it->get_to(message.model);
+    }
+    if (auto it = j.find("api_key"); it != j.end()) {
+        it->get_to(message.apiKey);
+    }
+}
+
+void to_json(json& j, const DeleteLLMProviderMessage& message) {
+    j = json{
+        {"type", DeleteLLMProviderMessage::type},
+        {"id", message.id}
+    };
+}
+
+void from_json(const json& j, DeleteLLMProviderMessage& message) {
+    j.at("id").get_to(message.id);
+}
+
 // ClientMessage variant serialization
 
 void to_json(json& j, const ClientMessage& message) {
@@ -134,6 +216,24 @@ void from_json(const json& j, ClientMessage& message) {
         message = std::move(m);
     } else if (type == GetHistoryMessage::type) {
         GetHistoryMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == AIChatMessage::type) {
+        AIChatMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == ListLLMProvidersMessage::type) {
+        message = ListLLMProvidersMessage{};
+    } else if (type == AddLLMProviderMessage::type) {
+        AddLLMProviderMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == UpdateLLMProviderMessage::type) {
+        UpdateLLMProviderMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == DeleteLLMProviderMessage::type) {
+        DeleteLLMProviderMessage m;
         from_json(j, m);
         message = std::move(m);
     } else {
@@ -377,6 +477,111 @@ void from_json(const json& j, CwdUpdateMessage& message) {
     j.at("cwd").get_to(message.cwd);
 }
 
+void to_json(json& j, const AIChunkMessage& message) {
+    j = json{
+        {"type", AIChunkMessage::type},
+        {"session_id", message.sessionId},
+        {"content", message.content}
+    };
+}
+
+void from_json(const json& j, AIChunkMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+    j.at("content").get_to(message.content);
+}
+
+void to_json(json& j, const AIDoneMessage& message) {
+    j = json{
+        {"type", AIDoneMessage::type},
+        {"session_id", message.sessionId}
+    };
+}
+
+void from_json(const json& j, AIDoneMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+}
+
+void to_json(json& j, const AIErrorMessage& message) {
+    j = json{
+        {"type", AIErrorMessage::type},
+        {"session_id", message.sessionId},
+        {"error", message.error}
+    };
+}
+
+void from_json(const json& j, AIErrorMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+    j.at("error").get_to(message.error);
+}
+
+// LLM Provider server messages
+
+void to_json(json& j, const LLMProviderInfo& info) {
+    j = json{
+        {"id", info.id},
+        {"name", info.name},
+        {"type", info.type},
+        {"url", info.url},
+        {"model", info.model},
+        {"created_at", info.createdAt}
+    };
+}
+
+void from_json(const json& j, LLMProviderInfo& info) {
+    j.at("id").get_to(info.id);
+    j.at("name").get_to(info.name);
+    j.at("type").get_to(info.type);
+    j.at("url").get_to(info.url);
+    if (auto it = j.find("model"); it != j.end()) {
+        it->get_to(info.model);
+    }
+    info.createdAt = j.at("created_at").get<int64_t>();
+}
+
+void to_json(json& j, const LLMProvidersListMessage& message) {
+    j = json{
+        {"type", LLMProvidersListMessage::type},
+        {"providers", message.providers}
+    };
+}
+
+void from_json(const json& j, LLMProvidersListMessage& message) {
+    j.at("providers").get_to(message.providers);
+}
+
+void to_json(json& j, const LLMProviderAddedMessage& message) {
+    j = json{
+        {"type", LLMProviderAddedMessage::type},
+        {"id", message.id}
+    };
+}
+
+void from_json(const json& j, LLMProviderAddedMessage& message) {
+    j.at("id").get_to(message.id);
+}
+
+void to_json(json& j, const LLMProviderUpdatedMessage& message) {
+    j = json{
+        {"type", LLMProviderUpdatedMessage::type},
+        {"id", message.id}
+    };
+}
+
+void from_json(const json& j, LLMProviderUpdatedMessage& message) {
+    j.at("id").get_to(message.id);
+}
+
+void to_json(json& j, const LLMProviderDeletedMessage& message) {
+    j = json{
+        {"type", LLMProviderDeletedMessage::type},
+        {"id", message.id}
+    };
+}
+
+void from_json(const json& j, LLMProviderDeletedMessage& message) {
+    j.at("id").get_to(message.id);
+}
+
 // ServerMessage variant serialization
 
 void to_json(json& j, const ServerMessage& message) {
@@ -446,6 +651,34 @@ void from_json(const json& j, ServerMessage& message) {
         CwdUpdateMessage m;
         from_json(j, m);
         message = std::move(m);
+    } else if (type == AIChunkMessage::type) {
+        AIChunkMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == AIDoneMessage::type) {
+        AIDoneMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == AIErrorMessage::type) {
+        AIErrorMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == LLMProvidersListMessage::type) {
+        LLMProvidersListMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == LLMProviderAddedMessage::type) {
+        LLMProviderAddedMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == LLMProviderUpdatedMessage::type) {
+        LLMProviderUpdatedMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == LLMProviderDeletedMessage::type) {
+        LLMProviderDeletedMessage m;
+        from_json(j, m);
+        message = std::move(m);
     } else {
         throw std::runtime_error("Unknown server message type: " + type);
     }
@@ -488,6 +721,18 @@ std::string serialize(const CommandEndMessage& message) { return serializeImpl(m
 std::string serialize(const PromptStartMessage& message) { return serializeImpl(message); }
 std::string serialize(const PromptEndMessage& message) { return serializeImpl(message); }
 std::string serialize(const CwdUpdateMessage& message) { return serializeImpl(message); }
+std::string serialize(const AIChatMessage& message) { return serializeImpl(message); }
+std::string serialize(const AIChunkMessage& message) { return serializeImpl(message); }
+std::string serialize(const AIDoneMessage& message) { return serializeImpl(message); }
+std::string serialize(const AIErrorMessage& message) { return serializeImpl(message); }
+std::string serialize(const ListLLMProvidersMessage& message) { return serializeImpl(message); }
+std::string serialize(const AddLLMProviderMessage& message) { return serializeImpl(message); }
+std::string serialize(const UpdateLLMProviderMessage& message) { return serializeImpl(message); }
+std::string serialize(const DeleteLLMProviderMessage& message) { return serializeImpl(message); }
+std::string serialize(const LLMProvidersListMessage& message) { return serializeImpl(message); }
+std::string serialize(const LLMProviderAddedMessage& message) { return serializeImpl(message); }
+std::string serialize(const LLMProviderUpdatedMessage& message) { return serializeImpl(message); }
+std::string serialize(const LLMProviderDeletedMessage& message) { return serializeImpl(message); }
 
 ClientMessage parseClientMessage(const std::string& jsonStr) {
     json j = json::parse(jsonStr);

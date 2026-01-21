@@ -23,6 +23,16 @@ struct TerminalSession {
     int64_t deletedAt = 0;         // 0 if not deleted
 };
 
+struct LLMProvider {
+    uint64_t id = 0;
+    std::string name;              // Display name
+    std::string type;              // "openai_compatible"
+    std::string url;               // Base URL (e.g., "http://localhost:11434")
+    std::string model;             // Model name (optional)
+    std::string apiKey;            // API key (optional)
+    int64_t createdAt = 0;
+};
+
 inline auto createServerStorage(std::string path) {
     using namespace sqlite_orm;
     return make_storage(std::move(path),
@@ -41,6 +51,15 @@ inline auto createServerStorage(std::string path) {
             make_column("created_at", &TerminalSession::createdAt),
             make_column("is_deleted", &TerminalSession::isDeleted),
             make_column("deleted_at", &TerminalSession::deletedAt)
+        ),
+        make_table("llm_providers",
+            make_column("id", &LLMProvider::id, primary_key().autoincrement()),
+            make_column("name", &LLMProvider::name),
+            make_column("type", &LLMProvider::type),
+            make_column("url", &LLMProvider::url),
+            make_column("model", &LLMProvider::model),
+            make_column("api_key", &LLMProvider::apiKey),
+            make_column("created_at", &LLMProvider::createdAt)
         )
     );
 }

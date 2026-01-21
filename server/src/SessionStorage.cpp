@@ -12,13 +12,9 @@ SessionStorage::SessionStorage(std::filesystem::path dbPath)
 }
 
 void SessionStorage::initialize() {
-    auto countBefore = this->storage.count<SessionCommand>();
-    fmt::print("[SessionStorage] Commands before sync_schema: {}\n", countBefore);
-    
     this->storage.sync_schema();
-    
-    auto countAfter = this->storage.count<SessionCommand>();
-    fmt::print("[SessionStorage] Commands after sync_schema: {}\n", countAfter);
+    auto count = this->storage.count<SessionCommand>();
+    fmt::print("[SessionStorage] Commands count: {}\n", count);
 }
 
 uint64_t SessionStorage::addCommand(uint64_t serverRunId, const std::string& command, const std::string& cwdStart) {

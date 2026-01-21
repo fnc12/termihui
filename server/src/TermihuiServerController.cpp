@@ -40,6 +40,9 @@ bool TermihuiServerController::start() {
     this->currentRunId = this->serverStorage->recordStart();
     fmt::print("🚀 Server run ID: {}\n", this->currentRunId);
     
+    // AI agent will be configured per-request based on selected provider
+    fmt::print("🤖 AI Agent ready (provider configured per-request)\n");
+    
     // Start WebSocket server
     if (!this->webSocketServer->start()) {
         fmt::print(stderr, "Failed to start WebSocket server on {}:{}\n", 
@@ -96,6 +99,22 @@ void TermihuiServerController::update() {
             fmt::print("Session {} command completed\n", sessionId);
             StatusMessage statusMessage{sessionId, false};
             this->webSocketServer->broadcastMessage(serialize(statusMessage));
+        }
+    }
+    
+    // Process AI agent events
+    auto aiEvents = this->aiAgentController.update();
+    for (auto& event : aiEvents) {
+        switch (event.type) {
+            case AIEvent::Type::Chunk:
+                this->webSocketServer->broadcastMessage(serialize(AIChunkMessage{event.sessionId, std::move(event.content)}));
+                break;
+            case AIEvent::Type::Done:
+                this->webSocketServer->broadcastMessage(serialize(AIDoneMessage{event.sessionId}));
+                break;
+            case AIEvent::Type::Error:
+                this->webSocketServer->broadcastMessage(serialize(AIErrorMessage{event.sessionId, std::move(event.content)}));
+                break;
         }
     }
     
@@ -338,6 +357,66 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
     
     this->webSocketServer->sendMessage(clientId, serialize(historyMessage));
     fmt::print("Sent history for session {} ({} commands) to client {}\n", message.sessionId, commandHistory.size(), clientId);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const AIChatMessage& message) {
+    fmt::print("AI chat message for session {}, provider {}: {}\n", message.sessionId, message.providerId, message.message);
+    
+    // Get provider from storage
+    auto provider = this->serverStorage->getLLMProvider(message.providerId);
+    if (!provider) {
+        ErrorMessage errorMessage{fmt::format("LLM provider {} not found", message.providerId), "PROVIDER_NOT_FOUND"};
+        this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
+        return;
+    }
+    
+    // Configure AI agent with provider settings
+    this->aiAgentController.setEndpoint(provider->url);
+    this->aiAgentController.setModel(provider->model);
+    this->aiAgentController.setApiKey(provider->apiKey);
+    
+    // Send message to AI agent (will respond with streaming events)
+    this->aiAgentController.sendMessage(message.sessionId, message.message);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const ListLLMProvidersMessage&) {
+    auto providers = this->serverStorage->getAllLLMProviders();
+    
+    LLMProvidersListMessage response;
+    response.providers.reserve(providers.size());
+    for (const auto& p : providers) {
+        response.providers.push_back(LLMProviderInfo{
+            p.id, p.name, p.type, p.url, p.model, p.createdAt
+        });
+    }
+    
+    this->webSocketServer->sendMessage(clientId, serialize(response));
+    fmt::print("Sent LLM providers list ({} providers) to client {}\n", providers.size(), clientId);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const AddLLMProviderMessage& message) {
+    uint64_t id = this->serverStorage->addLLMProvider(
+        message.name, message.providerType, message.url, message.model, message.apiKey);
+    
+    LLMProviderAddedMessage response{id};
+    this->webSocketServer->sendMessage(clientId, serialize(response));
+    fmt::print("Added LLM provider {} (id={}) for client {}\n", message.name, id, clientId);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const UpdateLLMProviderMessage& message) {
+    this->serverStorage->updateLLMProvider(message.id, message.name, message.url, message.model, message.apiKey);
+    
+    LLMProviderUpdatedMessage response{message.id};
+    this->webSocketServer->sendMessage(clientId, serialize(response));
+    fmt::print("Updated LLM provider {} for client {}\n", message.id, clientId);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const DeleteLLMProviderMessage& message) {
+    this->serverStorage->deleteLLMProvider(message.id);
+    
+    LLMProviderDeletedMessage response{message.id};
+    this->webSocketServer->sendMessage(clientId, serialize(response));
+    fmt::print("Deleted LLM provider {} for client {}\n", message.id, clientId);
 }
 
 

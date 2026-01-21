@@ -35,6 +35,21 @@ void from_json(const json& j, CloseSessionMessage& message);
 void to_json(json& j, const GetHistoryMessage& message);
 void from_json(const json& j, GetHistoryMessage& message);
 
+void to_json(json& j, const AIChatMessage& message);
+void from_json(const json& j, AIChatMessage& message);
+
+void to_json(json& j, const ListLLMProvidersMessage& message);
+void from_json(const json& j, ListLLMProvidersMessage& message);
+
+void to_json(json& j, const AddLLMProviderMessage& message);
+void from_json(const json& j, AddLLMProviderMessage& message);
+
+void to_json(json& j, const UpdateLLMProviderMessage& message);
+void from_json(const json& j, UpdateLLMProviderMessage& message);
+
+void to_json(json& j, const DeleteLLMProviderMessage& message);
+void from_json(const json& j, DeleteLLMProviderMessage& message);
+
 void to_json(json& j, const ClientMessage& message);
 void from_json(const json& j, ClientMessage& message);
 
@@ -96,6 +111,30 @@ void from_json(const json& j, PromptEndMessage& message);
 void to_json(json& j, const CwdUpdateMessage& message);
 void from_json(const json& j, CwdUpdateMessage& message);
 
+void to_json(json& j, const AIChunkMessage& message);
+void from_json(const json& j, AIChunkMessage& message);
+
+void to_json(json& j, const AIDoneMessage& message);
+void from_json(const json& j, AIDoneMessage& message);
+
+void to_json(json& j, const AIErrorMessage& message);
+void from_json(const json& j, AIErrorMessage& message);
+
+void to_json(json& j, const LLMProviderInfo& info);
+void from_json(const json& j, LLMProviderInfo& info);
+
+void to_json(json& j, const LLMProvidersListMessage& message);
+void from_json(const json& j, LLMProvidersListMessage& message);
+
+void to_json(json& j, const LLMProviderAddedMessage& message);
+void from_json(const json& j, LLMProviderAddedMessage& message);
+
+void to_json(json& j, const LLMProviderUpdatedMessage& message);
+void from_json(const json& j, LLMProviderUpdatedMessage& message);
+
+void to_json(json& j, const LLMProviderDeletedMessage& message);
+void from_json(const json& j, LLMProviderDeletedMessage& message);
+
 void to_json(json& j, const ServerMessage& message);
 void from_json(const json& j, ServerMessage& message);
 
@@ -129,6 +168,18 @@ std::string serialize(const CommandEndMessage& message);
 std::string serialize(const PromptStartMessage& message);
 std::string serialize(const PromptEndMessage& message);
 std::string serialize(const CwdUpdateMessage& message);
+std::string serialize(const AIChatMessage& message);
+std::string serialize(const AIChunkMessage& message);
+std::string serialize(const AIDoneMessage& message);
+std::string serialize(const AIErrorMessage& message);
+std::string serialize(const ListLLMProvidersMessage& message);
+std::string serialize(const AddLLMProviderMessage& message);
+std::string serialize(const UpdateLLMProviderMessage& message);
+std::string serialize(const DeleteLLMProviderMessage& message);
+std::string serialize(const LLMProvidersListMessage& message);
+std::string serialize(const LLMProviderAddedMessage& message);
+std::string serialize(const LLMProviderUpdatedMessage& message);
+std::string serialize(const LLMProviderDeletedMessage& message);
 
 ClientMessage parseClientMessage(const std::string& jsonStr);
 ServerMessage parseServerMessage(const std::string& jsonStr);

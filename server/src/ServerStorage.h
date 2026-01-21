@@ -22,6 +22,17 @@ public:
     bool isActiveTerminalSession(uint64_t sessionId);
     std::optional<TerminalSession> getTerminalSession(uint64_t sessionId);
     std::vector<TerminalSession> getActiveTerminalSessions();
+    
+    // LLM Provider management
+    uint64_t addLLMProvider(const std::string& name, const std::string& type,
+                            const std::string& url, const std::string& model,
+                            const std::string& apiKey);
+    void updateLLMProvider(uint64_t id, const std::string& name,
+                           const std::string& url, const std::string& model,
+                           const std::string& apiKey);
+    void deleteLLMProvider(uint64_t id);
+    std::optional<LLMProvider> getLLMProvider(uint64_t id);
+    std::vector<LLMProvider> getAllLLMProviders();
 
 private:
     ServerStorageType storage;

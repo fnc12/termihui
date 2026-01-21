@@ -202,6 +202,8 @@ class RootViewController: NSViewController {
         case "connected":
             if let address = json["address"] as? String {
                 currentState = .connected(serverAddress: address)
+                // Request LLM providers list after connection
+                clientCore?.send(["type": "list_llm_providers"])
             } else {
                 print("❌ connected missing 'address': \(json)")
             }
@@ -341,6 +343,48 @@ class RootViewController: NSViewController {
         case "input_sent", "resize_ack":
             // Acknowledgements - can be ignored
             break
+            
+        case "ai_chunk":
+            if let content = messageDict["content"] as? String {
+                print("🤖 AI chunk: \(content.prefix(30))...")
+                terminalViewController.aiAppendChunk(content)
+            } else {
+                print("❌ ai_chunk missing 'content': \(messageDict)")
+            }
+            
+        case "ai_done":
+            print("🤖 AI done")
+            terminalViewController.aiFinishResponse()
+            
+        case "ai_error":
+            if let error = messageDict["error"] as? String {
+                print("🤖 AI error: \(error)")
+                terminalViewController.aiShowError(error)
+            } else {
+                print("❌ ai_error missing 'error': \(messageDict)")
+            }
+            
+        case "llm_providers_list":
+            if let providersData = messageDict["providers"],
+               let jsonData = try? JSONSerialization.data(withJSONObject: providersData),
+               let providers = try? JSONDecoder().decode([LLMProvider].self, from: jsonData) {
+                print("📋 Received \(providers.count) LLM providers")
+                terminalViewController.updateLLMProviders(providers)
+            } else {
+                print("❌ llm_providers_list failed to decode: \(messageDict)")
+            }
+            
+        case "llm_provider_added":
+            if let providerId = messageDict["id"] as? UInt64 {
+                print("✅ LLM provider added: \(providerId)")
+                // Refresh providers list
+                clientCore?.send(["type": "list_llm_providers"])
+            }
+            
+        case "llm_provider_updated", "llm_provider_deleted":
+            print("✅ LLM provider \(messageType)")
+            // Refresh providers list
+            clientCore?.send(["type": "list_llm_providers"])
             
         case "error":
             if let message = messageDict["message"] as? String {

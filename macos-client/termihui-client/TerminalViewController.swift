@@ -7,6 +7,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - UI Components
     private let topToolbarView = NSView()
     private let hamburgerButton = NSButton()
+    private let chatButton = NSButton()
     private let sessionLabel = NSTextField(labelWithString: "")
     
     let terminalScrollView = NSScrollView()
@@ -22,6 +23,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // Session sidebar (lazy - created on first toggle)
     var sessionListController: SessionListViewController?
     private var isSidebarVisible = false
+    
+    // Chat sidebar (lazy - created on first toggle)
+    var chatSidebarController: ChatSidebarViewController?
+    private var isChatSidebarVisible = false
     
     // Cached session data (applied when sidebar is created)
     var cachedSessions: [SessionInfo] = []
@@ -131,8 +136,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Update NSTextView frame when view size changes
         updateTextViewFrame()
         
-        // Update sidebar transform when view size changes
+        // Update sidebar transforms when view size changes
         updateSidebarTransform()
+        updateChatSidebarTransform()
         
         // Debounced terminal resize notification
         scheduleTerminalResizeUpdate()
@@ -225,9 +231,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Disable autoresizing for subviews
         hamburgerButton.translatesAutoresizingMaskIntoConstraints = false
+        chatButton.translatesAutoresizingMaskIntoConstraints = false
         sessionLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        // Hamburger button (menu icon)
+        // Hamburger button (menu icon) - left side
         hamburgerButton.bezelStyle = .regularSquare
         hamburgerButton.isBordered = false
         if let image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "Menu") {
@@ -243,6 +250,22 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         hamburgerButton.target = self
         hamburgerButton.action = #selector(toggleSidebar)
         topToolbarView.addSubview(hamburgerButton)
+        
+        // Chat button (AI icon) - right side
+        chatButton.bezelStyle = .regularSquare
+        chatButton.isBordered = false
+        if let image = NSImage(systemSymbolName: "bubble.left.and.bubble.right", accessibilityDescription: "AI Chat") {
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+            chatButton.image = image.withSymbolConfiguration(config)
+            chatButton.imagePosition = .imageOnly
+            chatButton.contentTintColor = .white
+        } else {
+            chatButton.title = "AI"
+            chatButton.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        }
+        chatButton.target = self
+        chatButton.action = #selector(toggleChatSidebar)
+        topToolbarView.addSubview(chatButton)
         
         // Session label (centered)
         sessionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
@@ -463,6 +486,12 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.width.height.equalTo(28)
         }
         
+        chatButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-8)
+            make.centerY.equalToSuperview()
+            make.width.height.equalTo(28)
+        }
+        
         sessionLabel.snp.makeConstraints { make in
             make.center.equalToSuperview()
         }
@@ -598,6 +627,116 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         guard !isSidebarVisible, let sidebarView = sessionListController?.view else { return }
         let sidebarWidth = sidebarView.bounds.width > 0 ? sidebarView.bounds.width : 300
         sidebarView.layer?.setAffineTransform(CGAffineTransform(translationX: -sidebarWidth, y: 0))
+    }
+    
+    // MARK: - Chat Sidebar
+    
+    /// Creates chat sidebar lazily - called on first toggle
+    private func createChatSidebarIfNeeded() {
+        guard chatSidebarController == nil else { return }
+        
+        let controller = ChatSidebarViewController()
+        controller.delegate = self
+        controller.sessionId = cachedActiveSessionId
+        
+        addChild(controller)
+        
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.wantsLayer = true
+        
+        // Start hidden (off-screen to the right)
+        controller.view.alphaValue = 0
+        controller.setInteractive(false)
+        
+        view.addSubview(controller.view)
+        
+        // Position chat sidebar on the right
+        controller.view.snp.makeConstraints { make in
+            make.top.equalTo(topToolbarView.snp.bottom)
+            make.bottom.equalToSuperview()
+            make.trailing.equalToSuperview()
+            make.width.equalToSuperview().multipliedBy(0.35)
+        }
+        
+        chatSidebarController = controller
+        
+        // Force layout to get correct width
+        view.layoutSubtreeIfNeeded()
+        
+        // Set initial transform (hidden off-screen to the right)
+        let sidebarWidth = controller.view.bounds.width > 0 ? controller.view.bounds.width : 300
+        controller.view.layer?.setAffineTransform(CGAffineTransform(translationX: sidebarWidth, y: 0))
+    }
+    
+    @objc func toggleChatSidebar() {
+        // Create chat sidebar on first use (lazy initialization)
+        createChatSidebarIfNeeded()
+        
+        guard let chatView = chatSidebarController?.view else { return }
+        
+        // Toggle state
+        isChatSidebarVisible = !isChatSidebarVisible
+        
+        let sidebarWidth = chatView.frame.width > 0 ? chatView.frame.width : 300
+        let targetX: CGFloat = isChatSidebarVisible ? 0 : sidebarWidth
+        let targetAlpha: CGFloat = isChatSidebarVisible ? 1.0 : 0.0
+        
+        // Enable interaction before showing
+        if isChatSidebarVisible {
+            chatSidebarController?.setInteractive(true)
+        }
+        
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.15
+            context.allowsImplicitAnimation = true
+            chatView.layer?.setAffineTransform(CGAffineTransform(translationX: targetX, y: 0))
+            chatView.alphaValue = targetAlpha
+        }, completionHandler: { [weak self] in
+            guard let self = self else { return }
+            // Disable interaction after hiding
+            if !self.isChatSidebarVisible {
+                self.chatSidebarController?.setInteractive(false)
+            }
+        })
+    }
+    
+    /// Updates chat sidebar position when view size changes
+    private func updateChatSidebarTransform() {
+        guard !isChatSidebarVisible, let chatView = chatSidebarController?.view else { return }
+        let sidebarWidth = chatView.bounds.width > 0 ? chatView.bounds.width : 300
+        chatView.layer?.setAffineTransform(CGAffineTransform(translationX: sidebarWidth, y: 0))
+    }
+    
+    // MARK: - AI Chat Public API
+    
+    /// Start streaming assistant response
+    func aiStartResponse() {
+        chatSidebarController?.startAssistantMessage()
+    }
+    
+    /// Append chunk to current streaming response
+    func aiAppendChunk(_ text: String) {
+        chatSidebarController?.appendChunk(text)
+    }
+    
+    /// Finish streaming response
+    func aiFinishResponse() {
+        chatSidebarController?.finishAssistantMessage()
+    }
+    
+    /// Show AI error
+    func aiShowError(_ error: String) {
+        chatSidebarController?.showError(error)
+    }
+    
+    /// Update LLM providers
+    func updateLLMProviders(_ providers: [LLMProvider]) {
+        chatSidebarController?.updateProviders(providers)
+    }
+    
+    /// Access to chat sidebar for delegate setting
+    var chatSidebarViewController: ChatSidebarViewController? {
+        return chatSidebarController
     }
     
     // MARK: - Public Methods

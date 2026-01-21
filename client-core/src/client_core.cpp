@@ -174,6 +174,34 @@ std::string ClientCoreController::sendMessage(std::string_view message) {
                 commandId,
                 j.at("copyType").get<std::string>()
             ));
+        } else if (type == "ai_chat") {
+            return setResponse(this->handleAIChat(
+                j.at("session_id").get<uint64_t>(),
+                j.at("provider_id").get<uint64_t>(),
+                j.at("message").get<std::string>()
+            ));
+        } else if (type == "list_llm_providers") {
+            return setResponse(this->handleListLLMProviders());
+        } else if (type == "add_llm_provider") {
+            return setResponse(this->handleAddLLMProvider(
+                j.at("name").get<std::string>(),
+                j.at("provider_type").get<std::string>(),
+                j.at("url").get<std::string>(),
+                j.value("model", ""),
+                j.value("api_key", "")
+            ));
+        } else if (type == "update_llm_provider") {
+            return setResponse(this->handleUpdateLLMProvider(
+                j.at("id").get<uint64_t>(),
+                j.at("name").get<std::string>(),
+                j.at("url").get<std::string>(),
+                j.value("model", ""),
+                j.value("api_key", "")
+            ));
+        } else if (type == "delete_llm_provider") {
+            return setResponse(this->handleDeleteLLMProvider(
+                j.at("id").get<uint64_t>()
+            ));
         } else {
             return setResponse(fmt::format("Unknown message type: {}", type));
         }
@@ -448,6 +476,81 @@ std::string ClientCoreController::handleCopyBlock(std::optional<uint64_t> comman
         return "Failed to copy to clipboard";
     }
     
+    return "";
+}
+
+std::string ClientCoreController::handleAIChat(uint64_t sessionId, uint64_t providerId, std::string_view message) {
+    fmt::print("ClientCoreController: AI chat for session {}, provider {}: {}\n", sessionId, providerId, message.substr(0, 50));
+    
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+    
+    // Send AI chat message to server
+    AIChatMessage msg{sessionId, providerId, std::string(message)};
+    this->webSocketController->send(serialize(msg));
+    
+    return "";
+}
+
+std::string ClientCoreController::handleListLLMProviders() {
+    fmt::print("ClientCoreController: List LLM providers\n");
+    
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+    
+    this->webSocketController->send(serialize(ListLLMProvidersMessage{}));
+    return "";
+}
+
+std::string ClientCoreController::handleAddLLMProvider(std::string_view name, std::string_view providerType,
+                                                        std::string_view url, std::string_view model,
+                                                        std::string_view apiKey) {
+    fmt::print("ClientCoreController: Add LLM provider {}\n", name);
+    
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+    
+    AddLLMProviderMessage msg;
+    msg.name = std::string(name);
+    msg.providerType = std::string(providerType);
+    msg.url = std::string(url);
+    msg.model = std::string(model);
+    msg.apiKey = std::string(apiKey);
+    this->webSocketController->send(serialize(msg));
+    return "";
+}
+
+std::string ClientCoreController::handleUpdateLLMProvider(uint64_t id, std::string_view name,
+                                                           std::string_view url, std::string_view model,
+                                                           std::string_view apiKey) {
+    fmt::print("ClientCoreController: Update LLM provider {}\n", id);
+    
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+    
+    UpdateLLMProviderMessage msg;
+    msg.id = id;
+    msg.name = std::string(name);
+    msg.url = std::string(url);
+    msg.model = std::string(model);
+    msg.apiKey = std::string(apiKey);
+    this->webSocketController->send(serialize(msg));
+    return "";
+}
+
+std::string ClientCoreController::handleDeleteLLMProvider(uint64_t id) {
+    fmt::print("ClientCoreController: Delete LLM provider {}\n", id);
+    
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+    
+    DeleteLLMProviderMessage msg{id};
+    this->webSocketController->send(serialize(msg));
     return "";
 }
 

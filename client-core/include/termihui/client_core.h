@@ -120,6 +120,19 @@ protected:
     
     // Copy block handler
     virtual std::string handleCopyBlock(std::optional<uint64_t> commandId, std::string_view copyType);
+    
+    // AI chat handler
+    virtual std::string handleAIChat(uint64_t sessionId, uint64_t providerId, std::string_view message);
+    
+    // LLM Provider handlers
+    virtual std::string handleListLLMProviders();
+    virtual std::string handleAddLLMProvider(std::string_view name, std::string_view providerType,
+                                              std::string_view url, std::string_view model,
+                                              std::string_view apiKey);
+    virtual std::string handleUpdateLLMProvider(uint64_t id, std::string_view name,
+                                                 std::string_view url, std::string_view model,
+                                                 std::string_view apiKey);
+    virtual std::string handleDeleteLLMProvider(uint64_t id);
 
 protected:
     // WebSocket event handlers (overloads for std::visit dispatch, virtual for testability)

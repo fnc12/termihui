@@ -109,3 +109,50 @@ std::vector<TerminalSession> ServerStorage::getActiveTerminalSessions() {
         order_by(&TerminalSession::id)
     );
 }
+
+uint64_t ServerStorage::addLLMProvider(const std::string& name, const std::string& type,
+                                        const std::string& url, const std::string& model,
+                                        const std::string& apiKey) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+    
+    LLMProvider provider;
+    provider.name = name;
+    provider.type = type;
+    provider.url = url;
+    provider.model = model;
+    provider.apiKey = apiKey;
+    provider.createdAt = timestamp;
+    
+    return static_cast<uint64_t>(this->storage.insert(provider));
+}
+
+void ServerStorage::updateLLMProvider(uint64_t id, const std::string& name,
+                                       const std::string& url, const std::string& model,
+                                       const std::string& apiKey) {
+    this->storage.update_all(
+        set(
+            c(&LLMProvider::name) = name,
+            c(&LLMProvider::url) = url,
+            c(&LLMProvider::model) = model,
+            c(&LLMProvider::apiKey) = apiKey
+        ),
+        where(c(&LLMProvider::id) == id)
+    );
+}
+
+void ServerStorage::deleteLLMProvider(uint64_t id) {
+    this->storage.remove<LLMProvider>(id);
+}
+
+std::optional<LLMProvider> ServerStorage::getLLMProvider(uint64_t id) {
+    return this->storage.get_optional<LLMProvider>(id);
+}
+
+std::vector<LLMProvider> ServerStorage::getAllLLMProviders() {
+    return this->storage.get_all<LLMProvider>(
+        order_by(&LLMProvider::id)
+    );
+}

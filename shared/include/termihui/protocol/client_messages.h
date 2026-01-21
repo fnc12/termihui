@@ -58,6 +58,52 @@ struct GetHistoryMessage {
     static constexpr const char* type = "get_history";
 };
 
+// ============================================================================
+// AI Chat messages
+// ============================================================================
+
+struct AIChatMessage {
+    uint64_t sessionId;
+    uint64_t providerId;  // Which LLM provider to use
+    std::string message;
+    
+    static constexpr const char* type = "ai_chat";
+};
+
+// ============================================================================
+// LLM Provider management
+// ============================================================================
+
+struct ListLLMProvidersMessage {
+    static constexpr const char* type = "list_llm_providers";
+};
+
+struct AddLLMProviderMessage {
+    std::string name;
+    std::string providerType;  // "openai_compatible"
+    std::string url;
+    std::string model;         // optional
+    std::string apiKey;        // optional
+    
+    static constexpr const char* type = "add_llm_provider";
+};
+
+struct UpdateLLMProviderMessage {
+    uint64_t id;
+    std::string name;
+    std::string url;
+    std::string model;
+    std::string apiKey;
+    
+    static constexpr const char* type = "update_llm_provider";
+};
+
+struct DeleteLLMProviderMessage {
+    uint64_t id;
+    
+    static constexpr const char* type = "delete_llm_provider";
+};
+
 // Variant alias for all client messages
 using ClientMessage = std::variant<
     ExecuteMessage,
@@ -67,5 +113,10 @@ using ClientMessage = std::variant<
     ListSessionsMessage,
     CreateSessionMessage,
     CloseSessionMessage,
-    GetHistoryMessage
+    GetHistoryMessage,
+    AIChatMessage,
+    ListLLMProvidersMessage,
+    AddLLMProviderMessage,
+    UpdateLLMProviderMessage,
+    DeleteLLMProviderMessage
 >;

@@ -10,6 +10,9 @@ include(FetchContent)
 # Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
 set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/.deps" CACHE PATH "Dependencies cache" FORCE)
 
+# После первого клонирования - не пытаться обновлять/перекачивать
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "Don't update deps after initial clone")
+
 # ============================================
 # Общие зависимости (скачиваются один раз)
 # ============================================
@@ -23,6 +26,7 @@ FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
     GIT_TAG        10.1.1
+    GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(fmt)
 message(STATUS "fmt ready")
@@ -33,6 +37,7 @@ FetchContent_Declare(
     libhv
     GIT_REPOSITORY https://github.com/ithewei/libhv.git
     GIT_TAG        v1.3.2
+    GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(libhv)
 message(STATUS "libhv ready")
@@ -43,6 +48,7 @@ FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG        v3.4.0
+    GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(Catch2)
 message(STATUS "Catch2 ready")
@@ -54,6 +60,7 @@ FetchContent_Declare(
     sqlite_orm
     GIT_REPOSITORY https://github.com/fnc12/sqlite_orm.git
     GIT_TAG        v1.9.1
+    GIT_SHALLOW    TRUE
 )
 add_compile_definitions(SQLITE_ORM_WITH_CPP_20)
 FetchContent_MakeAvailable(sqlite_orm)
@@ -65,6 +72,7 @@ FetchContent_Declare(
     platform_folders
     GIT_REPOSITORY https://github.com/sago007/PlatformFolders.git
     GIT_TAG        4.2.0
+    GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(platform_folders)
 message(STATUS "platform_folders ready")

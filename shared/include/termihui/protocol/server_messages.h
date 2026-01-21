@@ -126,6 +126,71 @@ struct CwdUpdateMessage {
     static constexpr const char* type = "cwd_update";
 };
 
+// ============================================================================
+// AI Chat messages
+// ============================================================================
+
+// Streaming chunk from LLM
+struct AIChunkMessage {
+    uint64_t sessionId;
+    std::string content;
+    
+    static constexpr const char* type = "ai_chunk";
+};
+
+// Generation finished
+struct AIDoneMessage {
+    uint64_t sessionId;
+    
+    static constexpr const char* type = "ai_done";
+};
+
+// AI error
+struct AIErrorMessage {
+    uint64_t sessionId;
+    std::string error;
+    
+    static constexpr const char* type = "ai_error";
+};
+
+// ============================================================================
+// LLM Provider messages
+// ============================================================================
+
+struct LLMProviderInfo {
+    uint64_t id;
+    std::string name;
+    std::string type;
+    std::string url;
+    std::string model;
+    // Note: apiKey is NOT included in list response for security
+    int64_t createdAt;
+};
+
+struct LLMProvidersListMessage {
+    std::vector<LLMProviderInfo> providers;
+    
+    static constexpr const char* type = "llm_providers_list";
+};
+
+struct LLMProviderAddedMessage {
+    uint64_t id;
+    
+    static constexpr const char* type = "llm_provider_added";
+};
+
+struct LLMProviderUpdatedMessage {
+    uint64_t id;
+    
+    static constexpr const char* type = "llm_provider_updated";
+};
+
+struct LLMProviderDeletedMessage {
+    uint64_t id;
+    
+    static constexpr const char* type = "llm_provider_deleted";
+};
+
 // Variant alias for all server messages
 using ServerMessage = std::variant<
     ConnectedMessage,
@@ -143,5 +208,12 @@ using ServerMessage = std::variant<
     CommandEndMessage,
     PromptStartMessage,
     PromptEndMessage,
-    CwdUpdateMessage
+    CwdUpdateMessage,
+    AIChunkMessage,
+    AIDoneMessage,
+    AIErrorMessage,
+    LLMProvidersListMessage,
+    LLMProviderAddedMessage,
+    LLMProviderUpdatedMessage,
+    LLMProviderDeletedMessage
 >;

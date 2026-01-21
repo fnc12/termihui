@@ -99,6 +99,7 @@ endif()
 # For macOS/Linux check for required libraries
 if(NOT WIN32)
     find_package(Threads REQUIRED)
+    find_package(CURL REQUIRED)
     include(CheckLibraryExists)
     check_library_exists(util forkpty "" HAVE_FORKPTY)
     if(HAVE_FORKPTY)
@@ -115,6 +116,7 @@ set(SOURCES
     src/TermihuiServerController.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
+    src/AIAgentController.cpp
     src/main.cpp
 )
 
@@ -129,6 +131,7 @@ set(HEADERS
     src/SessionStorage.h
     src/SessionStorageModels.h
     src/SessionStorageSchema.h
+    src/AIAgentController.h
 )
 
 # Create executable
@@ -155,6 +158,7 @@ if(NOT WIN32)
         platform_folders
         sqlite_orm::sqlite_orm
         termihui_shared
+        CURL::libcurl
     )
 endif()
 
@@ -172,6 +176,7 @@ endif()
 # Install target
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
+    COMPONENT server
 )
 
 # Create executable for unit tests
@@ -187,6 +192,7 @@ set(TEST_SOURCES
     src/JsonHelper.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
+    src/AIAgentController.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})
@@ -219,6 +225,7 @@ if(NOT WIN32)
         platform_folders
         sqlite_orm::sqlite_orm
         termihui_shared
+        CURL::libcurl
     )
 endif()
 

@@ -5,6 +5,7 @@
 #include <termihui/filesystem/file_system_manager.h>
 #include "ServerStorage.h"
 #include "CompletionManager.h"
+#include "AIAgentController.h"
 #include <termihui/protocol/protocol.h>
 #include <atomic>
 #include <memory>
@@ -82,6 +83,11 @@ protected:
     virtual void handleMessageFromClient(int clientId, const CreateSessionMessage& message);
     virtual void handleMessageFromClient(int clientId, const CloseSessionMessage& message);
     virtual void handleMessageFromClient(int clientId, const GetHistoryMessage& message);
+    virtual void handleMessageFromClient(int clientId, const AIChatMessage& message);
+    virtual void handleMessageFromClient(int clientId, const ListLLMProvidersMessage& message);
+    virtual void handleMessageFromClient(int clientId, const AddLLMProviderMessage& message);
+    virtual void handleMessageFromClient(int clientId, const UpdateLLMProviderMessage& message);
+    virtual void handleMessageFromClient(int clientId, const DeleteLLMProviderMessage& message);
     
     /**
      * Get session by ID, returns nullptr if not found
@@ -113,6 +119,7 @@ private:
     std::unique_ptr<ServerStorage> serverStorage;
     std::unique_ptr<WebSocketServer> webSocketServer;
     CompletionManager completionManager;
+    AIAgentController aiAgentController;
     
     // Terminal sessions (sessionId -> controller)
     std::unordered_map<uint64_t, std::unique_ptr<TerminalSessionController>> sessions;
