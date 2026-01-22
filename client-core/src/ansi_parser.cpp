@@ -209,45 +209,45 @@ void ANSIParser::applySGRCodes(const std::vector<int>& codes) {
             // Standard foreground colors (30-37)
             case 30: case 31: case 32: case 33:
             case 34: case 35: case 36: case 37:
-                this->currentStyle.fg = Color::standard(code - 30);
+                this->currentStyle.foreground = Color::standard(code - 30);
                 break;
             
             // Extended foreground color (38;5;N or 38;2;R;G;B)
             case 38:
-                this->currentStyle.fg = parseColor(codes, i, true);
+                this->currentStyle.foreground = parseColor(codes, i, true);
                 break;
             
             // Default foreground
             case 39:
-                this->currentStyle.fg = std::nullopt;
+                this->currentStyle.foreground = std::nullopt;
                 break;
             
             // Standard background colors (40-47)
             case 40: case 41: case 42: case 43:
             case 44: case 45: case 46: case 47:
-                this->currentStyle.bg = Color::standard(code - 40);
+                this->currentStyle.background = Color::standard(code - 40);
                 break;
             
             // Extended background color (48;5;N or 48;2;R;G;B)
             case 48:
-                this->currentStyle.bg = parseColor(codes, i, false);
+                this->currentStyle.background = parseColor(codes, i, false);
                 break;
             
             // Default background
             case 49:
-                this->currentStyle.bg = std::nullopt;
+                this->currentStyle.background = std::nullopt;
                 break;
             
             // Bright foreground colors (90-97)
             case 90: case 91: case 92: case 93:
             case 94: case 95: case 96: case 97:
-                this->currentStyle.fg = Color::bright(code - 90);
+                this->currentStyle.foreground = Color::bright(code - 90);
                 break;
             
             // Bright background colors (100-107)
             case 100: case 101: case 102: case 103:
             case 104: case 105: case 106: case 107:
-                this->currentStyle.bg = Color::bright(code - 100);
+                this->currentStyle.background = Color::bright(code - 100);
                 break;
             
             default:
@@ -318,8 +318,8 @@ void to_json(nlohmann::json& j, const Color& color) {
 }
 
 void to_json(nlohmann::json& j, const TextStyle& textStyle) {
-    j["fg"] = textStyle.fg ? nlohmann::json(*textStyle.fg) : nlohmann::json(nullptr);
-    j["bg"] = textStyle.bg ? nlohmann::json(*textStyle.bg) : nlohmann::json(nullptr);
+    j["fg"] = textStyle.foreground ? nlohmann::json(*textStyle.foreground) : nlohmann::json(nullptr);
+    j["bg"] = textStyle.background ? nlohmann::json(*textStyle.background) : nlohmann::json(nullptr);
     j["bold"] = textStyle.bold;
     j["dim"] = textStyle.dim;
     j["italic"] = textStyle.italic;
