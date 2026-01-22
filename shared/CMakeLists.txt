@@ -78,3 +78,36 @@ install(TARGETS termihui_shared
 install(DIRECTORY include/
     DESTINATION include
 )
+
+# =============================================================================
+# Unit Tests
+# =============================================================================
+
+# Fetch Catch2 for testing
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.4.0
+)
+FetchContent_MakeAvailable(Catch2)
+
+# Test sources
+set(TEST_SOURCES
+    tests/test_grid2d.cpp
+)
+
+add_executable(shared_unit_tests ${TEST_SOURCES})
+
+target_link_libraries(shared_unit_tests PRIVATE
+    Catch2::Catch2WithMain
+    termihui_shared
+)
+
+target_include_directories(shared_unit_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Enable CTest
+enable_testing()
+add_test(NAME shared_unit_tests COMMAND shared_unit_tests)

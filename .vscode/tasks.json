@@ -128,10 +128,24 @@
       "problemMatcher": []
     },
     {
+      "label": "Run Shared Tests",
+      "type": "shell",
+      "command": "make shared_unit_tests && ./shared/shared_unit_tests",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Run All Tests",
       "dependsOn": [
         "Run Server Tests",
-        "Run Client Core Tests"
+        "Run Client Core Tests",
+        "Run Shared Tests"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
