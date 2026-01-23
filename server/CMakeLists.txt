@@ -118,6 +118,7 @@ set(SOURCES
     src/SessionStorage.cpp
     src/AIAgentController.cpp
     src/VirtualScreen.cpp
+    src/AnsiProcessor.cpp
     src/main.cpp
 )
 
@@ -134,6 +135,7 @@ set(HEADERS
     src/SessionStorageSchema.h
     src/AIAgentController.h
     src/VirtualScreen.h
+    src/AnsiProcessor.h
 )
 
 # Create executable
@@ -188,6 +190,7 @@ set(TEST_SOURCES
     tests/test_completion_manager.cpp
     tests/test_termihui_server_controller.cpp
     tests/test_virtual_screen.cpp
+    tests/test_ansi_processor.cpp
     src/TerminalSessionController.cpp
     src/CompletionManager.cpp
     src/TermihuiServerController.cpp
@@ -197,6 +200,7 @@ set(TEST_SOURCES
     src/SessionStorage.cpp
     src/AIAgentController.cpp
     src/VirtualScreen.cpp
+    src/AnsiProcessor.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})
