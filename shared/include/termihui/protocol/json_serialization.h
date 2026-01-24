@@ -2,10 +2,24 @@
 
 #include "client_messages.h"
 #include "server_messages.h"
+#include <termihui/text_style.h>
 #include <hv/json.hpp>
 #include <string>
 
 using json = nlohmann::json;
+
+// ============================================================================
+// Style types JSON serialization
+// ============================================================================
+
+void to_json(json& j, const termihui::Color& color);
+void from_json(const json& j, termihui::Color& color);
+
+void to_json(json& j, const termihui::TextStyle& style);
+void from_json(const json& j, termihui::TextStyle& style);
+
+void to_json(json& j, const termihui::StyledSegment& segment);
+void from_json(const json& j, termihui::StyledSegment& segment);
 
 // ============================================================================
 // Client Messages JSON serialization

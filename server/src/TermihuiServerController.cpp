@@ -488,7 +488,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                 if (!chunk.empty()) {
                     fmt::print("[OSC-PARSE] Final text chunk: {}\n", escapeForLog(chunk));
                     session.appendOutputToCurrentCommand(chunk);
-                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
+                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
                 }
             }
             break;
@@ -500,7 +500,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Text before OSC: {}\n", escapeForLog(chunk));
                 session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
+                this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
             }
         }
 
@@ -521,7 +521,7 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
                 session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(serialize(OutputMessage{chunk}));
+                this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
             }
             break;
         }

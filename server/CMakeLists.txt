@@ -119,6 +119,7 @@ set(SOURCES
     src/AIAgentController.cpp
     src/VirtualScreen.cpp
     src/AnsiProcessor.cpp
+    src/OutputParser.cpp
     src/main.cpp
 )
 
@@ -136,6 +137,7 @@ set(HEADERS
     src/AIAgentController.h
     src/VirtualScreen.h
     src/AnsiProcessor.h
+    src/OutputParser.h
 )
 
 # Create executable
@@ -201,6 +203,7 @@ set(TEST_SOURCES
     src/AIAgentController.cpp
     src/VirtualScreen.cpp
     src/AnsiProcessor.cpp
+    src/OutputParser.cpp
 )
 
 add_executable(unit_tests ${TEST_SOURCES})

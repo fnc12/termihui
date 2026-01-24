@@ -5,6 +5,7 @@
 #include <variant>
 #include <vector>
 #include <string>
+#include <ostream>
 
 /**
  * Mock WebSocket server for unit tests
@@ -22,6 +23,9 @@ public:
             return this->clientId == other.clientId && 
                    json::parse(this->message) == json::parse(other.message);
         }
+        friend std::ostream& operator<<(std::ostream& os, const SendMessageCall& call) {
+            return os << "SendMessageCall{clientId=" << call.clientId << ", message=" << call.message << "}";
+        }
     };
 
     struct BroadcastMessageCall {
@@ -29,9 +33,17 @@ public:
         bool operator==(const BroadcastMessageCall& other) const {
             return json::parse(this->message) == json::parse(other.message);
         }
+        friend std::ostream& operator<<(std::ostream& os, const BroadcastMessageCall& call) {
+            return os << "BroadcastMessageCall{message=" << call.message << "}";
+        }
     };
 
     using Call = std::variant<SendMessageCall, BroadcastMessageCall>;
+    
+    friend std::ostream& operator<<(std::ostream& os, const Call& call) {
+        std::visit([&os](const auto& c) { os << c; }, call);
+        return os;
+    }
 
     // Call recording
     std::vector<Call> calls;

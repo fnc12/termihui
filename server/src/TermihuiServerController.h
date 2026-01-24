@@ -6,6 +6,7 @@
 #include "ServerStorage.h"
 #include "CompletionManager.h"
 #include "AIAgentController.h"
+#include "OutputParser.h"
 #include <termihui/protocol/protocol.h>
 #include <atomic>
 #include <memory>
@@ -120,6 +121,7 @@ private:
     std::unique_ptr<WebSocketServer> webSocketServer;
     CompletionManager completionManager;
     AIAgentController aiAgentController;
+    termihui::OutputParser outputParser;
     
     // Terminal sessions (sessionId -> controller)
     std::unordered_map<uint64_t, std::unique_ptr<TerminalSessionController>> sessions;

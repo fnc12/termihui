@@ -1,5 +1,124 @@
 #include <termihui/protocol/json_serialization.h>
 #include <stdexcept>
+#include <array>
+#include <fmt/core.h>
+
+// ============================================================================
+// Style types JSON serialization
+// ============================================================================
+
+void to_json(json& j, const termihui::Color& color) {
+    switch (color.type) {
+        case termihui::Color::Type::Standard:
+            j = std::string(termihui::colorName(color.index));
+            break;
+        case termihui::Color::Type::Bright:
+            j = std::string("bright_") + std::string(termihui::colorName(color.index));
+            break;
+        case termihui::Color::Type::Indexed:
+            j = json{{"index", color.index}};
+            break;
+        case termihui::Color::Type::RGB:
+            j = json{{"rgb", fmt::format("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)}};
+            break;
+    }
+}
+
+void from_json(const json& j, termihui::Color& color) {
+    if (j.is_string()) {
+        std::string name = j.get<std::string>();
+        static constexpr std::array<std::string_view, 8> colorNames = {
+            "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"
+        };
+        
+        // Check for bright_ prefix
+        if (name.rfind("bright_", 0) == 0) {
+            std::string_view baseName{name.data() + 7, name.size() - 7};
+            for (size_t i = 0; i < colorNames.size(); ++i) {
+                if (baseName == colorNames[i]) {
+                    color = termihui::Color::bright(static_cast<int>(i));
+                    return;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < colorNames.size(); ++i) {
+                if (name == colorNames[i]) {
+                    color = termihui::Color::standard(static_cast<int>(i));
+                    return;
+                }
+            }
+        }
+    } else if (j.is_object()) {
+        if (auto it = j.find("index"); it != j.end()) {
+            color = termihui::Color::indexed(it->get<int>());
+        } else if (auto it = j.find("rgb"); it != j.end()) {
+            std::string rgb = it->get<std::string>();
+            // Parse #RRGGBB
+            if (rgb.length() == 7 && rgb[0] == '#') {
+                int r = std::stoi(rgb.substr(1, 2), nullptr, 16);
+                int g = std::stoi(rgb.substr(3, 2), nullptr, 16);
+                int b = std::stoi(rgb.substr(5, 2), nullptr, 16);
+                color = termihui::Color::rgb(r, g, b);
+            }
+        }
+    }
+}
+
+void to_json(json& j, const termihui::TextStyle& style) {
+    if (style.foreground) {
+        json fgJson;
+        to_json(fgJson, *style.foreground);
+        j["fg"] = fgJson;
+    } else {
+        j["fg"] = nullptr;
+    }
+    if (style.background) {
+        json bgJson;
+        to_json(bgJson, *style.background);
+        j["bg"] = bgJson;
+    } else {
+        j["bg"] = nullptr;
+    }
+    j["bold"] = style.bold;
+    j["dim"] = style.dim;
+    j["italic"] = style.italic;
+    j["underline"] = style.underline;
+    j["reverse"] = style.reverse;
+    j["strikethrough"] = style.strikethrough;
+}
+
+void from_json(const json& j, termihui::TextStyle& style) {
+    style.reset();
+    
+    if (auto it = j.find("fg"); it != j.end() && !it->is_null()) {
+        termihui::Color c;
+        from_json(*it, c);
+        style.foreground = c;
+    }
+    if (auto it = j.find("bg"); it != j.end() && !it->is_null()) {
+        termihui::Color c;
+        from_json(*it, c);
+        style.background = c;
+    }
+    if (auto it = j.find("bold"); it != j.end()) it->get_to(style.bold);
+    if (auto it = j.find("dim"); it != j.end()) it->get_to(style.dim);
+    if (auto it = j.find("italic"); it != j.end()) it->get_to(style.italic);
+    if (auto it = j.find("underline"); it != j.end()) it->get_to(style.underline);
+    if (auto it = j.find("reverse"); it != j.end()) it->get_to(style.reverse);
+    if (auto it = j.find("strikethrough"); it != j.end()) it->get_to(style.strikethrough);
+}
+
+void to_json(json& j, const termihui::StyledSegment& segment) {
+    json styleJson;
+    to_json(styleJson, segment.style);
+    j["text"] = segment.text;
+    j["style"] = styleJson;
+}
+
+void from_json(const json& j, termihui::StyledSegment& segment) {
+    j.at("text").get_to(segment.text);
+    from_json(j.at("style"), segment.style);
+}
 
 // ============================================================================
 // Client Messages JSON serialization
@@ -278,14 +397,23 @@ void from_json(const json& j, ErrorMessage& message) {
 }
 
 void to_json(json& j, const OutputMessage& message) {
-    j = json{
-        {"type", OutputMessage::type},
-        {"data", message.data}
-    };
+    j["type"] = OutputMessage::type;
+    json segmentsJson = json::array();
+    for (const auto& segment : message.segments) {
+        json segmentJson;
+        to_json(segmentJson, segment);
+        segmentsJson.push_back(segmentJson);
+    }
+    j["segments"] = segmentsJson;
 }
 
 void from_json(const json& j, OutputMessage& message) {
-    j.at("data").get_to(message.data);
+    message.segments.clear();
+    for (const auto& segmentJson : j.at("segments")) {
+        termihui::StyledSegment segment;
+        from_json(segmentJson, segment);
+        message.segments.push_back(std::move(segment));
+    }
 }
 
 void to_json(json& j, const StatusMessage& message) {

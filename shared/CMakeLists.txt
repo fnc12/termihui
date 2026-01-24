@@ -68,6 +68,7 @@ endif()
 target_link_libraries(termihui_shared
     PUBLIC
         hv_static
+        fmt::fmt
 )
 
 # Optional installation

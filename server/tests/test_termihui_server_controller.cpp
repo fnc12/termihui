@@ -6,6 +6,23 @@
 
 using json = nlohmann::json;
 
+// Helper to create expected output message JSON with default style segments
+static std::string makeExpectedOutputMessage(const std::string& text) {
+    json defaultStyle = {
+        {"fg", nullptr},
+        {"bg", nullptr},
+        {"bold", false},
+        {"dim", false},
+        {"italic", false},
+        {"underline", false},
+        {"reverse", false},
+        {"strikethrough", false}
+    };
+    json segment = {{"text", text}, {"style", defaultStyle}};
+    json message = {{"type", "output"}, {"segments", json::array({segment})}};
+    return message.dump();
+}
+
 TEST_CASE("TermihuiServerController", "[handleMessage]") {
     using Testable = TermihuiServerControllerTestable;
     
@@ -162,7 +179,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::AppendOutputToCurrentCommandCall{"hello world\r\n"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"data", "hello world\r\n"}}.dump()}
+            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("hello world\r\n")}
         };
     }
     
@@ -226,7 +243,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
         };
         expectedWsCalls = {
             WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/Users/test"}}.dump()},
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"data", "/Users/test\r\n"}}.dump()},
+            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("/Users/test\r\n")},
             WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/Users/test"}}.dump()}
         };
     }
@@ -307,8 +324,8 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::AppendOutputToCurrentCommandCall{"\x1b]133;A"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"data", "text"}}.dump()},
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"data", "\x1b]133;A"}}.dump()}
+            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("text")},
+            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"segments", json::array()}}.dump()}
         };
     }
     
@@ -331,7 +348,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
         };
         expectedWsCalls = {
             WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/tmp"}}.dump()},
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"data", "file1.txt\r\nfile2.txt\r\n"}}.dump()},
+            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("file1.txt\r\nfile2.txt\r\n")},
             WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/tmp"}}.dump()}
         };
     }

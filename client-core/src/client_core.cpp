@@ -671,16 +671,22 @@ void ClientCoreController::handleWebSocketEvent(const WebSocketClientController:
                 fmt::print("ClientCoreController: Created command block localId={} for session {}\n", localId, sessionId);
             }
         } else if (messageType == "output") {
-            std::string_view rawOutput = serverData.at("data").get<std::string_view>();
-            auto segments = this->ansiParser->parse(rawOutput);
-            serverData["segments"] = std::move(segments);
-            serverData.erase("data");
+            // Segments are already parsed by server, just pass through
+            // Extract plain text for storage
+            std::string plainText;
+            if (auto it = serverData.find("segments"); it != serverData.end()) {
+                for (const auto& segment : *it) {
+                    if (auto textIt = segment.find("text"); textIt != segment.end()) {
+                        plainText += textIt->get<std::string>();
+                    }
+                }
+            }
             
             // Append output to unfinished command block for this session
             uint64_t sessionId = serverData.value("session_id", this->activeSessionId);
             if (this->clientStorage && sessionId != 0) {
                 if (auto block = this->clientStorage->getUnfinishedBlock(sessionId)) {
-                    this->clientStorage->appendOutput(block->localId, rawOutput);
+                    this->clientStorage->appendOutput(block->localId, plainText);
                 }
             }
         } else if (messageType == "command_end") {

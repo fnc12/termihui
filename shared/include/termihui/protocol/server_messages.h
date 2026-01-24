@@ -6,6 +6,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <termihui/text_style.h>
 
 // ============================================================================
 // Server → Client messages
@@ -26,7 +27,7 @@ struct ErrorMessage {
 };
 
 struct OutputMessage {
-    std::string data;
+    std::vector<termihui::StyledSegment> segments;
     
     static constexpr const char* type = "output";
 };
