@@ -1,6 +1,5 @@
 #include "termihui/client_core.h"
 #include "termihui/client_core_c.h"
-#include "termihui/ansi_parser.h"
 #include "termihui/websocket_client_controller.h"
 #include "termihui/websocket_client_controller_impl.h"
 #include "termihui/client_storage.h"
@@ -42,8 +41,7 @@ ClientCoreController ClientCoreController::instance(std::make_unique<WebSocketCl
 // ClientCoreController implementation
 
 ClientCoreController::ClientCoreController(std::unique_ptr<WebSocketClientController> webSocketController)
-    : webSocketController(std::move(webSocketController))
-    , ansiParser(std::make_unique<ANSIParser>()) {
+    : webSocketController(std::move(webSocketController)) {
 }
 
 ClientCoreController::~ClientCoreController() {
@@ -739,15 +737,16 @@ void ClientCoreController::handleWebSocketEvent(const WebSocketClientController:
                     block.timestamp = it->get<int64_t>();
                 }
                 
-                // Store raw output
-                std::string rawOutput;
-                if (auto it = cmd.find("output"); it != cmd.end() && it->is_string()) {
-                    rawOutput = it->get<std::string>();
-                    auto segments = this->ansiParser->parse(rawOutput);
-                    cmd["segments"] = std::move(segments);
-                    cmd.erase(it);
+                // Extract plain text from segments for storage
+                std::string plainText;
+                if (auto it = cmd.find("segments"); it != cmd.end() && it->is_array()) {
+                    for (const auto& segment : *it) {
+                        if (auto textIt = segment.find("text"); textIt != segment.end()) {
+                            plainText += textIt->get<std::string>();
+                        }
+                    }
                 }
-                block.output = std::move(rawOutput);
+                block.output = std::move(plainText);
                 
                 int64_t localId = this->clientStorage->insertCommandBlock(block);
                 cmd["localId"] = localId;

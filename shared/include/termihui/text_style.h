@@ -4,8 +4,6 @@
 #include <string>
 #include <string_view>
 
-namespace termihui {
-
 /**
  * Color representation for ANSI colors
  */
@@ -90,5 +88,3 @@ inline std::string_view colorName(int index) {
     if (index >= 0 && index < 8) return names[index];
     return "unknown";
 }
-
-} // namespace termihui

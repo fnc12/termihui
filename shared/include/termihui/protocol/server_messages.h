@@ -27,7 +27,7 @@ struct ErrorMessage {
 };
 
 struct OutputMessage {
-    std::vector<termihui::StyledSegment> segments;
+    std::vector<StyledSegment> segments;
     
     static constexpr const char* type = "output";
 };
@@ -86,7 +86,7 @@ struct SessionClosedMessage {
 struct CommandRecord {
     uint64_t id;
     std::string command;
-    std::string output;
+    std::vector<StyledSegment> segments;
     int exitCode;
     std::string cwdStart;
     std::string cwdEnd;

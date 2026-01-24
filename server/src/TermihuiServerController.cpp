@@ -347,7 +347,7 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
         historyMessage.commands.push_back(CommandRecord{
             record.id,
             record.command,
-            record.output,
+            this->outputParser.parse(record.output),
             record.exitCode,
             record.cwdStart,
             record.cwdEnd,

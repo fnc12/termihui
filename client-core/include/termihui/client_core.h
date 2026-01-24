@@ -14,7 +14,6 @@ class ClientStorage;
 namespace termihui {
 
 // Forward declare
-class ANSIParser;
 class FileSystemManager;
 class ClipboardManager;
 
@@ -156,9 +155,6 @@ private:
     // Buffers for C API (to return stable pointers)
     std::string lastResponse;
     std::string lastEvent;
-    
-    // ANSI parser for terminal output
-    std::unique_ptr<ANSIParser> ansiParser;
     
     // Platform-specific file system manager
     std::unique_ptr<FileSystemManager> fileSystemManager;

@@ -12,14 +12,14 @@ using json = nlohmann::json;
 // Style types JSON serialization
 // ============================================================================
 
-void to_json(json& j, const termihui::Color& color);
-void from_json(const json& j, termihui::Color& color);
+void to_json(json& j, const Color& color);
+void from_json(const json& j, Color& color);
 
-void to_json(json& j, const termihui::TextStyle& style);
-void from_json(const json& j, termihui::TextStyle& style);
+void to_json(json& j, const TextStyle& style);
+void from_json(const json& j, TextStyle& style);
 
-void to_json(json& j, const termihui::StyledSegment& segment);
-void from_json(const json& j, termihui::StyledSegment& segment);
+void to_json(json& j, const StyledSegment& segment);
+void from_json(const json& j, StyledSegment& segment);
 
 // ============================================================================
 // Client Messages JSON serialization

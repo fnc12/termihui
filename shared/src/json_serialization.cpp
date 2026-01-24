@@ -7,24 +7,24 @@
 // Style types JSON serialization
 // ============================================================================
 
-void to_json(json& j, const termihui::Color& color) {
+void to_json(json& j, const Color& color) {
     switch (color.type) {
-        case termihui::Color::Type::Standard:
-            j = std::string(termihui::colorName(color.index));
+        case Color::Type::Standard:
+            j = std::string(colorName(color.index));
             break;
-        case termihui::Color::Type::Bright:
-            j = std::string("bright_") + std::string(termihui::colorName(color.index));
+        case Color::Type::Bright:
+            j = std::string("bright_") + std::string(colorName(color.index));
             break;
-        case termihui::Color::Type::Indexed:
+        case Color::Type::Indexed:
             j = json{{"index", color.index}};
             break;
-        case termihui::Color::Type::RGB:
+        case Color::Type::RGB:
             j = json{{"rgb", fmt::format("#{:02X}{:02X}{:02X}", color.r, color.g, color.b)}};
             break;
     }
 }
 
-void from_json(const json& j, termihui::Color& color) {
+void from_json(const json& j, Color& color) {
     if (j.is_string()) {
         std::string name = j.get<std::string>();
         static constexpr std::array<std::string_view, 8> colorNames = {
@@ -36,21 +36,21 @@ void from_json(const json& j, termihui::Color& color) {
             std::string_view baseName{name.data() + 7, name.size() - 7};
             for (size_t i = 0; i < colorNames.size(); ++i) {
                 if (baseName == colorNames[i]) {
-                    color = termihui::Color::bright(static_cast<int>(i));
+                    color = Color::bright(static_cast<int>(i));
                     return;
                 }
             }
         } else {
             for (size_t i = 0; i < colorNames.size(); ++i) {
                 if (name == colorNames[i]) {
-                    color = termihui::Color::standard(static_cast<int>(i));
+                    color = Color::standard(static_cast<int>(i));
                     return;
                 }
             }
         }
     } else if (j.is_object()) {
         if (auto it = j.find("index"); it != j.end()) {
-            color = termihui::Color::indexed(it->get<int>());
+            color = Color::indexed(it->get<int>());
         } else if (auto it = j.find("rgb"); it != j.end()) {
             std::string rgb = it->get<std::string>();
             // Parse #RRGGBB
@@ -58,27 +58,15 @@ void from_json(const json& j, termihui::Color& color) {
                 int r = std::stoi(rgb.substr(1, 2), nullptr, 16);
                 int g = std::stoi(rgb.substr(3, 2), nullptr, 16);
                 int b = std::stoi(rgb.substr(5, 2), nullptr, 16);
-                color = termihui::Color::rgb(r, g, b);
+                color = Color::rgb(r, g, b);
             }
         }
     }
 }
 
-void to_json(json& j, const termihui::TextStyle& style) {
-    if (style.foreground) {
-        json fgJson;
-        to_json(fgJson, *style.foreground);
-        j["fg"] = fgJson;
-    } else {
-        j["fg"] = nullptr;
-    }
-    if (style.background) {
-        json bgJson;
-        to_json(bgJson, *style.background);
-        j["bg"] = bgJson;
-    } else {
-        j["bg"] = nullptr;
-    }
+void to_json(json& j, const TextStyle& style) {
+    j["fg"] = style.foreground ? json(*style.foreground) : json(nullptr);
+    j["bg"] = style.background ? json(*style.background) : json(nullptr);
     j["bold"] = style.bold;
     j["dim"] = style.dim;
     j["italic"] = style.italic;
@@ -87,18 +75,14 @@ void to_json(json& j, const termihui::TextStyle& style) {
     j["strikethrough"] = style.strikethrough;
 }
 
-void from_json(const json& j, termihui::TextStyle& style) {
+void from_json(const json& j, TextStyle& style) {
     style.reset();
     
     if (auto it = j.find("fg"); it != j.end() && !it->is_null()) {
-        termihui::Color c;
-        from_json(*it, c);
-        style.foreground = c;
+        style.foreground = it->get<Color>();
     }
     if (auto it = j.find("bg"); it != j.end() && !it->is_null()) {
-        termihui::Color c;
-        from_json(*it, c);
-        style.background = c;
+        style.background = it->get<Color>();
     }
     if (auto it = j.find("bold"); it != j.end()) it->get_to(style.bold);
     if (auto it = j.find("dim"); it != j.end()) it->get_to(style.dim);
@@ -108,16 +92,14 @@ void from_json(const json& j, termihui::TextStyle& style) {
     if (auto it = j.find("strikethrough"); it != j.end()) it->get_to(style.strikethrough);
 }
 
-void to_json(json& j, const termihui::StyledSegment& segment) {
-    json styleJson;
-    to_json(styleJson, segment.style);
+void to_json(json& j, const StyledSegment& segment) {
     j["text"] = segment.text;
-    j["style"] = styleJson;
+    j["style"] = segment.style;
 }
 
-void from_json(const json& j, termihui::StyledSegment& segment) {
+void from_json(const json& j, StyledSegment& segment) {
     j.at("text").get_to(segment.text);
-    from_json(j.at("style"), segment.style);
+    j.at("style").get_to(segment.style);
 }
 
 // ============================================================================
@@ -398,22 +380,11 @@ void from_json(const json& j, ErrorMessage& message) {
 
 void to_json(json& j, const OutputMessage& message) {
     j["type"] = OutputMessage::type;
-    json segmentsJson = json::array();
-    for (const auto& segment : message.segments) {
-        json segmentJson;
-        to_json(segmentJson, segment);
-        segmentsJson.push_back(segmentJson);
-    }
-    j["segments"] = segmentsJson;
+    j["segments"] = message.segments;
 }
 
 void from_json(const json& j, OutputMessage& message) {
-    message.segments.clear();
-    for (const auto& segmentJson : j.at("segments")) {
-        termihui::StyledSegment segment;
-        from_json(segmentJson, segment);
-        message.segments.push_back(std::move(segment));
-    }
+    j.at("segments").get_to(message.segments);
 }
 
 void to_json(json& j, const StatusMessage& message) {
@@ -517,7 +488,7 @@ void to_json(json& j, const CommandRecord& record) {
     j = json{
         {"id", record.id},
         {"command", record.command},
-        {"output", record.output},
+        {"segments", record.segments},
         {"exit_code", record.exitCode},
         {"cwd_start", record.cwdStart},
         {"cwd_end", record.cwdEnd},
@@ -528,7 +499,9 @@ void to_json(json& j, const CommandRecord& record) {
 void from_json(const json& j, CommandRecord& record) {
     j.at("id").get_to(record.id);
     j.at("command").get_to(record.command);
-    j.at("output").get_to(record.output);
+    if (auto it = j.find("segments"); it != j.end()) {
+        it->get_to(record.segments);
+    }
     j.at("exit_code").get_to(record.exitCode);
     j.at("cwd_start").get_to(record.cwdStart);
     j.at("cwd_end").get_to(record.cwdEnd);

@@ -91,7 +91,6 @@ endif()
 # Создаём статическую библиотеку
 add_library(termihui_client_core STATIC
     src/client_core.cpp
-    src/ansi_parser.cpp
     src/websocket_client_controller.cpp
     src/client_storage.cpp
     ${CLIPBOARD_SOURCES}
