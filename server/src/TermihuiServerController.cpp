@@ -3,6 +3,7 @@
 #include <termihui/protocol/protocol.h>
 #include <fmt/core.h>
 #include <thread>
+#include <type_traits>
 
 using json = nlohmann::json;
 
@@ -451,8 +452,92 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
         return;
     }
     
-    fmt::print("[OSC-PARSE] Raw output ({} bytes): {}\n", output.size(), escapeForLog(output));
+    fmt::print("[PTY] Raw output ({} bytes): {}\n", output.size(), escapeForLog(output));
     
+    // Always process through AnsiProcessor to track mode changes and update VirtualScreen
+    auto events = session.getAnsiProcessor().process(output);
+    
+    // Handle ANSI events (mode changes, etc.)
+    for (const auto& event : events) {
+        std::visit([this, &session](const auto& e) {
+            using T = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<T, termihui::AnsiEvent::InteractiveModeChanged>) {
+                session.setInteractiveMode(e.entered);
+                if (e.entered) {
+                    fmt::print("[INTERACTIVE] Entered interactive mode\n");
+                    auto& screen = session.getVirtualScreen();
+                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeStartMessage{
+                        screen.rows(),
+                        screen.columns()
+                    }));
+                    // Send initial full snapshot
+                    this->sendScreenSnapshot(session);
+                } else {
+                    fmt::print("[INTERACTIVE] Exited interactive mode\n");
+                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeEndMessage{}));
+                }
+            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::TitleChanged>) {
+                fmt::print("[ANSI] Title changed: {}\n", e.title);
+            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::Bell>) {
+                fmt::print("[ANSI] Bell\n");
+            }
+        }, event);
+    }
+    
+    // If in interactive mode, send screen diff
+    if (session.isInInteractiveMode()) {
+        this->sendScreenDiff(session);
+        return;
+    }
+    
+    // Block mode: process OSC markers for command tracking
+    this->processBlockModeOutput(session, output);
+}
+
+void TermihuiServerController::sendScreenSnapshot(TerminalSessionController& session) {
+    auto& screen = session.getVirtualScreen();
+    
+    ScreenSnapshotMessage screenSnapshotMessage;
+    screenSnapshotMessage.cursorRow = screen.cursorRow();
+    screenSnapshotMessage.cursorColumn = screen.cursorColumn();
+    screenSnapshotMessage.lines.reserve(screen.rows());
+    
+    for (size_t row = 0; row < screen.rows(); ++row) {
+        screenSnapshotMessage.lines.push_back(screen.getRowSegments(row));
+    }
+    
+    screen.clearDirtyRows();
+    this->webSocketServer->broadcastMessage(serialize(screenSnapshotMessage));
+}
+
+void TermihuiServerController::sendScreenDiff(TerminalSessionController& session) {
+    auto& screen = session.getVirtualScreen();
+    const auto& dirtyRows = screen.dirtyRows();
+    
+    if (dirtyRows.empty()) {
+        return;
+    }
+    
+    // If more than half the screen is dirty, send full snapshot instead
+    if (dirtyRows.size() > screen.rows() / 2) {
+        this->sendScreenSnapshot(session);
+        return;
+    }
+    
+    ScreenDiffMessage screenDiffMessage;
+    screenDiffMessage.cursorRow = screen.cursorRow();
+    screenDiffMessage.cursorColumn = screen.cursorColumn();
+    screenDiffMessage.updates.reserve(dirtyRows.size());
+    
+    for (size_t row : dirtyRows) {
+        screenDiffMessage.updates.push_back(ScreenRowUpdate{row, screen.getRowSegments(row)});
+    }
+    
+    screen.clearDirtyRows();
+    this->webSocketServer->broadcastMessage(serialize(screenDiffMessage));
+}
+
+void TermihuiServerController::processBlockModeOutput(TerminalSessionController& session, const std::string& output) {
     // Helper: find next OSC sequence (any type)
     auto findNextOSC = [&output](size_t from) -> size_t {
         return output.find("\x1b]", from);
@@ -460,10 +545,8 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
     
     // Helper: extract path from "user@host:path" format
     auto extractPathFromTitle = [](const std::string& title) -> std::string {
-        // Format: "user@host:path" or just "path"
         size_t colonPos = title.rfind(':');
         if (colonPos != std::string::npos && colonPos < title.length() - 1) {
-            // Check if there's @ before : (indicates user@host:path format)
             size_t atPos = title.find('@');
             if (atPos != std::string::npos && atPos < colonPos) {
                 return title.substr(colonPos + 1);
@@ -506,17 +589,15 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
 
         // Find OSC end (BEL or ST)
         size_t oscEnd = output.find('\x07', oscPos);
-        // Also check for ST (ESC \)
         size_t stPos = output.find("\x1b\\", oscPos);
         if (stPos != std::string::npos && (oscEnd == std::string::npos || stPos < oscEnd)) {
-            oscEnd = stPos + 1; // Point to after ST
+            oscEnd = stPos + 1;
         }
         
         fmt::print("[OSC-PARSE] OSC boundaries: start={}, end={}\n", oscPos, 
                    oscEnd == std::string::npos ? -1 : static_cast<int>(oscEnd));
         
         if (oscEnd == std::string::npos) {
-            // Incomplete marker — treat rest as regular text
             std::string chunk = output.substr(oscPos);
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
@@ -529,7 +610,6 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
         std::string osc = output.substr(oscPos, oscEnd - oscPos + 1);
         fmt::print("[OSC-PARSE] Found OSC sequence: {}\n", escapeForLog(osc));
         
-        // Helper lambda to extract parameter value from OSC string
         auto extractParam = [&osc](const std::string& key) -> std::string {
             auto pos = osc.find(key + "=");
             if (pos == std::string::npos) return "";
@@ -541,24 +621,18 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
         
         // Process OSC based on type
         if (osc.rfind("\x1b]133;A", 0) == 0) {
-            // OSC 133;A - Command start (our marker)
             std::string cwd = extractParam("cwd");
             fmt::print("[OSC-PARSE] >>> OSC 133;A (command_start) cwd={}\n", cwd);
             if (!cwd.empty()) {
                 session.setLastKnownCwd(cwd);
             }
-            
             session.startCommandInHistory(cwd);
-            
             if (session.hasActiveCommand()) {
-                CommandStartMessage commandStartMessage;
-                if (!cwd.empty()) {
-                    commandStartMessage.cwd = cwd;
-                }
-                this->webSocketServer->broadcastMessage(serialize(commandStartMessage));
+                CommandStartMessage msg;
+                if (!cwd.empty()) msg.cwd = cwd;
+                this->webSocketServer->broadcastMessage(serialize(msg));
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
-            // OSC 133;B - Command end (our marker)
             int exitCode = 0;
             auto k = osc.find("exit=");
             if (k != std::string::npos) exitCode = std::atoi(osc.c_str() + k + 5);
@@ -567,29 +641,21 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
             if (!cwd.empty()) {
                 session.setLastKnownCwd(cwd);
             }
-            
             if (session.hasActiveCommand()) {
                 session.finishCurrentCommand(exitCode, cwd);
-                
-                CommandEndMessage commandEndMessage;
-                commandEndMessage.exitCode = exitCode;
-                if (!cwd.empty()) {
-                    commandEndMessage.cwd = cwd;
-                }
-                this->webSocketServer->broadcastMessage(serialize(commandEndMessage));
+                CommandEndMessage msg;
+                msg.exitCode = exitCode;
+                if (!cwd.empty()) msg.cwd = cwd;
+                this->webSocketServer->broadcastMessage(serialize(msg));
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
-            // OSC 133;C - Prompt start
             fmt::print("[OSC-PARSE] >>> OSC 133;C (prompt_start)\n");
             this->webSocketServer->broadcastMessage(serialize(PromptStartMessage{}));
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
-            // OSC 133;D - Prompt end
             fmt::print("[OSC-PARSE] >>> OSC 133;D (prompt_end)\n");
             this->webSocketServer->broadcastMessage(serialize(PromptEndMessage{}));
         } else if (osc.rfind("\x1b]2;", 0) == 0) {
-            // OSC 2 - Window title (often contains user@host:path)
-            // Extract title content between "ESC]2;" and BEL/ST
-            size_t titleStart = 4; // After "ESC]2;"
+            size_t titleStart = 4;
             size_t titleEnd = osc.find_first_of("\x07\x1b", titleStart);
             if (titleEnd != std::string::npos) {
                 std::string title = osc.substr(titleStart, titleEnd - titleStart);
@@ -597,17 +663,13 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                 fmt::print("[OSC-PARSE] >>> OSC 2 (window_title) title={}, extracted_path={}\n", title, path);
                 if (!path.empty()) {
                     session.setLastKnownCwd(path);
-                    
-                    // Send cwd_update event to client
                     this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
                 }
             }
         } else if (osc.rfind("\x1b]7;", 0) == 0) {
-            // OSC 7 - Current working directory (file://host/path format)
             size_t pathStart = osc.find("file://");
             if (pathStart != std::string::npos) {
-                pathStart += 7; // Skip "file://"
-                // Skip hostname (find next /)
+                pathStart += 7;
                 size_t slashPos = osc.find('/', pathStart);
                 if (slashPos != std::string::npos) {
                     size_t pathEnd = osc.find_first_of("\x07\x1b", slashPos);
@@ -615,8 +677,6 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                         std::string path = osc.substr(slashPos, pathEnd - slashPos);
                         fmt::print("[OSC-PARSE] >>> OSC 7 (cwd) path={}\n", path);
                         session.setLastKnownCwd(path);
-                        
-                        // Send cwd_update event to client
                         this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
                     }
                 }
@@ -624,11 +684,9 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
                 fmt::print("[OSC-PARSE] >>> OSC 7 (cwd) - no file:// found\n");
             }
         } else {
-            // Other OSC types (1, etc.) 
             fmt::print("[OSC-PARSE] >>> Unknown OSC type, ignoring\n");
         }
 
-        // Continue after marker
         i = oscEnd + 1;
     }
 }

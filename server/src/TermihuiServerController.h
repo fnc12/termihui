@@ -73,6 +73,25 @@ public:
      * @param session terminal session to process output from
      */
     void processTerminalOutput(TerminalSessionController& session);
+    
+    /**
+     * Send full screen snapshot to clients
+     * @param session terminal session
+     */
+    void sendScreenSnapshot(TerminalSessionController& session);
+    
+    /**
+     * Send screen diff (changed rows only) to clients
+     * @param session terminal session
+     */
+    void sendScreenDiff(TerminalSessionController& session);
+    
+    /**
+     * Process output in block mode (OSC markers for command tracking)
+     * @param session terminal session
+     * @param output raw output string
+     */
+    void processBlockModeOutput(TerminalSessionController& session, const std::string& output);
 
 protected:
     // Type-safe message handlers (virtual for testability)

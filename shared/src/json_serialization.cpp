@@ -578,6 +578,73 @@ void from_json(const json& j, CwdUpdateMessage& message) {
     j.at("cwd").get_to(message.cwd);
 }
 
+// ============================================================================
+// Interactive mode messages
+// ============================================================================
+
+void to_json(json& j, const InteractiveModeStartMessage& message) {
+    j = json{
+        {"type", InteractiveModeStartMessage::type},
+        {"rows", message.rows},
+        {"columns", message.columns}
+    };
+}
+
+void from_json(const json& j, InteractiveModeStartMessage& message) {
+    j.at("rows").get_to(message.rows);
+    j.at("columns").get_to(message.columns);
+}
+
+void to_json(json& j, const ScreenSnapshotMessage& message) {
+    j = json{
+        {"type", ScreenSnapshotMessage::type},
+        {"cursor_row", message.cursorRow},
+        {"cursor_column", message.cursorColumn},
+        {"lines", message.lines}
+    };
+}
+
+void from_json(const json& j, ScreenSnapshotMessage& message) {
+    j.at("cursor_row").get_to(message.cursorRow);
+    j.at("cursor_column").get_to(message.cursorColumn);
+    j.at("lines").get_to(message.lines);
+}
+
+void to_json(json& j, const ScreenRowUpdate& update) {
+    j = json{
+        {"row", update.row},
+        {"segments", update.segments}
+    };
+}
+
+void from_json(const json& j, ScreenRowUpdate& update) {
+    j.at("row").get_to(update.row);
+    j.at("segments").get_to(update.segments);
+}
+
+void to_json(json& j, const ScreenDiffMessage& message) {
+    j = json{
+        {"type", ScreenDiffMessage::type},
+        {"cursor_row", message.cursorRow},
+        {"cursor_column", message.cursorColumn},
+        {"updates", message.updates}
+    };
+}
+
+void from_json(const json& j, ScreenDiffMessage& message) {
+    j.at("cursor_row").get_to(message.cursorRow);
+    j.at("cursor_column").get_to(message.cursorColumn);
+    j.at("updates").get_to(message.updates);
+}
+
+void to_json(json& j, const InteractiveModeEndMessage&) {
+    j = json{{"type", InteractiveModeEndMessage::type}};
+}
+
+void from_json(const json&, InteractiveModeEndMessage&) {
+    // No fields
+}
+
 void to_json(json& j, const AIChunkMessage& message) {
     j = json{
         {"type", AIChunkMessage::type},
@@ -822,6 +889,10 @@ std::string serialize(const CommandEndMessage& message) { return serializeImpl(m
 std::string serialize(const PromptStartMessage& message) { return serializeImpl(message); }
 std::string serialize(const PromptEndMessage& message) { return serializeImpl(message); }
 std::string serialize(const CwdUpdateMessage& message) { return serializeImpl(message); }
+std::string serialize(const InteractiveModeStartMessage& message) { return serializeImpl(message); }
+std::string serialize(const ScreenSnapshotMessage& message) { return serializeImpl(message); }
+std::string serialize(const ScreenDiffMessage& message) { return serializeImpl(message); }
+std::string serialize(const InteractiveModeEndMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChatMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChunkMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIDoneMessage& message) { return serializeImpl(message); }

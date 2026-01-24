@@ -221,6 +221,27 @@ const Cell& VirtualScreen::cellAt(size_t row, size_t column) const {
     return this->buffer.at(row, column);
 }
 
+// Helper: encode char32_t to UTF-8
+static void appendUtf8(std::string& result, char32_t ch) {
+    if (ch == 0) ch = U' ';
+    
+    if (ch < 128) {
+        result += static_cast<char>(ch);
+    } else if (ch < 0x800) {
+        result += static_cast<char>(0xC0 | (ch >> 6));
+        result += static_cast<char>(0x80 | (ch & 0x3F));
+    } else if (ch < 0x10000) {
+        result += static_cast<char>(0xE0 | (ch >> 12));
+        result += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
+        result += static_cast<char>(0x80 | (ch & 0x3F));
+    } else {
+        result += static_cast<char>(0xF0 | (ch >> 18));
+        result += static_cast<char>(0x80 | ((ch >> 12) & 0x3F));
+        result += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
+        result += static_cast<char>(0x80 | (ch & 0x3F));
+    }
+}
+
 std::string VirtualScreen::getRowText(size_t row) const {
     std::string result;
     result.reserve(this->columnCount);
@@ -236,31 +257,62 @@ std::string VirtualScreen::getRowText(size_t row) const {
     
     // Build string up to last non-space
     for (size_t col = 0; col < lastNonSpace; ++col) {
-        char32_t ch = this->buffer(row, col).character;
-        if (ch == 0) ch = U' ';
-        
-        // Simple UTF-8 encoding for ASCII range
-        if (ch < 128) {
-            result += static_cast<char>(ch);
-        } else {
-            // Basic UTF-8 encoding for non-ASCII
-            if (ch < 0x800) {
-                result += static_cast<char>(0xC0 | (ch >> 6));
-                result += static_cast<char>(0x80 | (ch & 0x3F));
-            } else if (ch < 0x10000) {
-                result += static_cast<char>(0xE0 | (ch >> 12));
-                result += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (ch & 0x3F));
-            } else {
-                result += static_cast<char>(0xF0 | (ch >> 18));
-                result += static_cast<char>(0x80 | ((ch >> 12) & 0x3F));
-                result += static_cast<char>(0x80 | ((ch >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (ch & 0x3F));
+        appendUtf8(result, this->buffer(row, col).character);
+    }
+    
+    return result;
+}
+
+std::vector<StyledSegment> VirtualScreen::getRowSegments(size_t row, bool trimTrailingSpaces) const {
+    std::vector<StyledSegment> segments;
+    
+    if (row >= this->rowCount) {
+        return segments;
+    }
+    
+    // Find last non-space character if trimming
+    size_t endCol = this->columnCount;
+    if (trimTrailingSpaces) {
+        endCol = 0;
+        for (size_t col = 0; col < this->columnCount; ++col) {
+            char32_t ch = this->buffer(row, col).character;
+            if (ch != U' ' && ch != 0) {
+                endCol = col + 1;
             }
         }
     }
     
-    return result;
+    if (endCol == 0) {
+        return segments;
+    }
+    
+    // Group adjacent cells with same style
+    StyledSegment current;
+    current.style = this->buffer(row, 0).style;
+    
+    for (size_t col = 0; col < endCol; ++col) {
+        const Cell& cell = this->buffer(row, col);
+        
+        if (cell.style == current.style) {
+            // Same style - append to current segment
+            appendUtf8(current.text, cell.character);
+        } else {
+            // Style changed - save current and start new
+            if (!current.text.empty()) {
+                segments.push_back(std::move(current));
+            }
+            current = StyledSegment{};
+            current.style = cell.style;
+            appendUtf8(current.text, cell.character);
+        }
+    }
+    
+    // Don't forget last segment
+    if (!current.text.empty()) {
+        segments.push_back(std::move(current));
+    }
+    
+    return segments;
 }
 
 std::string VirtualScreen::getContent(bool includeTrailingSpaces) const {

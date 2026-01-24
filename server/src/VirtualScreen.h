@@ -4,6 +4,7 @@
 #include <termihui/text_style.h>
 #include <string>
 #include <set>
+#include <vector>
 
 namespace termihui {
 
@@ -161,6 +162,13 @@ public:
      * @param row Row index
      */
     std::string getRowText(size_t row) const;
+    
+    /**
+     * Get row as styled segments (groups adjacent cells with same style)
+     * @param row Row index
+     * @param trimTrailingSpaces Whether to trim trailing spaces (default true)
+     */
+    std::vector<StyledSegment> getRowSegments(size_t row, bool trimTrailingSpaces = true) const;
     
     /**
      * Get entire screen content as string

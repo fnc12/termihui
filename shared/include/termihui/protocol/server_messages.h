@@ -128,6 +128,57 @@ struct CwdUpdateMessage {
 };
 
 // ============================================================================
+// Interactive mode messages
+// ============================================================================
+
+/**
+ * Sent when entering interactive mode (alternate screen buffer)
+ */
+struct InteractiveModeStartMessage {
+    size_t rows;
+    size_t columns;
+    
+    static constexpr const char* type = "interactive_mode_start";
+};
+
+/**
+ * Full screen snapshot (sent after InteractiveModeStart and on reconnect)
+ */
+struct ScreenSnapshotMessage {
+    size_t cursorRow;
+    size_t cursorColumn;
+    std::vector<std::vector<StyledSegment>> lines;  // lines[row] = segments for that row
+    
+    static constexpr const char* type = "screen_snapshot";
+};
+
+/**
+ * Single row update for screen diff
+ */
+struct ScreenRowUpdate {
+    size_t row;
+    std::vector<StyledSegment> segments;
+};
+
+/**
+ * Screen diff (only changed rows)
+ */
+struct ScreenDiffMessage {
+    size_t cursorRow;
+    size_t cursorColumn;
+    std::vector<ScreenRowUpdate> updates;
+    
+    static constexpr const char* type = "screen_diff";
+};
+
+/**
+ * Sent when exiting interactive mode
+ */
+struct InteractiveModeEndMessage {
+    static constexpr const char* type = "interactive_mode_end";
+};
+
+// ============================================================================
 // AI Chat messages
 // ============================================================================
 
@@ -210,6 +261,10 @@ using ServerMessage = std::variant<
     PromptStartMessage,
     PromptEndMessage,
     CwdUpdateMessage,
+    InteractiveModeStartMessage,
+    ScreenSnapshotMessage,
+    ScreenDiffMessage,
+    InteractiveModeEndMessage,
     AIChunkMessage,
     AIDoneMessage,
     AIErrorMessage,

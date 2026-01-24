@@ -9,6 +9,8 @@
 #include <variant>
 
 #include "SessionStorage.h"
+#include "VirtualScreen.h"
+#include "AnsiProcessor.h"
 
 /**
  * Class for managing terminal sessions via PTY
@@ -209,6 +211,28 @@ public:
      * @return true if a command is currently being recorded
      */
     virtual bool hasActiveCommand() const;
+    
+    /**
+     * Check if in interactive mode (alternate screen buffer)
+     */
+    bool isInInteractiveMode() const { return this->interactiveMode; }
+    
+    /**
+     * Set interactive mode state
+     * @param enabled true to enable, false to disable
+     */
+    void setInteractiveMode(bool enabled) { this->interactiveMode = enabled; }
+    
+    /**
+     * Get virtual screen reference
+     */
+    termihui::VirtualScreen& getVirtualScreen() { return this->virtualScreen; }
+    const termihui::VirtualScreen& getVirtualScreen() const { return this->virtualScreen; }
+    
+    /**
+     * Get ANSI processor reference
+     */
+    termihui::AnsiProcessor& getAnsiProcessor() { return this->ansiProcessor; }
 
 private:
     /**
@@ -244,6 +268,11 @@ private:
     uint64_t serverRunId;
     uint64_t currentCommandId = 0;  // ID of active command in storage
     std::string pendingCommand;
+    
+    // Virtual screen for terminal emulation
+    termihui::VirtualScreen virtualScreen;
+    termihui::AnsiProcessor ansiProcessor;
+    bool interactiveMode = false;
     
     // TODO: Add in future:
     // - struct winsize m_windowSize;  // Terminal window size for resize events

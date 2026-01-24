@@ -125,6 +125,21 @@ void from_json(const json& j, PromptEndMessage& message);
 void to_json(json& j, const CwdUpdateMessage& message);
 void from_json(const json& j, CwdUpdateMessage& message);
 
+void to_json(json& j, const InteractiveModeStartMessage& message);
+void from_json(const json& j, InteractiveModeStartMessage& message);
+
+void to_json(json& j, const ScreenSnapshotMessage& message);
+void from_json(const json& j, ScreenSnapshotMessage& message);
+
+void to_json(json& j, const ScreenRowUpdate& update);
+void from_json(const json& j, ScreenRowUpdate& update);
+
+void to_json(json& j, const ScreenDiffMessage& message);
+void from_json(const json& j, ScreenDiffMessage& message);
+
+void to_json(json& j, const InteractiveModeEndMessage& message);
+void from_json(const json& j, InteractiveModeEndMessage& message);
+
 void to_json(json& j, const AIChunkMessage& message);
 void from_json(const json& j, AIChunkMessage& message);
 
@@ -182,6 +197,10 @@ std::string serialize(const CommandEndMessage& message);
 std::string serialize(const PromptStartMessage& message);
 std::string serialize(const PromptEndMessage& message);
 std::string serialize(const CwdUpdateMessage& message);
+std::string serialize(const InteractiveModeStartMessage& message);
+std::string serialize(const ScreenSnapshotMessage& message);
+std::string serialize(const ScreenDiffMessage& message);
+std::string serialize(const InteractiveModeEndMessage& message);
 std::string serialize(const AIChatMessage& message);
 std::string serialize(const AIChunkMessage& message);
 std::string serialize(const AIDoneMessage& message);

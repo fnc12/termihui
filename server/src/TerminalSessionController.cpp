@@ -38,6 +38,8 @@ TerminalSessionController::TerminalSessionController(std::filesystem::path dbPat
     , sessionStorage(std::move(dbPath))
     , sessionId(sessionId)
     , serverRunId(serverRunId)
+    , virtualScreen(24, 80)
+    , ansiProcessor(this->virtualScreen)
 {
     this->sessionStorage.initialize();
 }
@@ -414,6 +416,9 @@ bool TerminalSessionController::setWindowSize(unsigned short cols, unsigned shor
         fmt::print(stderr, "Failed to set window size: {}\n", strerror(errno));
         return false;
     }
+    
+    // Also resize the virtual screen
+    this->virtualScreen.resize(rows, cols);
     
     fmt::print("Terminal size set to {}x{}\n", cols, rows);
     return true;
