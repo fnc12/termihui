@@ -358,6 +358,25 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
     
     this->webSocketServer->sendMessage(clientId, serialize(historyMessage));
     fmt::print("Sent history for session {} ({} commands) to client {}\n", message.sessionId, commandHistory.size(), clientId);
+    
+    // If session is in interactive mode, send interactive mode start and screen snapshot
+    if (terminalSessionController->isInInteractiveMode()) {
+        auto& screen = terminalSessionController->getVirtualScreen();
+        this->webSocketServer->sendMessage(clientId, serialize(InteractiveModeStartMessage{
+            screen.rows(),
+            screen.columns()
+        }));
+        
+        ScreenSnapshotMessage screenSnapshotMessage;
+        screenSnapshotMessage.cursorRow = screen.cursorRow();
+        screenSnapshotMessage.cursorColumn = screen.cursorColumn();
+        screenSnapshotMessage.lines.reserve(screen.rows());
+        for (size_t row = 0; row < screen.rows(); ++row) {
+            screenSnapshotMessage.lines.push_back(screen.getRowSegments(row));
+        }
+        this->webSocketServer->sendMessage(clientId, serialize(screenSnapshotMessage));
+        fmt::print("Sent interactive mode state to client {} (session {})\n", clientId, message.sessionId);
+    }
 }
 
 void TermihuiServerController::handleMessageFromClient(int clientId, const AIChatMessage& message) {
@@ -491,7 +510,12 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
     }
     
     // Block mode: process OSC markers for command tracking
-    this->processBlockModeOutput(session, output);
+    // If we just exited interactive mode (flag persists across calls), skip output recording
+    bool skipOutputRecording = session.hasJustExitedInteractiveMode();
+    if (skipOutputRecording) {
+        fmt::print("[INTERACTIVE] Skipping output recording (just exited interactive mode), {} bytes\n", output.size());
+    }
+    this->processBlockModeOutput(session, output, skipOutputRecording);
 }
 
 void TermihuiServerController::sendScreenSnapshot(TerminalSessionController& session) {
@@ -513,8 +537,10 @@ void TermihuiServerController::sendScreenSnapshot(TerminalSessionController& ses
 void TermihuiServerController::sendScreenDiff(TerminalSessionController& session) {
     auto& screen = session.getVirtualScreen();
     const auto& dirtyRows = screen.dirtyRows();
+    bool cursorMoved = screen.isCursorDirty();
     
-    if (dirtyRows.empty()) {
+    // Nothing changed - no need to send anything
+    if (dirtyRows.empty() && !cursorMoved) {
         return;
     }
     
@@ -537,7 +563,7 @@ void TermihuiServerController::sendScreenDiff(TerminalSessionController& session
     this->webSocketServer->broadcastMessage(serialize(screenDiffMessage));
 }
 
-void TermihuiServerController::processBlockModeOutput(TerminalSessionController& session, const std::string& output) {
+void TermihuiServerController::processBlockModeOutput(TerminalSessionController& session, const std::string& output, bool skipOutputRecording) {
     // Helper: find next OSC sequence (any type)
     auto findNextOSC = [&output](size_t from) -> size_t {
         return output.find("\x1b]", from);
@@ -566,7 +592,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
         
         if (oscPos == std::string::npos) {
             // Remainder as regular output
-            if (i < output.size()) {
+            if (i < output.size() && !skipOutputRecording) {
                 std::string chunk = output.substr(i);
                 if (!chunk.empty()) {
                     fmt::print("[OSC-PARSE] Final text chunk: {}\n", escapeForLog(chunk));
@@ -577,8 +603,8 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
             break;
         }
 
-        // Send text before marker
-        if (oscPos > i) {
+        // Send text before marker (skip if we just exited interactive mode)
+        if (oscPos > i && !skipOutputRecording) {
             std::string chunk = output.substr(i, oscPos - i);
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Text before OSC: {}\n", escapeForLog(chunk));
@@ -598,11 +624,13 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                    oscEnd == std::string::npos ? -1 : static_cast<int>(oscEnd));
         
         if (oscEnd == std::string::npos) {
-            std::string chunk = output.substr(oscPos);
-            if (!chunk.empty()) {
-                fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
-                session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
+            if (!skipOutputRecording) {
+                std::string chunk = output.substr(oscPos);
+                if (!chunk.empty()) {
+                    fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
+                    session.appendOutputToCurrentCommand(chunk);
+                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
+                }
             }
             break;
         }
@@ -648,6 +676,11 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 if (!cwd.empty()) msg.cwd = cwd;
                 this->webSocketServer->broadcastMessage(serialize(msg));
             }
+            // Clear the flag - we've processed command_end, output recording can resume
+            if (session.hasJustExitedInteractiveMode()) {
+                fmt::print("[INTERACTIVE] Clearing justExitedInteractiveMode flag after command_end\n");
+                session.clearJustExitedInteractiveMode();
+            }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
             fmt::print("[OSC-PARSE] >>> OSC 133;C (prompt_start)\n");
             this->webSocketServer->broadcastMessage(serialize(PromptStartMessage{}));
@@ -692,11 +725,12 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
 }
 
 void TermihuiServerController::printStats() {
-    auto now = std::chrono::steady_clock::now();
-    if (now - this->lastStatsTime > std::chrono::seconds(30)) {
-        size_t connectedClients = this->webSocketServer->getConnectedClients();
-        fmt::print("Connected clients: {}\n", connectedClients);
-        fmt::print("Active sessions: {}\n", this->sessions.size());
-        this->lastStatsTime = now;
-    }
+    // Disabled - too noisy in logs
+    // auto now = std::chrono::steady_clock::now();
+    // if (now - this->lastStatsTime > std::chrono::seconds(30)) {
+    //     size_t connectedClients = this->webSocketServer->getConnectedClients();
+    //     fmt::print("Connected clients: {}\n", connectedClients);
+    //     fmt::print("Active sessions: {}\n", this->sessions.size());
+    //     this->lastStatsTime = now;
+    // }
 }

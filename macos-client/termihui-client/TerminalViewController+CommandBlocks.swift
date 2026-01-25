@@ -89,10 +89,10 @@ extension TerminalViewController {
             
             // Check if last block is unfinished (running command)
             // If so, set currentBlockIndex to continue appending output to it
+            // NOTE: Don't enter raw mode here - wait for server signal (interactive_mode_start or output)
             if let lastIndex = commandBlocks.indices.last, !commandBlocks[lastIndex].isFinished {
                 currentBlockIndex = lastIndex
                 // print("📜 Resuming unfinished command block at index \(lastIndex)")
-                enterRawInputMode()
             }
             
             // Update CWD from last finished block

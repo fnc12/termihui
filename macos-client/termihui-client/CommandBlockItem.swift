@@ -12,6 +12,10 @@ final class CommandBlockItem: NSCollectionViewItem {
     private let container = CommandBlockContainerView()
     private let separatorView = NSView()
     
+    // Dynamic constraints for empty/non-empty output
+    private var bodyBottomConstraint: NSLayoutConstraint?
+    private var headerBottomConstraint: NSLayoutConstraint?
+    
     // Current highlight state (for reset)
     private var lastHeaderHighlight: NSRange?
     private var hasBodyHighlight: Bool = false
@@ -75,15 +79,27 @@ final class CommandBlockItem: NSCollectionViewItem {
             headerLabel.isHidden = true
         }
         
-        // Use pre-parsed segments from C++ core
-        let attributedOutput = NSMutableAttributedString(attributedString: outputSegments.toAttributedString())
+        // Hide body if output is empty and toggle constraints
+        let hasOutput = !outputSegments.isEmpty && outputSegments.contains { !$0.text.isEmpty }
+        bodyTextView.isHidden = !hasOutput
         
-        // Apply paragraph style with tab stops to entire string
-        if let paragraphStyle = bodyTextView.defaultParagraphStyle {
-            attributedOutput.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributedOutput.length))
+        // Switch constraints based on whether we have output
+        bodyBottomConstraint?.isActive = hasOutput
+        headerBottomConstraint?.isActive = !hasOutput
+        
+        if hasOutput {
+            // Use pre-parsed segments from C++ core
+            let attributedOutput = NSMutableAttributedString(attributedString: outputSegments.toAttributedString())
+            
+            // Apply paragraph style with tab stops to entire string
+            if let paragraphStyle = bodyTextView.defaultParagraphStyle {
+                attributedOutput.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributedOutput.length))
+            }
+            
+            bodyTextView.textStorage?.setAttributedString(attributedOutput)
+        } else {
+            bodyTextView.textStorage?.setAttributedString(NSAttributedString())
         }
-        
-        bodyTextView.textStorage?.setAttributedString(attributedOutput)
         clearSelectionHighlight()
     }
     
@@ -141,6 +157,11 @@ final class CommandBlockItem: NSCollectionViewItem {
         separatorView.translatesAutoresizingMaskIntoConstraints = false
         
         let padding = Self.horizontalPadding
+        
+        // Create dynamic constraints
+        bodyBottomConstraint = bodyTextView.bottomAnchor.constraint(equalTo: separatorView.topAnchor, constant: -padding)
+        headerBottomConstraint = headerLabel.bottomAnchor.constraint(equalTo: separatorView.topAnchor, constant: -6)
+        
         NSLayoutConstraint.activate([
             // CWD at top
             cwdLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
@@ -155,20 +176,22 @@ final class CommandBlockItem: NSCollectionViewItem {
             bodyTextView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 4),
             bodyTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: padding),
             bodyTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -padding),
-            bodyTextView.bottomAnchor.constraint(equalTo: separatorView.topAnchor, constant: -padding),
 
             separatorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             separatorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             separatorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             separatorView.heightAnchor.constraint(equalToConstant: 1)
         ])
+        
+        // Initially activate body constraint (will be toggled in configure)
+        bodyBottomConstraint?.isActive = true
     }
     
     static func estimatedHeight(command: String?, outputText: String, width: CGFloat, cwdStart: String? = nil) -> CGFloat {
         let horizontalInsets: CGFloat = 16
         let constrainedWidth = max(0, width - horizontalInsets)
         
-        var total: CGFloat = 16 // vertical insets
+        var total: CGFloat = 6 // top padding
         
         // CWD label
         if let cwd = cwdStart, !cwd.isEmpty {
@@ -185,20 +208,25 @@ final class CommandBlockItem: NSCollectionViewItem {
             total += ceil(rect.height) + 4
         }
         
-        // Create paragraph style with tab stops for proper width calculation
-        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        let charWidth = "M".size(withAttributes: [.font: font]).width
-        let tabWidth = charWidth * 8
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.tabStops = (1...20).map { NSTextTab(type: .leftTabStopType, location: CGFloat($0) * tabWidth) }
-        paragraphStyle.defaultTabInterval = tabWidth
+        // Only add body height if there's actual output
+        if !outputText.isEmpty {
+            // Create paragraph style with tab stops for proper width calculation
+            let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+            let charWidth = "M".size(withAttributes: [.font: font]).width
+            let tabWidth = charWidth * 8
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.tabStops = (1...20).map { NSTextTab(type: .leftTabStopType, location: CGFloat($0) * tabWidth) }
+            paragraphStyle.defaultTabInterval = tabWidth
+            
+            let bodyRect = (outputText as NSString).boundingRect(
+                with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font, .paragraphStyle: paragraphStyle]
+            )
+            total += ceil(bodyRect.height) + 8 // body + bottom padding
+        }
         
-        let bodyRect = (outputText as NSString).boundingRect(
-            with: NSSize(width: constrainedWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font, .paragraphStyle: paragraphStyle]
-        )
-        total += ceil(bodyRect.height)
+        total += 1 // separator
         return max(total, 28)
     }
 

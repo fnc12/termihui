@@ -18,3 +18,9 @@ struct CommandHistoryRecord: Codable {
         case isFinished = "is_finished"
     }
 }
+
+/// Screen row update for interactive mode diff
+struct ScreenRowUpdate: Codable {
+    let row: Int
+    let segments: [StyledSegment]
+}

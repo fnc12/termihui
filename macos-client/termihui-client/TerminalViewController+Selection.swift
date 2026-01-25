@@ -139,9 +139,9 @@ extension TerminalViewController {
             return
         }
         
-        // Cmd+V — paste (in raw mode, send to PTY)
+        // Cmd+V — paste (in raw/interactive mode, send to PTY)
         if event.modifierFlags.contains(.command), let chars = event.charactersIgnoringModifiers, chars.lowercased() == "v" {
-            if isCommandRunning {
+            if isCommandRunning || isInteractiveMode {
                 if let pasteString = NSPasteboard.general.string(forType: .string) {
                     sendRawInput(pasteString)
                 }
@@ -149,8 +149,8 @@ extension TerminalViewController {
             }
         }
         
-        // Raw input mode: send all keypresses to PTY
-        if isCommandRunning {
+        // Raw input mode or Interactive mode: send all keypresses to PTY
+        if isCommandRunning || isInteractiveMode {
             handleRawKeyDown(event)
             return
         }

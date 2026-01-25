@@ -100,6 +100,16 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Raw Input Mode (when command is running)
     var isCommandRunning: Bool = false
     
+    // MARK: - Interactive Mode (full terminal emulation)
+    var isInteractiveMode: Bool = false
+    private var interactiveTextView: NSTextView?
+    private var interactiveScrollView: NSScrollView?
+    private var interactiveScreenRows: Int = 24
+    private var interactiveScreenColumns: Int = 80
+    private var interactiveScreenLines: [[StyledSegment]] = []  // Current screen content
+    private var interactiveCursorRow: Int = 0
+    private var interactiveCursorColumn: Int = 0
+    
     override func loadView() {
         view = NSView()
         view.wantsLayer = true
@@ -766,6 +776,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         isCommandRunning = false
         inputContainerView.isHidden = false
         inputContainerView.alphaValue = 1
+        
+        // Reset interactive mode
+        if isInteractiveMode {
+            exitInteractiveMode()
+        }
+        terminalScrollView.isHidden = false
+        terminalScrollView.alphaValue = 1
     }
     
     /// Append raw output (backward compatibility - creates single unstyled segment)
@@ -909,16 +926,227 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     /// Sends raw input to PTY via WebSocket
     func sendRawInput(_ text: String) {
-        // Local echo for printable characters and newlines
-        // Note: Real terminals handle echo on PTY side, but we disabled it
-        // to avoid command duplication. So we do client-side echo in raw mode.
-        if text == "\n" || text == "\r" || text == "\r\n" {
-            appendOutput("\n")
-        } else if text.allSatisfy({ $0.isPrintable }) {
-            appendOutput(text)
+        // Local echo for printable characters and newlines - ONLY in non-interactive mode
+        // In interactive mode, the app handles its own display via screen_diff
+        if !isInteractiveMode {
+            // Note: Real terminals handle echo on PTY side, but we disabled it
+            // to avoid command duplication. So we do client-side echo in raw mode.
+            if text == "\n" || text == "\r" || text == "\r\n" {
+                appendOutput("\n")
+            } else if text.allSatisfy({ $0.isPrintable }) {
+                appendOutput(text)
+            }
+            // Don't echo control characters (Ctrl+C, escape sequences, etc.)
         }
-        // Don't echo control characters (Ctrl+C, escape sequences, etc.)
         
         clientCore?.send(["type": "sendInput", "text": text])
+    }
+    
+    // MARK: - Interactive Mode (Full Terminal Emulation)
+    
+    /// Enter interactive mode (alternate screen buffer)
+    func enterInteractiveMode(rows: Int, columns: Int) {
+        guard !isInteractiveMode else { return }
+        isInteractiveMode = true
+        interactiveScreenRows = rows
+        interactiveScreenColumns = columns
+        interactiveScreenLines = Array(repeating: [], count: rows)
+        
+        print("🖥️ Entering interactive mode: \(columns)x\(rows)")
+        
+        // Create interactive terminal view if needed
+        setupInteractiveView()
+        
+        // Show interactive view immediately (but transparent)
+        interactiveScrollView?.isHidden = false
+        interactiveScrollView?.alphaValue = 0
+        
+        // Hide block-based UI with animation
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.15
+            terminalScrollView.animator().alphaValue = 0
+            inputContainerView.animator().alphaValue = 0
+            interactiveScrollView?.animator().alphaValue = 1
+        } completionHandler: { [weak self] in
+            guard let self = self, self.isInteractiveMode else { return }
+            self.terminalScrollView.isHidden = true
+            self.inputContainerView.isHidden = true
+            
+            // Make TerminalViewController first responder AFTER animation completes
+            // (otherwise hiding inputContainerView resets the first responder)
+            _ = self.view.window?.makeFirstResponder(self)
+        }
+    }
+    
+    /// Exit interactive mode (return to block-based UI)
+    func exitInteractiveMode() {
+        guard isInteractiveMode else { return }
+        isInteractiveMode = false
+        
+        print("🖥️ Exiting interactive mode")
+        
+        // Hide interactive view
+        interactiveScrollView?.isHidden = true
+        
+        // Show block-based UI
+        terminalScrollView.isHidden = false
+        inputContainerView.isHidden = false
+        terminalScrollView.alphaValue = 1
+        inputContainerView.alphaValue = 1
+        
+        // Clear interactive state
+        interactiveScreenLines = []
+        
+        // Return focus to command text field
+        view.window?.makeFirstResponder(commandTextField)
+    }
+    
+    /// Setup interactive terminal view
+    private func setupInteractiveView() {
+        if interactiveScrollView != nil { return }
+        
+        // Create scroll view
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.backgroundColor = .black
+        scrollView.drawsBackground = true
+        scrollView.borderType = .noBorder
+        scrollView.isHidden = true
+        
+        // Create text view
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.backgroundColor = .black
+        textView.textContainerInset = NSSize(width: 0, height: 0)
+        textView.font = terminalFont
+        textView.textColor = .lightGray
+        textView.isRichText = true
+        textView.allowsUndo = false
+        
+        // Set text container for proper wrapping
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        
+        scrollView.documentView = textView
+        
+        view.addSubview(scrollView)
+        
+        // Layout: fill entire area below toolbar
+        scrollView.snp.makeConstraints { make in
+            make.top.equalTo(topToolbarView.snp.bottom)
+            make.leading.trailing.bottom.equalToSuperview()
+        }
+        
+        interactiveScrollView = scrollView
+        interactiveTextView = textView
+    }
+    
+    /// Handle full screen snapshot from server
+    func handleScreenSnapshot(lines: [[StyledSegment]], cursorRow: Int, cursorColumn: Int) {
+        // Auto-enter interactive mode if we receive snapshot but not in interactive mode
+        // This happens when client reconnects while server is in interactive mode
+        if !isInteractiveMode {
+            print("🖥️ Auto-entering interactive mode (received snapshot)")
+            enterInteractiveMode(rows: lines.count, columns: 80)
+        }
+        
+        interactiveScreenLines = lines
+        interactiveCursorRow = cursorRow
+        interactiveCursorColumn = cursorColumn
+        
+        renderInteractiveScreen()
+    }
+    
+    /// Handle screen diff (partial update)
+    func handleScreenDiff(updates: [ScreenRowUpdate], cursorRow: Int, cursorColumn: Int) {
+        guard isInteractiveMode else { return }
+        
+        // Apply updates
+        for update in updates {
+            if update.row < interactiveScreenLines.count {
+                interactiveScreenLines[update.row] = update.segments
+            }
+        }
+        
+        interactiveCursorRow = cursorRow
+        interactiveCursorColumn = cursorColumn
+        
+        renderInteractiveScreen()
+    }
+    
+    /// Render interactive screen to text view
+    private func renderInteractiveScreen() {
+        guard let textView = interactiveTextView else { return }
+        
+        let result = NSMutableAttributedString()
+        
+        // Create paragraph style with fixed line height
+        let paragraphStyle = NSMutableParagraphStyle()
+        let lineHeight = ceil(terminalFont.ascender - terminalFont.descender + terminalFont.leading)
+        paragraphStyle.minimumLineHeight = lineHeight
+        paragraphStyle.maximumLineHeight = lineHeight
+        
+        let defaultAttrs: [NSAttributedString.Key: Any] = [
+            .font: terminalFont,
+            .foregroundColor: NSColor.lightGray,
+            .paragraphStyle: paragraphStyle
+        ]
+        
+        for (rowIndex, lineSegments) in interactiveScreenLines.enumerated() {
+            if rowIndex > 0 {
+                result.append(NSAttributedString(string: "\n", attributes: defaultAttrs))
+            }
+            
+            let lineStartIndex = result.length
+            
+            if lineSegments.isEmpty {
+                // Empty line - use space to maintain line height and allow cursor
+                result.append(NSAttributedString(string: " ", attributes: defaultAttrs))
+            } else {
+                // Add paragraph style to segments
+                let lineStr = lineSegments.toAttributedString()
+                let mutableLine = NSMutableAttributedString(attributedString: lineStr)
+                mutableLine.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: mutableLine.length))
+                result.append(mutableLine)
+            }
+            
+            // Render cursor on this row
+            if rowIndex == interactiveCursorRow {
+                let cursorPosInLine = interactiveCursorColumn
+                let lineLength = result.length - lineStartIndex
+                
+                if cursorPosInLine < lineLength {
+                    // Cursor is within existing text - invert the character
+                    let cursorRange = NSRange(location: lineStartIndex + cursorPosInLine, length: 1)
+                    result.addAttribute(.backgroundColor, value: NSColor.lightGray, range: cursorRange)
+                    result.addAttribute(.foregroundColor, value: NSColor.black, range: cursorRange)
+                } else {
+                    // Cursor is beyond text - add cursor block
+                    let cursorAttrs: [NSAttributedString.Key: Any] = [
+                        .font: terminalFont,
+                        .foregroundColor: NSColor.black,
+                        .backgroundColor: NSColor.lightGray,
+                        .paragraphStyle: paragraphStyle
+                    ]
+                    // Pad with spaces if needed
+                    let spacesNeeded = cursorPosInLine - lineLength
+                    if spacesNeeded > 0 {
+                        result.append(NSAttributedString(string: String(repeating: " ", count: spacesNeeded), attributes: defaultAttrs))
+                    }
+                    result.append(NSAttributedString(string: " ", attributes: cursorAttrs))
+                }
+            }
+        }
+        
+        textView.textStorage?.setAttributedString(result)
+        
+        // Don't auto-scroll - let user control scroll position
     }
 }

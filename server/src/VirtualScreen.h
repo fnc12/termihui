@@ -192,7 +192,12 @@ public:
     const std::set<size_t>& dirtyRows() const { return this->dirtyRowSet; }
     
     /**
-     * Clear the dirty rows set
+     * Check if cursor position has changed since last clearDirtyRows()
+     */
+    bool isCursorDirty() const { return this->cursorDirtyFlag; }
+    
+    /**
+     * Clear the dirty rows set and cursor dirty flag
      */
     void clearDirtyRows();
     
@@ -209,6 +214,7 @@ private:
     size_t cursorColumnPosition = 0;
     TextStyle currentTextStyle;
     std::set<size_t> dirtyRowSet;
+    bool cursorDirtyFlag = false;
     
     void markDirty(size_t row);
     void ensureCursorInBounds();

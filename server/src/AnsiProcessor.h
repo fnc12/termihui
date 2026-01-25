@@ -88,6 +88,7 @@ private:
     State state = State::Normal;
     std::string paramBuffer;
     std::string oscBuffer;
+    std::string utf8Buffer;  // Buffer for multi-byte UTF-8 sequences
     bool interactiveMode = false;
     
     void processCharacter(char ch, std::vector<AnsiEventVariant>& events);

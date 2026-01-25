@@ -91,7 +91,7 @@ public:
      * @param session terminal session
      * @param output raw output string
      */
-    void processBlockModeOutput(TerminalSessionController& session, const std::string& output);
+    void processBlockModeOutput(TerminalSessionController& session, const std::string& output, bool skipOutputRecording);
 
 protected:
     // Type-safe message handlers (virtual for testability)

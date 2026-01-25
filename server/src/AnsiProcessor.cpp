@@ -23,6 +23,7 @@ void AnsiProcessor::reset() {
     this->state = State::Normal;
     this->paramBuffer.clear();
     this->oscBuffer.clear();
+    this->utf8Buffer.clear();
 }
 
 void AnsiProcessor::processCharacter(char ch, std::vector<AnsiEventVariant>& events) {
@@ -46,6 +47,52 @@ void AnsiProcessor::processCharacter(char ch, std::vector<AnsiEventVariant>& eve
 
 void AnsiProcessor::processNormalChar(char ch, std::vector<AnsiEventVariant>& events) {
     unsigned char uch = static_cast<unsigned char>(ch);
+    
+    // Check if we're in the middle of a UTF-8 sequence
+    if (!this->utf8Buffer.empty()) {
+        // UTF-8 continuation byte should be 10xxxxxx (0x80-0xBF)
+        if ((uch & 0xC0) == 0x80) {
+            this->utf8Buffer.push_back(ch);
+            
+            // Check if UTF-8 sequence is complete
+            size_t expectedLen = 0;
+            unsigned char firstByte = static_cast<unsigned char>(this->utf8Buffer[0]);
+            if ((firstByte & 0xE0) == 0xC0) expectedLen = 2;      // 110xxxxx
+            else if ((firstByte & 0xF0) == 0xE0) expectedLen = 3; // 1110xxxx
+            else if ((firstByte & 0xF8) == 0xF0) expectedLen = 4; // 11110xxx
+            
+            if (this->utf8Buffer.size() >= expectedLen) {
+                // Decode UTF-8 to char32_t
+                char32_t codepoint = 0;
+                if (expectedLen == 2) {
+                    codepoint = ((this->utf8Buffer[0] & 0x1F) << 6) |
+                                (this->utf8Buffer[1] & 0x3F);
+                } else if (expectedLen == 3) {
+                    codepoint = ((this->utf8Buffer[0] & 0x0F) << 12) |
+                                ((this->utf8Buffer[1] & 0x3F) << 6) |
+                                (this->utf8Buffer[2] & 0x3F);
+                } else if (expectedLen == 4) {
+                    codepoint = ((this->utf8Buffer[0] & 0x07) << 18) |
+                                ((this->utf8Buffer[1] & 0x3F) << 12) |
+                                ((this->utf8Buffer[2] & 0x3F) << 6) |
+                                (this->utf8Buffer[3] & 0x3F);
+                }
+                this->screen.putCharacter(codepoint);
+                this->utf8Buffer.clear();
+            }
+            return;
+        } else {
+            // Invalid continuation - discard buffer and process current byte normally
+            this->utf8Buffer.clear();
+        }
+    }
+    
+    // Check for UTF-8 multi-byte sequence start
+    if ((uch & 0xE0) == 0xC0 || (uch & 0xF0) == 0xE0 || (uch & 0xF8) == 0xF0) {
+        // Start of multi-byte UTF-8 sequence
+        this->utf8Buffer.push_back(ch);
+        return;
+    }
     
     if (ch == '\x1B') {
         // ESC - start escape sequence
@@ -73,11 +120,11 @@ void AnsiProcessor::processNormalChar(char ch, std::vector<AnsiEventVariant>& ev
     } else if (ch == '\x07') {
         // Bell
         events.push_back(AnsiEvent::Bell{});
-    } else if (uch >= 0x20) {
-        // Printable character
+    } else if (uch >= 0x20 && uch < 0x80) {
+        // ASCII printable character
         this->screen.putCharacter(static_cast<char32_t>(uch));
     }
-    // Other control characters are ignored
+    // Other control characters and invalid bytes are ignored
 }
 
 void AnsiProcessor::processEscapeChar(char ch) {

@@ -124,10 +124,13 @@ struct SegmentStyle: Codable {
         var fgColor = fg?.toNSColor() ?? .lightGray
         var bgColor = bg?.toNSColor() ?? .clear
         
-        // Handle reverse
+        // Handle reverse (swap foreground and background)
         if reverse {
             swap(&fgColor, &bgColor)
-            if bgColor == .lightGray { bgColor = .clear }
+            // If foreground became clear (was transparent background), make it black
+            if fgColor == .clear {
+                fgColor = .black
+            }
         }
         
         attrs[.foregroundColor] = fgColor

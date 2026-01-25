@@ -221,7 +221,23 @@ public:
      * Set interactive mode state
      * @param enabled true to enable, false to disable
      */
-    void setInteractiveMode(bool enabled) { this->interactiveMode = enabled; }
+    void setInteractiveMode(bool enabled) { 
+        if (this->interactiveMode && !enabled) {
+            // Exiting interactive mode - set flag to skip output until command_end
+            this->justExitedInteractiveMode = true;
+        }
+        this->interactiveMode = enabled; 
+    }
+    
+    /**
+     * Check if we just exited interactive mode (need to skip output recording)
+     */
+    bool hasJustExitedInteractiveMode() const { return this->justExitedInteractiveMode; }
+    
+    /**
+     * Clear the just exited interactive mode flag (called after command_end)
+     */
+    void clearJustExitedInteractiveMode() { this->justExitedInteractiveMode = false; }
     
     /**
      * Get virtual screen reference
@@ -273,6 +289,7 @@ private:
     termihui::VirtualScreen virtualScreen;
     termihui::AnsiProcessor ansiProcessor;
     bool interactiveMode = false;
+    bool justExitedInteractiveMode = false;  // Flag to skip output recording after exiting interactive mode
     
     // TODO: Add in future:
     // - struct winsize m_windowSize;  // Terminal window size for resize events

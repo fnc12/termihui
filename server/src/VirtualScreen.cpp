@@ -33,6 +33,7 @@ void VirtualScreen::putCharacter(char32_t character, const TextStyle& style) {
     this->buffer(this->cursorRowPosition, this->cursorColumnPosition) = Cell{character, style};
     this->markDirty(this->cursorRowPosition);
     ++this->cursorColumnPosition;
+    this->cursorDirtyFlag = true;
 }
 
 void VirtualScreen::setCurrentStyle(const TextStyle& style) {
@@ -50,6 +51,7 @@ void VirtualScreen::resetStyle() {
 void VirtualScreen::moveCursor(size_t row, size_t column) {
     this->cursorRowPosition = std::min(row, this->rowCount > 0 ? this->rowCount - 1 : 0);
     this->cursorColumnPosition = std::min(column, this->columnCount > 0 ? this->columnCount - 1 : 0);
+    this->cursorDirtyFlag = true;
 }
 
 void VirtualScreen::moveCursorRelative(int deltaRow, int deltaColumn) {
@@ -68,10 +70,13 @@ void VirtualScreen::moveCursorRelative(int deltaRow, int deltaColumn) {
     } else {
         this->cursorColumnPosition = std::min(this->cursorColumnPosition + static_cast<size_t>(deltaColumn), this->columnCount - 1);
     }
+    
+    this->cursorDirtyFlag = true;
 }
 
 void VirtualScreen::carriageReturn() {
     this->cursorColumnPosition = 0;
+    this->cursorDirtyFlag = true;
 }
 
 void VirtualScreen::lineFeed() {
@@ -81,6 +86,7 @@ void VirtualScreen::lineFeed() {
         // At bottom - scroll up
         this->scroll(1);
     }
+    this->cursorDirtyFlag = true;
 }
 
 // =============================================================================
@@ -346,6 +352,7 @@ std::string VirtualScreen::getContent(bool includeTrailingSpaces) const {
 
 void VirtualScreen::clearDirtyRows() {
     this->dirtyRowSet.clear();
+    this->cursorDirtyFlag = false;
 }
 
 void VirtualScreen::markAllDirty() {

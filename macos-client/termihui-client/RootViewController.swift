@@ -386,6 +386,24 @@ class RootViewController: NSViewController {
             // Refresh providers list
             clientCore?.send(["type": "list_llm_providers"])
             
+        // MARK: - Interactive Mode Messages
+        case "interactive_mode_start":
+            let rows = messageDict["rows"] as? Int ?? 24
+            let columns = messageDict["columns"] as? Int ?? 80
+            print("🖥️ Interactive mode start: \(columns)x\(rows)")
+            terminalViewController.enterInteractiveMode(rows: rows, columns: columns)
+            
+        case "screen_snapshot":
+            print("🖥️ Screen snapshot received")
+            handleScreenSnapshot(messageDict)
+            
+        case "screen_diff":
+            handleScreenDiff(messageDict)
+            
+        case "interactive_mode_end":
+            print("🖥️ Interactive mode end")
+            terminalViewController.exitInteractiveMode()
+            
         case "error":
             if let message = messageDict["message"] as? String {
                 print("❌ Server error: \(message)")
@@ -396,6 +414,42 @@ class RootViewController: NSViewController {
             
         default:
             print("⚠️ Unknown server message type: '\(messageType)', data: \(messageDict)")
+        }
+    }
+    
+    // MARK: - Interactive Mode Helpers
+    
+    private func handleScreenSnapshot(_ messageDict: [String: Any]) {
+        guard let linesData = messageDict["lines"],
+              let cursorRow = messageDict["cursor_row"] as? Int,
+              let cursorColumn = messageDict["cursor_column"] as? Int else {
+            print("❌ screen_snapshot missing fields: \(messageDict)")
+            return
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: linesData)
+            let lines = try JSONDecoder().decode([[StyledSegment]].self, from: jsonData)
+            terminalViewController.handleScreenSnapshot(lines: lines, cursorRow: cursorRow, cursorColumn: cursorColumn)
+        } catch {
+            print("❌ Failed to decode screen_snapshot lines: \(error)")
+        }
+    }
+    
+    private func handleScreenDiff(_ messageDict: [String: Any]) {
+        guard let updatesData = messageDict["updates"],
+              let cursorRow = messageDict["cursor_row"] as? Int,
+              let cursorColumn = messageDict["cursor_column"] as? Int else {
+            print("❌ screen_diff missing fields: \(messageDict)")
+            return
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: updatesData)
+            let updates = try JSONDecoder().decode([ScreenRowUpdate].self, from: jsonData)
+            terminalViewController.handleScreenDiff(updates: updates, cursorRow: cursorRow, cursorColumn: cursorColumn)
+        } catch {
+            print("❌ Failed to decode screen_diff updates: \(error)")
         }
     }
     
