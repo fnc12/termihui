@@ -705,9 +705,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             chatView.alphaValue = targetAlpha
         }, completionHandler: { [weak self] in
             guard let self = self else { return }
-            // Disable interaction after hiding
-            if !self.isChatSidebarVisible {
+            if self.isChatSidebarVisible {
+                // Focus input field after showing
+                self.chatSidebarController.focusInputField()
+            } else {
+                // Disable interaction and return focus to command input
                 self.chatSidebarController.setInteractive(false)
+                self.view.window?.makeFirstResponder(self.commandTextField)
             }
         })
     }

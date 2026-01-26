@@ -367,6 +367,11 @@ class ChatSidebarViewController: NSViewController {
         return selectedProviderId
     }
     
+    /// Focus the input text field
+    func focusInputField() {
+        view.window?.makeFirstResponder(inputTextField)
+    }
+    
     // MARK: - Helpers
     private func reloadAndScroll() {
         tableView.reloadData()
