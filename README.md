@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/logo.png" alt="TermiHUI Logo" width="120" />
-</p>
-
 <h1 align="center">TermiHUI</h1>
 
 <p align="center">
@@ -233,7 +229,6 @@ termihui/
 ├── macos-client/        # macOS native client
 │   ├── Shared/          # Cross-platform Swift code
 │   └── termihui-client/ # macOS-specific code
-├── docs/                # Documentation
 └── FEATURES.md          # Detailed roadmap
 ```
 
