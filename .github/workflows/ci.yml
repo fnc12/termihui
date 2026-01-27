@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libsqlite3-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake curl openssl sqlite
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: .deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('CMakeLists.txt', 'server/CMakeLists.txt', 'client-core/CMakeLists.txt', 'shared/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build all targets
+        run: |
+          cd build
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Build tests
+        run: |
+          cd build
+          make unit_tests client_core_tests shared_unit_tests -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Run Server tests
+        run: |
+          cd build
+          ./server/unit_tests
+
+      - name: Run Client Core tests
+        run: |
+          cd build
+          ./client-core/client_core_tests
+
+      - name: Run Shared tests
+        run: |
+          cd build
+          ./shared/shared_unit_tests
