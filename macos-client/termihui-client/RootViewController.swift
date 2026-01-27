@@ -514,7 +514,7 @@ class RootViewController: NSViewController {
     }
     
     private func showWelcomeScreen() {
-        // Сбрасываем заголовок окна
+        // Reset window title
         view.window?.title = "TermiHUI"
         
         addChild(welcomeViewController)
@@ -536,7 +536,7 @@ class RootViewController: NSViewController {
         print("🔧 showTerminalScreen: Parent view size: \(view.frame)")
         print("🔧 showTerminalScreen: Window size: \(view.window?.frame.size ?? CGSize.zero)")
         
-        // Устанавливаем заголовок окна
+        // Set window title
         view.window?.title = "TermiHUI — \(serverAddress)"
         
         terminalViewController.configure(serverAddress: serverAddress)
@@ -549,7 +549,7 @@ class RootViewController: NSViewController {
     
     private func showErrorAndReturnToWelcome(message: String) {
         let alert = NSAlert()
-        alert.messageText = "Ошибка подключения"
+        alert.messageText = "Connection Error"
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
@@ -602,11 +602,11 @@ extension RootViewController: TerminalViewControllerDelegate {
     }
 }
 
-// MARK: - Public Methods (для меню)
+// MARK: - Public Methods (for menu)
 extension RootViewController {
-    /// Вызывается из AppDelegate при нажатии Client -> Disconnect
+    /// Called from AppDelegate when Client -> Disconnect is clicked
     func requestDisconnect() {
-        // Очищаем состояние терминала перед отключением
+        // Clear terminal state before disconnecting
         terminalViewController.clearState()
         clientCore?.send(["type": "disconnectButtonClicked"])
     }

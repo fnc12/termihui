@@ -6,9 +6,9 @@ class WelcomeViewController: NSViewController {
     
     // MARK: - UI Components
     private let titleLabel = NSTextField(labelWithString: "TermiHUI")
-    private let subtitleLabel = NSTextField(labelWithString: "Подключение к терминальному серверу")
+    private let subtitleLabel = NSTextField(labelWithString: "Connect to terminal server")
     private let serverAddressTextField = NSTextField()
-    private let connectButton = NSButton(title: "Подключиться", target: nil, action: nil)
+    private let connectButton = NSButton(title: "Connect", target: nil, action: nil)
     
     // MARK: - Properties
     weak var delegate: WelcomeViewControllerDelegate?
@@ -94,20 +94,20 @@ class WelcomeViewController: NSViewController {
         let serverAddress = serverAddressTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
         guard !serverAddress.isEmpty else {
-            showErrorAlert(message: "Пожалуйста, введите адрес сервера")
+            showErrorAlert(message: "Please enter server address")
             return
         }
         
-        // Сохраняем адрес для следующего раза
+        // Save address for next time
         AppSettings.shared.serverAddress = serverAddress
         
-        // Уведомляем delegate о попытке подключения
+        // Notify delegate about connection attempt
         delegate?.welcomeViewController(self, didClickConnectButton: serverAddress)
     }
     
     private func showErrorAlert(message: String) {
         let alert = NSAlert()
-        alert.messageText = "Ошибка"
+        alert.messageText = "Error"
         alert.informativeText = message
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")

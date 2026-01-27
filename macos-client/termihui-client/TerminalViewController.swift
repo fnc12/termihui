@@ -17,7 +17,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private let inputContainerView = NSView()
     private let cwdLabel = NSTextField(labelWithString: "")
     let commandTextField = TabHandlingTextField()
-    private let sendButton = NSButton(title: "Отправить", target: nil, action: nil)
+    private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private var inputUnderlineView: NSView!
     
     // Session sidebar (lazy - created on first toggle)
@@ -335,7 +335,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     private func setupTerminalView() {
-        // Настраиваем scroll view и коллекцию блоков
+        // Configure scroll view and command blocks collection
         terminalScrollView.hasVerticalScroller = true
         terminalScrollView.hasHorizontalScroller = false
         terminalScrollView.autohidesScrollers = true
@@ -343,7 +343,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         terminalScrollView.borderType = .noBorder
         terminalScrollView.drawsBackground = true
 
-        // Конфигурация layout: одна колонка, динамическая высота
+        // Layout configuration: single column, dynamic height
         collectionLayout.minimumLineSpacing = 8
         collectionLayout.minimumInteritemSpacing = 0
         collectionLayout.sectionInset = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
@@ -367,26 +367,26 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     func updateTextViewFrame() {
-        // Ручное управление размерами documentView (collectionView) и «гравитация вниз»
+        // Manual document view (collectionView) sizing with "gravity to bottom"
         let viewport = terminalScrollView.contentSize
 
-        // 1) ширина документа = ширине viewport
+        // 1) Document width = viewport width
         var frame = collectionView.frame
         frame.size.width = viewport.width
 
-        // 2) сбросить верхний inset и измерить высоту контента
+        // 2) Reset top inset and measure content height
         collectionLayout.sectionInset.top = baseTopInset
         collectionView.collectionViewLayout?.invalidateLayout()
         let contentH0 = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? 0
 
-        // 3) добавляем пустое пространство сверху, если контента мало
+        // 3) Add extra space at top if content is smaller than viewport
         let extraTop = max(0, viewport.height - contentH0)
         if extraTop > 0 {
             collectionLayout.sectionInset.top = baseTopInset + extraTop
             collectionView.collectionViewLayout?.invalidateLayout()
         }
 
-        // 4) высота документа = max(viewport, фактическая высота контента)
+        // 4) Document height = max(viewport, actual content height)
         let contentH = collectionView.collectionViewLayout?.collectionViewContentSize.height ?? viewport.height
         frame.size.height = max(viewport.height, contentH)
 
@@ -396,7 +396,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     private func recreateTextViewWithCorrectSize() {
-        // Больше не используется
+        // No longer used
     }
     
     private func setupInputView() {
@@ -408,34 +408,34 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         commandTextField.translatesAutoresizingMaskIntoConstraints = false
         sendButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // CWD label — фиолетовый, как в Warp
+        // CWD label — purple, like in Warp
         cwdLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .medium)
-        cwdLabel.textColor = NSColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1.0) // Фиолетовый
+        cwdLabel.textColor = NSColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1.0) // Purple
         cwdLabel.backgroundColor = .clear
         cwdLabel.isBordered = false
         cwdLabel.isBezeled = false
         cwdLabel.isEditable = false
         cwdLabel.isSelectable = false
-        cwdLabel.lineBreakMode = .byTruncatingHead // Обрезаем начало пути, если длинный
+        cwdLabel.lineBreakMode = .byTruncatingHead // Truncate beginning of long paths
         cwdLabel.stringValue = "~"
         inputContainerView.addSubview(cwdLabel)
         
-        // Command text field — светлый текст на чёрном фоне
-        commandTextField.placeholderString = "Введите команду..."
+        // Command text field — light text on black background
+        commandTextField.placeholderString = "Enter command..."
         commandTextField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         commandTextField.textColor = NSColor.white
         commandTextField.target = self
         commandTextField.action = #selector(sendCommand)
-        commandTextField.tabDelegate = self // Устанавливаем делегат для Tab-обработки
+        commandTextField.tabDelegate = self // Set delegate for Tab key handling
         
-        // Убираем все визуальные элементы поля для слияния с фоном
+        // Remove all visual elements to blend with background
         commandTextField.focusRingType = .none
         commandTextField.isBordered = false
         commandTextField.isBezeled = false
         commandTextField.backgroundColor = NSColor.clear
         commandTextField.drawsBackground = false
         
-        // Callback для авторазмера поля ввода с анимацией
+        // Callback for animated input field auto-resize
         commandTextField.onHeightChanged = { [weak self] newHeight in
             guard let self = self else { return }
             
@@ -448,28 +448,28 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             }
         }
         
-        // Тонкая линия снизу — более контрастная на чёрном фоне
+        // Thin underline — more visible on black background
         let underlineView = NSView()
         underlineView.translatesAutoresizingMaskIntoConstraints = false
         underlineView.wantsLayer = true
         underlineView.layer?.backgroundColor = NSColor(white: 0.3, alpha: 1.0).cgColor
         inputContainerView.addSubview(underlineView)
         
-        // Сохраняем ссылку для layout constraints
+        // Store reference for layout constraints
         self.inputUnderlineView = underlineView
         
-        // Send button — круглая кнопка со стрелкой как в Telegram
+        // Send button — circular button with arrow like in Telegram
         sendButton.wantsLayer = true
         sendButton.isBordered = false
         sendButton.title = ""
         sendButton.bezelStyle = .regularSquare
         
-        // SF Symbol стрелка
+        // SF Symbol arrow
         if let arrowImage = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Send") {
             let config = NSImage.SymbolConfiguration(pointSize: 24, weight: .medium)
             sendButton.image = arrowImage.withSymbolConfiguration(config)
             sendButton.imagePosition = .imageOnly
-            sendButton.contentTintColor = NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0) // Синий как в Telegram
+            sendButton.contentTintColor = NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0) // Blue like in Telegram
         }
         
         sendButton.target = self
@@ -486,7 +486,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         print("   ScrollView: \(terminalScrollView.frame)")
         print("   InputContainer: \(inputContainerView.frame)")
         
-        // Принудительно обновляем layout перед установкой constraints
+        // Force layout update before setting constraints
         view.layoutSubtreeIfNeeded()
         
         // Top toolbar
@@ -511,25 +511,25 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.center.equalToSuperview()
         }
         
-        // Terminal view - занимает всё пространство от toolbar до input
+        // Terminal view - fills space from toolbar to input
         terminalScrollView.snp.makeConstraints { make in
             make.top.equalTo(topToolbarView.snp.bottom)
             make.leading.trailing.equalToSuperview()
             make.height.greaterThanOrEqualTo(200)
         }
         
-        // Сохраняем constraint для динамического изменения при raw mode
+        // Store constraint for dynamic changes in raw mode
         updateTerminalBottomConstraint(isRawMode: false)
         
         // print("🔧 Terminal constraints set with minimum height 200")
         
-        // Input container - динамическая высота
+        // Input container - dynamic height
         inputContainerView.snp.makeConstraints { make in
             make.leading.trailing.equalToSuperview()
             make.bottom.equalToSuperview()
         }
         
-        // CWD label сверху
+        // CWD label at top
         cwdLabel.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(12)
             make.trailing.equalToSuperview().offset(-12)
@@ -537,18 +537,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.equalTo(16)
         }
         
-        // Text field - динамическая высота (min 24, растёт по контенту)
+        // Text field - dynamic height (min 24, grows with content)
         commandTextField.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(12)
             make.top.equalTo(cwdLabel.snp.bottom).offset(4)
             make.trailing.equalTo(sendButton.snp.leading).offset(-8)
             make.height.greaterThanOrEqualTo(24)
-            make.bottom.equalToSuperview().offset(-12) // Определяет высоту контейнера
+            make.bottom.equalToSuperview().offset(-12) // Determines container height
         }
         
         sendButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-12)
-            make.top.equalTo(commandTextField.snp.top) // Выравниваем по верху поля
+            make.top.equalTo(commandTextField.snp.top) // Align with text field top
             make.width.height.equalTo(28)
         }
         
@@ -563,7 +563,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // print("🔧 setupLayout completed: all constraints set")
     }
     
-    /// Обновляет нижний constraint списка команд в зависимости от режима
+    /// Updates bottom constraint of command list depending on mode
     private func updateTerminalBottomConstraint(isRawMode: Bool) {
         terminalScrollView.snp.remakeConstraints { make in
             make.top.equalTo(topToolbarView.snp.bottom)
@@ -571,15 +571,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.greaterThanOrEqualTo(200)
             
             if isRawMode {
-                // В raw mode список растягивается до самого низа
+                // In raw mode, list stretches to the bottom
                 make.bottom.equalToSuperview()
             } else {
-                // В обычном режиме список заканчивается перед полем ввода
+                // In normal mode, list ends before input field
                 make.bottom.equalTo(inputContainerView.snp.top)
             }
         }
         
-        // После изменения layout обновляем выделение
+        // Update selection highlight after layout change
         DispatchQueue.main.async { [weak self] in
             self?.updateSelectionHighlight()
         }
@@ -759,11 +759,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Public Methods
     func configure(serverAddress: String) {
         self.serverAddress = serverAddress
-        // Устанавливаем заголовок окна
+        // Set window title
         view.window?.title = "TermiHUI — \(serverAddress)"
     }
     
-    /// Очищает состояние терминала (вызывается при отключении)
+    /// Clears terminal state (called on disconnect)
     func clearState() {
         commandBlocks.removeAll()
         currentBlockIndex = nil
@@ -799,13 +799,13 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     func appendStyledOutput(_ segments: [StyledSegment]) {
         guard !segments.isEmpty else { return }
         
-        // Копим вывод в текущем блоке (если есть незавершённый)
+        // Accumulate output in current block (if there's an unfinished one)
         if let idx = currentBlockIndex {
             commandBlocks[idx].outputSegments.append(contentsOf: segments)
             reloadBlock(at: idx)
             rebuildGlobalDocument(startingAt: idx)
         } else {
-            // Если блока нет (например, вывод вне команды) — создаём самостоятельный блок
+            // If no block exists (e.g., output outside command) — create standalone block
             let block = CommandBlock(commandId: nil, command: nil, outputSegments: segments, isFinished: false, exitCode: nil, cwdStart: nil, cwdEnd: nil)
             commandBlocks.append(block)
             let newIndex = commandBlocks.count - 1
@@ -816,25 +816,25 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     func showConnectionStatus(_ status: String) {
-        // Статус теперь в заголовке окна
+        // Status is now in window title
         if !serverAddress.isEmpty {
             view.window?.title = "TermiHUI — \(serverAddress) (\(status))"
         }
     }
     
-    /// Обновляет home directory сервера (для сокращения путей)
+    /// Updates server home directory (for path shortening)
     func updateServerHome(_ home: String) {
         serverHome = home
-        // Обновим отображение CWD с новым home
+        // Update CWD display with new home
         if !currentCwd.isEmpty {
             updateCurrentCwd(currentCwd)
         }
     }
     
-    /// Обновляет отображение текущей рабочей директории
+    /// Updates current working directory display
     func updateCurrentCwd(_ cwd: String) {
         currentCwd = cwd
-        // Сокращаем путь только если сервер прислал home
+        // Shorten path only if server provided home directory
         let displayCwd: String
         if !serverHome.isEmpty && cwd.hasPrefix(serverHome) {
             displayCwd = "~" + String(cwd.dropFirst(serverHome.count))
@@ -845,7 +845,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // print("📂 CWD updated: \(displayCwd)")
     }
     
-    /// Обновляет название текущей сессии в toolbar
+    /// Updates current session name in toolbar
     func updateSessionName(_ sessionId: UInt64?) {
         if let id = sessionId {
             sessionLabel.stringValue = "#\(id)"
@@ -860,18 +860,18 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         guard !command.isEmpty else { return }
         
-        // Очищаем поле ввода
+        // Clear input field
         commandTextField.stringValue = ""
-        commandTextField.updateHeightIfNeeded() // Сбрасываем высоту поля
+        commandTextField.updateHeightIfNeeded() // Reset field height
         
-        // НЕ добавляем эхо команды - PTY уже предоставляет полный вывод
-        // appendOutput("$ \(command)\n")  // Убираем дублирование
+        // DON'T add command echo - PTY already provides full output
+        // appendOutput("$ \(command)\n")  // Remove duplication
         
-        // Отправляем команду через delegate
+        // Send command via delegate
         delegate?.terminalViewController(self, didSendCommand: command)
     }
     
-    /// Вызывается из меню Client -> Disconnect
+    /// Called from Client -> Disconnect menu
     func requestDisconnect() {
         delegate?.terminalViewControllerDidRequestDisconnect(self)
     }
@@ -887,7 +887,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         rawModeAnimationCounter += 1
         let currentCounter = rawModeAnimationCounter
         
-        // Растягиваем список команд до низа и прячем поле ввода
+        // Stretch command list to bottom and hide input field
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             inputContainerView.animator().alphaValue = 0
@@ -912,14 +912,14 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         isCommandRunning = false
         rawModeAnimationCounter += 1 // Invalidate any pending hide animations
         
-        // Возвращаем layout: список команд до поля ввода
+        // Restore layout: command list before input field
         updateTerminalBottomConstraint(isRawMode: false)
         
         // Show input container immediately (no animation to avoid race)
         inputContainerView.isHidden = false
         inputContainerView.alphaValue = 1
         
-        // Обновляем layout
+        // Update layout
         view.layoutSubtreeIfNeeded()
         
         // Return focus to command text field

@@ -5,10 +5,10 @@ import SnapKit
 class ConnectingViewController: NSViewController {
     
     // MARK: - UI Components
-    private let titleLabel = NSTextField(labelWithString: "Подключение...")
+    private let titleLabel = NSTextField(labelWithString: "Connecting...")
     private let progressIndicator = NSProgressIndicator()
-    private let statusLabel = NSTextField(labelWithString: "Подключение к серверу")
-    private let cancelButton = NSButton(title: "Отмена", target: nil, action: nil)
+    private let statusLabel = NSTextField(labelWithString: "Connecting to server")
+    private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     
     // MARK: - Properties
     weak var delegate: ConnectingViewControllerDelegate?
@@ -96,7 +96,7 @@ class ConnectingViewController: NSViewController {
     // MARK: - Public Methods
     func configure(serverAddress: String) {
         self.serverAddress = serverAddress
-        statusLabel.stringValue = "Подключение к \(serverAddress)"
+        statusLabel.stringValue = "Connecting to \(serverAddress)"
     }
     
     func updateStatus(_ status: String) {

@@ -354,7 +354,7 @@ extension TerminalViewController {
         let p = view.convert(gr.location(in: v), from: v)
         switch gr.state {
         case .began:
-            // Назначаем себя firstResponder, чтобы перехватывать Cmd+C
+            // Make self firstResponder to intercept Cmd+C
             view.window?.makeFirstResponder(self)
             if let (_, gi) = hitTestGlobalIndex(at: p) {
                 isSelecting = true
@@ -372,7 +372,7 @@ extension TerminalViewController {
         let p = view.convert(gr.location(in: v), from: v)
         switch gr.state {
         case .began:
-            // Назначаем себя firstResponder, чтобы перехватывать Cmd+C
+            // Make self firstResponder to intercept Cmd+C
             view.window?.makeFirstResponder(self)
             if let (_, gi) = hitTestGlobalIndex(at: p) {
                 isSelecting = true

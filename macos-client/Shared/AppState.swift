@@ -1,6 +1,6 @@
 import Foundation
 
-/// Состояния приложения для управления навигацией
+/// Application states for navigation management
 enum AppState {
     case welcome
     case connecting(serverAddress: String)

@@ -44,7 +44,7 @@ TEST_CASE("CompletionManager file completion", "[completion]") {
         auto completions = manager.getCompletions("cat tes", 7);
         // Result depends on directory contents, just check it doesn't crash
         INFO("Found " << completions.size() << " file completions for 'tes'");
-        REQUIRE(true); // Тест проходит если не упал
+        REQUIRE(true); // Test passes if it doesn't crash
     }
 }
 

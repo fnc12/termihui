@@ -8,19 +8,19 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
     SECTION("Session creation and command execution") {
         TerminalSessionController session;
         
-        // Тестируем создание сессии с простой командой
+        // Test session creation with simple command
         REQUIRE(session.startCommand("echo 'Hello, World!'"));
         
-        // Проверяем, что сессия запущена
+        // Check that session is running
         REQUIRE(session.isRunning());
         
-        // Проверяем, что получили валидный PID
+        // Check that we got a valid PID
         REQUIRE(session.getChildPid() > 0);
         
-        // Ждем немного для выполнения команды
+        // Wait for command execution
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
-        // Читаем вывод
+        // Read output
         std::string output;
         int attempts = 0;
         while (session.isRunning() && attempts < 50) {
@@ -32,7 +32,7 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
             attempts++;
         }
         
-        // Проверяем, что получили ожидаемый вывод
+        // Check that we got expected output
         REQUIRE_FALSE(output.empty());
         REQUIRE(output.find("Hello, World!") != std::string::npos);
     }
@@ -40,16 +40,16 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
     SECTION("ls command execution") {
         TerminalSessionController session;
         
-        // Тестируем команду ls
+        // Test ls command
         REQUIRE(session.startCommand("ls"));
         
-        // Проверяем, что сессия запущена
+        // Check that session is running
         REQUIRE(session.isRunning());
         
-        // Ждем выполнения команды
+        // Wait for command execution
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         
-        // Читаем вывод
+        // Read output
         std::string output;
         int attempts = 0;
         while (session.isRunning() && attempts < 100) {
@@ -61,9 +61,9 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
             attempts++;
         }
         
-        // Проверяем, что получили вывод от ls
+        // Check that we got output from ls
         REQUIRE_FALSE(output.empty());
-        // ls должен показать как минимум что-то (файлы или пустую директорию)
+        // ls should show at least something (files or empty directory)
         REQUIRE(output.length() > 0);
         
         INFO("ls output: " << output);
@@ -72,19 +72,19 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
     SECTION("Interactive session with input") {
         TerminalSessionController session;
         
-        // Запускаем bash для интерактивной сессии
+        // Start bash for interactive session
         REQUIRE(session.startCommand("bash"));
         
-        // Ждем запуска bash
+        // Wait for bash to start
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
-        // Отправляем команду ls
+        // Send ls command
         REQUIRE(session.sendInput("ls\n") > 0);
         
-        // Ждем выполнения команды
+        // Wait for command execution
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
-        // Читаем вывод
+        // Read output
         std::string output;
         int attempts = 0;
         while (attempts < 50) {
@@ -95,24 +95,24 @@ TEST_CASE("TerminalSessionController basic functionality", "[TerminalSessionCont
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             attempts++;
             
-            // Прерываем если получили достаточно данных
+            // Break if we got enough data
             if (output.length() > 10) {
                 break;
             }
         }
         
-        // Отправляем exit для корректного завершения
+        // Send exit for clean shutdown
         session.sendInput("exit\n");
         
-        // Ждем завершения
+        // Wait for termination
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
-        // Проверяем, что получили вывод
+        // Check that we got output
         REQUIRE_FALSE(output.empty());
         
         INFO("Interactive session output: " << output);
         
-        // Принудительно завершаем если еще работает
+        // Force terminate if still running
         if (session.isRunning()) {
             session.terminate();
         }
@@ -124,26 +124,26 @@ TEST_CASE("TerminalSessionController error handling", "[TerminalSessionControlle
     SECTION("Invalid command") {
         TerminalSessionController session;
         
-        // Тестируем несуществующую команду
+        // Test non-existent command
         REQUIRE(session.startCommand("nonexistent_command_12345"));
         
-        // Ждем немного
+        // Wait a bit
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
-        // Сессия должна завершиться с ошибкой
-        // (bash попытается выполнить команду и завершится)
+        // Session should terminate with error
+        // (bash will try to execute command and exit)
     }
     
     SECTION("Double start prevention") {
         TerminalSessionController session;
         
-        // Запускаем первую команду
+        // Start first command
         REQUIRE(session.startCommand("sleep 1"));
         
-        // Попытка запустить вторую команду должна провалиться
+        // Attempt to start second command should fail
         REQUIRE_FALSE(session.startCommand("echo test"));
         
-        // Ждем завершения первой команды
+        // Wait for first command to complete
         std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 }
@@ -159,13 +159,13 @@ TEST_CASE("TerminalSessionController resource management", "[TerminalSessionCont
             childPid = session.getChildPid();
             REQUIRE(childPid > 0);
             REQUIRE(session.isRunning());
-        } // session уничтожается здесь
+        } // session is destroyed here
         
-        // Ждем немного для корректной очистки
+        // Wait for proper cleanup
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         
-        // Проверяем, что процесс был корректно завершен
-        // (это можно проверить через kill(pid, 0), но в тесте это сложно)
+        // Check that process was properly terminated
+        // (can be verified via kill(pid, 0), but that's complex in tests)
     }
 }
 
@@ -173,17 +173,17 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
     SECTION("Directory change should persist between commands") {
         TerminalSessionController session;
         
-        // Создаем интерактивную bash-сессию
+        // Create interactive bash session
         REQUIRE(session.createSession());
         REQUIRE(session.isRunning());
         
-        // Ждем инициализации bash
+        // Wait for bash initialization
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         
-        // Очищаем буфер от приветственных сообщений bash
+        // Clear buffer from bash welcome messages
         session.readOutput();
         
-        // 1. Выполняем pwd и сохраняем результат
+        // 1. Execute pwd and save result
         REQUIRE(session.executeCommand("pwd"));
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
@@ -194,14 +194,14 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
                 std::string output = session.readOutput();
                 initialDir += output;
                 if (initialDir.find('\n') != std::string::npos) {
-                    break; // Получили полную строку
+                    break; // Got complete line
                 }
             }
             attempts++;
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         
-        // Очищаем от лишних символов
+        // Clean up extra characters
         size_t newlinePos = initialDir.find('\n');
         if (newlinePos != std::string::npos) {
             initialDir = initialDir.substr(0, newlinePos);
@@ -209,14 +209,14 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         
         REQUIRE(!initialDir.empty());
         
-        // 2. Меняем директорию на /tmp
+        // 2. Change directory to /tmp
         REQUIRE(session.executeCommand("cd /tmp"));
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
-        // Очищаем буфер после cd (cd обычно ничего не выводит)
+        // Clear buffer after cd (cd usually outputs nothing)
         session.readOutput();
         
-        // 3. Снова выполняем pwd
+        // 3. Execute pwd again
         REQUIRE(session.executeCommand("pwd"));
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
         
@@ -227,14 +227,14 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
                 std::string output = session.readOutput();
                 newDir += output;
                 if (newDir.find('\n') != std::string::npos) {
-                    break; // Получили полную строку
+                    break; // Got complete line
                 }
             }
             attempts++;
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         
-        // Очищаем от лишних символов
+        // Clean up extra characters
         newlinePos = newDir.find('\n');
         if (newlinePos != std::string::npos) {
             newDir = newDir.substr(0, newlinePos);
@@ -242,16 +242,16 @@ TEST_CASE("Interactive bash session state persistence", "[TerminalSessionControl
         
         REQUIRE(!newDir.empty());
         
-        // 4. ГЛАВНАЯ ПРОВЕРКА: директории должны быть разные
-        // Если интерактивная сессия работает правильно, то newDir должен быть "/tmp"
-        // А initialDir должен быть исходной директорией (не "/tmp")
+        // 4. MAIN CHECK: directories should be different
+        // If interactive session works correctly, newDir should be "/tmp"
+        // And initialDir should be the original directory (not "/tmp")
         INFO("Initial directory: " << initialDir);
         INFO("Directory after cd /tmp: " << newDir);
         
-        // Проверяем, что директория изменилась
+        // Check that directory changed
         REQUIRE(initialDir != newDir);
         
-        // Дополнительная проверка - новая директория должна быть /tmp
+        // Additional check - new directory should be /tmp
         REQUIRE(newDir == "/tmp");
     }
 } 

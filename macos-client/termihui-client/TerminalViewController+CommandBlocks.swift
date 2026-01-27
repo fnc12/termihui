@@ -3,19 +3,19 @@ import Cocoa
 // MARK: - Selection Gestures Setup
 extension TerminalViewController {
     func setupSelectionGestures() {
-        // Перехватим события колллекции, чтобы мышь шла через VC
+        // Intercept collection events so mouse goes through VC
         collectionView.postsFrameChangedNotifications = true
         collectionView.acceptsTouchEvents = false
-        // Включаем отслеживание мыши
+        // Enable mouse tracking
         collectionView.addTrackingArea(NSTrackingArea(rect: collectionView.bounds, options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect], owner: self, userInfo: nil))
         
-        // Жест нажатия (эмулирует mouseDown)
+        // Press gesture (emulates mouseDown)
         let press = NSPressGestureRecognizer(target: self, action: #selector(handlePressGesture(_:)))
         press.minimumPressDuration = 0
         press.delegate = self
         collectionView.addGestureRecognizer(press)
         
-        // Жест перетаскивания (эмулирует mouseDragged)
+        // Pan gesture (emulates mouseDragged)
         let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePanGesture(_:)))
         pan.delegate = self
         collectionView.addGestureRecognizer(pan)
@@ -24,7 +24,7 @@ extension TerminalViewController {
 
 // MARK: - Command Block Events
 extension TerminalViewController {
-    // Пока просто фиксация событий, без изменения текста.
+    // Event tracking without text modification
     func didStartCommandBlock(command: String? = nil, cwd: String? = nil) {
         // print("🧱 Started command block: \(command ?? "<unknown>"), cwd: \(cwd ?? "<unknown>")")
         let block = CommandBlock(commandId: nil, command: command, outputSegments: [], isFinished: false, exitCode: nil, cwdStart: cwd, cwdEnd: nil)
@@ -47,7 +47,7 @@ extension TerminalViewController {
             currentBlockIndex = nil
             rebuildGlobalDocument(startingAt: idx)
         }
-        // Обновляем отображение cwd если он изменился (например после cd)
+        // Update cwd display if it changed (e.g., after cd)
         if let newCwd = cwd {
             updateCurrentCwd(newCwd)
         }
@@ -81,7 +81,7 @@ extension TerminalViewController {
             commandBlocks.append(block)
         }
         
-        // Полная перезагрузка collectionView после обновления модели
+        // Full collectionView reload after model update
         collectionView.reloadData()
         
         if !commandBlocks.isEmpty {
