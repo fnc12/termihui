@@ -81,11 +81,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_ios.mm)
 elseif(APPLE)
     set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_macos.mm)
-elseif(WIN32)
-    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_windows.cpp)
-elseif(ANDROID)
-    set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_android.cpp)
 else()
+    # Linux and other Unix-like systems
     set(CLIPBOARD_SOURCES src/clipboard/clipboard_manager_linux.cpp)
 endif()
 
