@@ -2,7 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <array>
+#include <string>
 
 namespace termihui {
 
