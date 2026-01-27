@@ -23,19 +23,28 @@
 
 ## Why TermiHUI?
 
-Traditional terminals are powerful but lack modern UX. Tools like tmux offer session management but require memorizing keyboard shortcuts. TermiHUI bridges this gap:
+I've been thinking about this project for years. Let me share the pain points that led me here.
 
-| Feature | Traditional Terminal | tmux | TermiHUI |
-|---------|---------------------|------|----------|
+**tmux is amazing, but it's still TUI.** The moment you need modern UX — drag and drop, visual tab management, smooth animations — you hit a wall. tmux solves session persistence brilliantly, but it's fundamentally limited by being text-based. I wanted something that keeps the power of tmux but isn't trapped in the terminal.
+
+**Modern terminal emulators have a dilemma.** Either they have mediocre UX, or they're built on Electron and similar non-native technologies. I'm going strictly native. Native means familiar UX (macOS users know what I mean), instant response times, and respecting the platform conventions your OS already taught you.
+
+**Tabs belong on the side, not the top.** Top tabs have failed us. On macOS, the top edge of the screen is contested territory — try clicking a tab when Finder's menu bar keeps expanding. And flat tab lists don't scale. I want hierarchical tabs (inspired by [Horse Browser](https://browser.horse/)) that let you actually organize dozens of terminal sessions without losing your mind.
+
+**AI chat for every tab.** But here's the thing — you bring your own keys (BYOK) or run self-hosted models. No vendor lock-in, no surprise bills. You configure which tools the AI can use, and all execution permissions are **closed by default**. You grant them explicitly. Your terminal will never accidentally `rm -rf` anything.
+
+**Mesh network of terminals.** If you're testing distributed systems across multiple hosts, you know the pain of SSH-ing into five machines and running commands in sequence. TermiHUI lets you connect servers together and orchestrate commands across your entire infrastructure from one place.
+
+**The end goal?** Pick up your phone, connect to your server, speak your task, close the app. The task keeps running. When it's done — or when it needs permission for a sub-command — you get a push notification. That's the terminal experience I want to build.
+
+| | Traditional Terminal | tmux | TermiHUI |
+|--|---------------------|------|----------|
 | Session persistence | ❌ | ✅ | ✅ |
 | Visual session management | ❌ | ❌ | ✅ |
-| Command blocks | ❌ | ❌ | ✅ |
 | Native performance | ✅ | ✅ | ✅ |
 | Cross-platform GUI | ❌ | ❌ | ✅ |
-| Mobile clients | ❌ | ❌ | 🚧 |
+| Mobile + push notifications | ❌ | ❌ | 🚧 |
 | AI integration | ❌ | ❌ | 🚧 |
-
-**TermiHUI = tmux UX + modern terminal features + native performance**
 
 ---
 
@@ -70,9 +79,9 @@ Traditional terminals are powerful but lack modern UX. Tools like tmux offer ses
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         TermiHUI                                 │
+│                         TermiHUI                                │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  ┌──────────────┐     WebSocket      ┌──────────────────────┐   │
 │  │   Clients    │◄──────────────────►│       Server         │   │
 │  │              │                    │                      │   │
@@ -83,14 +92,14 @@ Traditional terminals are powerful but lack modern UX. Tools like tmux offer ses
 │  │  • Android   │                    │  • History Storage   │   │
 │  │              │                    │                      │   │
 │  └──────────────┘                    └──────────────────────┘   │
-│         │                                      │                 │
-│         │                                      │                 │
-│         ▼                                      ▼                 │
+│         │                                      │                │
+│         │                                      │                │
+│         ▼                                      ▼                │
 │  ┌──────────────┐                    ┌──────────────────────┐   │
 │  │ Client-Core  │                    │    PTY Process       │   │
 │  │   (C++ lib)  │                    │    (bash/zsh)        │   │
 │  └──────────────┘                    └──────────────────────┘   │
-│                                                                  │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
