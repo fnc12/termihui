@@ -39,6 +39,7 @@ endif()
 
 if(NOT TARGET hv_static)
     message(STATUS "Fetching libhv (standalone build)...")
+    set(WITH_OPENSSL ON CACHE BOOL "Build libhv with OpenSSL support" FORCE)
     FetchContent_Declare(
         libhv
         GIT_REPOSITORY https://github.com/ithewei/libhv.git
