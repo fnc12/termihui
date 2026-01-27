@@ -10,7 +10,6 @@ namespace {
 
 // Check if a command exists in PATH
 bool commandExists(const char* cmd) {
-    std::array<char, 256> buffer;
     std::string checkCmd = std::string("which ") + cmd + " > /dev/null 2>&1";
     return std::system(checkCmd.c_str()) == 0;
 }
