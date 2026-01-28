@@ -81,4 +81,7 @@ jobs:
             -project macos-client/termihui-client.xcodeproj \
             -scheme termihui-client-macos \
             -destination 'platform=macOS' \
-            -only-testing:termihui-client-macosTests
+            -only-testing:termihui-client-macosTests \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
