@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import termihui_client
+@testable import termihui_client_macos
 
 final class termihui_clientTests: XCTestCase {
 

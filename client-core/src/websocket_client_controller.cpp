@@ -19,7 +19,17 @@ WebSocketClientControllerImpl::WebSocketClientControllerImpl()
 }
 
 WebSocketClientControllerImpl::~WebSocketClientControllerImpl() {
-    this->close();
+    if (this->client) {
+        // Clear callbacks first to prevent them from accessing eventQueue
+        // after we start destroying it
+        this->client->onopen = nullptr;
+        this->client->onmessage = nullptr;
+        this->client->onclose = nullptr;
+        
+        // Stop the client and wait for event loop thread to finish
+        // This ensures no callbacks will be called after this point
+        this->client->stop(true);
+    }
 }
 
 int WebSocketClientControllerImpl::open(std::string_view url) {
