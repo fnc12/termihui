@@ -73,3 +73,12 @@ jobs:
         run: |
           cd build
           ./shared/shared_unit_tests
+
+      - name: Run macOS Client tests
+        if: runner.os == 'macOS'
+        run: |
+          xcodebuild test \
+            -project macos-client/termihui-client.xcodeproj \
+            -scheme termihui-client-macos \
+            -destination 'platform=macOS' \
+            -only-testing:termihui-client-macosTests

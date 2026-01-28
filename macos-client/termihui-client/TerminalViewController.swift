@@ -26,7 +26,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     // Chat sidebar (controller created lazily on first access, view setup on first toggle)
     lazy var chatSidebarController: ChatSidebarViewController = {
-        let controller = ChatSidebarViewController()
+        let controller = ChatSidebarViewControllerImpl()
         controller.delegate = self
         addChild(controller)
         return controller
@@ -297,7 +297,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     private func createSidebarIfNeeded() {
         guard sessionListController == nil else { return }
         
-        let controller = SessionListViewController()
+        let controller = SessionListViewControllerImpl()
         controller.delegate = self
         
         addChild(controller)

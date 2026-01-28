@@ -1,8 +1,23 @@
 import Cocoa
 import SnapKit
 
+/// Protocol for AI chat sidebar controller
+protocol ChatSidebarViewController: AnyObject {
+    var view: NSView { get }
+    var sessionId: UInt64 { get set }
+    func setInteractive(_ interactive: Bool)
+    func focusInputField()
+    func startAssistantMessage()
+    func appendChunk(_ text: String)
+    func finishAssistantMessage()
+    func showError(_ error: String)
+    func updateProviders(_ newProviders: [LLMProvider])
+    func clearMessages()
+    func requestProviders()
+}
+
 /// Child view controller for the AI chat sidebar
-class ChatSidebarViewController: NSViewController {
+final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewController {
     
     // MARK: - Properties
     weak var delegate: ChatSidebarViewControllerDelegate?

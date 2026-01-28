@@ -1,6 +1,6 @@
 import Foundation
 
-struct LLMProvider: Codable {
+struct LLMProvider: Codable, Equatable {
     var id: UInt64
     var name: String
     var type: String

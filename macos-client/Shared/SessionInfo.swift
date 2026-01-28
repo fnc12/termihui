@@ -1,7 +1,7 @@
 import Foundation
 
 /// Session information received from server
-struct SessionInfo: Codable {
+struct SessionInfo: Codable, Equatable {
     let id: UInt64
     let createdAt: Int64
     

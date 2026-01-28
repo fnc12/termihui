@@ -1,14 +1,14 @@
 import Cocoa
 
 // MARK: - NSTableViewDataSource
-extension ChatSidebarViewController: NSTableViewDataSource {
+extension ChatSidebarViewControllerImpl: NSTableViewDataSource {
     func numberOfRows(in tableView: NSTableView) -> Int {
         return messagesCount
     }
 }
 
 // MARK: - NSTableViewDelegate
-extension ChatSidebarViewController: NSTableViewDelegate {
+extension ChatSidebarViewControllerImpl: NSTableViewDelegate {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let message = getMessage(at: row)
         

@@ -12,6 +12,14 @@ class SidebarContainerView: NSView {
     }
 }
 
+/// Protocol for session list controller
+protocol SessionListViewController: AnyObject {
+    var view: NSView { get }
+    func updateSessions(_ sessions: [SessionInfo], activeId: UInt64)
+    func setActiveSession(_ sessionId: UInt64)
+    func setInteractive(_ interactive: Bool)
+}
+
 /// Delegate for session list actions
 protocol SessionListViewControllerDelegate: AnyObject {
     func sessionListViewControllerDidRequestNewSession(_ controller: SessionListViewController)
@@ -20,7 +28,7 @@ protocol SessionListViewControllerDelegate: AnyObject {
 }
 
 /// Child view controller for the session sidebar
-class SessionListViewController: NSViewController {
+final class SessionListViewControllerImpl: NSViewController, SessionListViewController {
     
     // MARK: - Properties
     weak var delegate: SessionListViewControllerDelegate?
@@ -153,7 +161,7 @@ class SessionListViewController: NSViewController {
 }
 
 // MARK: - NSOutlineViewDataSource
-extension SessionListViewController: NSOutlineViewDataSource {
+extension SessionListViewControllerImpl: NSOutlineViewDataSource {
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
         // Root level - all sessions
         if item == nil {
@@ -176,7 +184,7 @@ extension SessionListViewController: NSOutlineViewDataSource {
 }
 
 // MARK: - NSOutlineViewDelegate
-extension SessionListViewController: NSOutlineViewDelegate {
+extension SessionListViewControllerImpl: NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let session = item as? SessionInfo else { return nil }
         
