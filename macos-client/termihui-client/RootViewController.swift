@@ -345,23 +345,29 @@ class RootViewController: NSViewController {
             break
             
         case "ai_chunk":
-            if let content = messageDict["content"] as? String {
-                print("🤖 AI chunk: \(content.prefix(30))...")
-                terminalViewController.aiAppendChunk(content)
+            if let content = messageDict["content"] as? String,
+               let sessionId = messageDict["session_id"] as? UInt64 {
+                print("🤖 AI chunk for session \(sessionId): \(content.prefix(30))...")
+                terminalViewController.aiAppendChunk(content, forSession: sessionId)
             } else {
-                print("❌ ai_chunk missing 'content': \(messageDict)")
+                print("❌ ai_chunk missing 'content' or 'session_id': \(messageDict)")
             }
             
         case "ai_done":
-            print("🤖 AI done")
-            terminalViewController.aiFinishResponse()
+            if let sessionId = messageDict["session_id"] as? UInt64 {
+                print("🤖 AI done for session \(sessionId)")
+                terminalViewController.aiFinishResponse(forSession: sessionId)
+            } else {
+                print("❌ ai_done missing 'session_id': \(messageDict)")
+            }
             
         case "ai_error":
-            if let error = messageDict["error"] as? String {
-                print("🤖 AI error: \(error)")
-                terminalViewController.aiShowError(error)
+            if let error = messageDict["error"] as? String,
+               let sessionId = messageDict["session_id"] as? UInt64 {
+                print("🤖 AI error for session \(sessionId): \(error)")
+                terminalViewController.aiShowError(error, forSession: sessionId)
             } else {
-                print("❌ ai_error missing 'error': \(messageDict)")
+                print("❌ ai_error missing 'error' or 'session_id': \(messageDict)")
             }
             
         case "llm_providers_list":

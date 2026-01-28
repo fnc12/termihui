@@ -727,22 +727,38 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - AI Chat Public API
     
     /// Start streaming assistant response
-    func aiStartResponse() {
+    func aiStartResponse(forSession sessionId: UInt64) {
+        guard sessionId == cachedActiveSessionId else {
+            print("⚠️ Ignoring AI start for inactive session \(sessionId)")
+            return
+        }
         chatSidebarController.startAssistantMessage()
     }
     
     /// Append chunk to current streaming response
-    func aiAppendChunk(_ text: String) {
+    func aiAppendChunk(_ text: String, forSession sessionId: UInt64) {
+        guard sessionId == cachedActiveSessionId else {
+            print("⚠️ Ignoring AI chunk for inactive session \(sessionId)")
+            return
+        }
         chatSidebarController.appendChunk(text)
     }
     
     /// Finish streaming response
-    func aiFinishResponse() {
+    func aiFinishResponse(forSession sessionId: UInt64) {
+        guard sessionId == cachedActiveSessionId else {
+            print("⚠️ Ignoring AI done for inactive session \(sessionId)")
+            return
+        }
         chatSidebarController.finishAssistantMessage()
     }
     
     /// Show AI error
-    func aiShowError(_ error: String) {
+    func aiShowError(_ error: String, forSession sessionId: UInt64) {
+        guard sessionId == cachedActiveSessionId else {
+            print("⚠️ Ignoring AI error for inactive session \(sessionId)")
+            return
+        }
         chatSidebarController.showError(error)
     }
     

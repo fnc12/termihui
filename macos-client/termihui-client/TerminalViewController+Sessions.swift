@@ -35,10 +35,12 @@ extension TerminalViewController {
         sessionListController?.updateSessions(sessions, activeId: cachedActiveSessionId)
     }
     
-    /// Updates active session highlight
+    /// Updates active session highlight and clears chat for new session
     func setActiveSession(_ sessionId: UInt64) {
         cachedActiveSessionId = sessionId
         sessionListController?.setActiveSession(sessionId)
+        chatSidebarController.sessionId = sessionId
+        chatSidebarController.clearMessages()
     }
 }
 
