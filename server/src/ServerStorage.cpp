@@ -156,3 +156,31 @@ std::vector<LLMProvider> ServerStorage::getAllLLMProviders() {
         order_by(&LLMProvider::id)
     );
 }
+
+uint64_t ServerStorage::saveChatMessage(uint64_t sessionId, const std::string& role, const std::string& content) {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+    
+    ChatMessageRecord msg;
+    msg.sessionId = sessionId;
+    msg.role = role;
+    msg.content = content;
+    msg.createdAt = timestamp;
+    
+    return static_cast<uint64_t>(this->storage.insert(msg));
+}
+
+std::vector<ChatMessageRecord> ServerStorage::getChatHistory(uint64_t sessionId) {
+    return this->storage.get_all<ChatMessageRecord>(
+        where(c(&ChatMessageRecord::sessionId) == sessionId),
+        order_by(&ChatMessageRecord::createdAt)
+    );
+}
+
+void ServerStorage::clearChatHistory(uint64_t sessionId) {
+    this->storage.remove_all<ChatMessageRecord>(
+        where(c(&ChatMessageRecord::sessionId) == sessionId)
+    );
+}

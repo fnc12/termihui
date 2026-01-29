@@ -14,6 +14,9 @@ protocol ChatSidebarViewController: AnyObject {
     func updateProviders(_ newProviders: [LLMProvider])
     func clearMessages()
     func requestProviders()
+    func requestChatHistory()
+    func loadChatHistory(_ messages: [ChatMessageInfo])
+    func setLoading(_ loading: Bool)
 }
 
 /// Child view controller for the AI chat sidebar
@@ -26,6 +29,8 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     private var messages: [ChatMessage] = []
     private var providers: [LLMProvider] = []
     private var selectedProviderId: UInt64 = 0
+    private var isLoadingHistory = false
+    private var historyLoadedForSession: UInt64 = 0  // Track which session's history is loaded
     
     // MARK: - UI Components
     private let visualEffectView = NSVisualEffectView()
@@ -39,6 +44,7 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     private let sendButton = NSButton()
     private let noProvidersView = NSView()
     private let addProviderButton = NSButton()
+    private let loadingSpinner = NSProgressIndicator()
     
     // MARK: - Lifecycle
     override func loadView() {
@@ -126,6 +132,16 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
         noProvidersView.snp.makeConstraints { make in
             make.center.equalToSuperview()
             make.width.equalToSuperview().offset(-32)
+        }
+        
+        // Loading spinner (centered, hidden by default)
+        loadingSpinner.style = .spinning
+        loadingSpinner.controlSize = .regular
+        loadingSpinner.isHidden = true
+        visualEffectView.addSubview(loadingSpinner)
+        
+        loadingSpinner.snp.makeConstraints { make in
+            make.center.equalToSuperview()
         }
         
         // Input container at bottom
@@ -385,6 +401,46 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     /// Focus the input text field
     func focusInputField() {
         view.window?.makeFirstResponder(inputTextField)
+    }
+    
+    /// Request chat history from server
+    func requestChatHistory() {
+        guard sessionId != 0 else { return }
+        // Only request if we haven't loaded history for this session yet
+        guard historyLoadedForSession != sessionId else { return }
+        
+        setLoading(true)
+        delegate?.chatSidebarViewControllerDidRequestChatHistory(self, forSession: sessionId)
+    }
+    
+    /// Load chat history from server response
+    func loadChatHistory(_ historyMessages: [ChatMessageInfo]) {
+        setLoading(false)
+        historyLoadedForSession = sessionId
+        
+        // Clear existing messages and load from history
+        messages.removeAll()
+        for msg in historyMessages {
+            let role: ChatMessage.Role = msg.role == "user" ? .user : .assistant
+            messages.append(ChatMessage(role: role, content: msg.content))
+        }
+        
+        reloadAndScroll()
+        updateUIForProviders()
+    }
+    
+    /// Show/hide loading spinner
+    func setLoading(_ loading: Bool) {
+        isLoadingHistory = loading
+        loadingSpinner.isHidden = !loading
+        if loading {
+            loadingSpinner.startAnimation(nil)
+            scrollView.isHidden = true
+            noProvidersView.isHidden = true
+        } else {
+            loadingSpinner.stopAnimation(nil)
+            updateUIForProviders()
+        }
     }
     
     // MARK: - Helpers

@@ -122,6 +122,7 @@ protected:
     
     // AI chat handler
     virtual std::string handleAIChat(uint64_t sessionId, uint64_t providerId, std::string_view message);
+    virtual std::string handleGetChatHistory(uint64_t sessionId);
     
     // LLM Provider handlers
     virtual std::string handleListLLMProviders();

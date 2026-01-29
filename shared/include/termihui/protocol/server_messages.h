@@ -205,6 +205,22 @@ struct AIErrorMessage {
     static constexpr const char* type = "ai_error";
 };
 
+// Chat message info for history
+struct ChatMessageInfo {
+    uint64_t id;
+    std::string role;      // "user" or "assistant"
+    std::string content;
+    int64_t createdAt;
+};
+
+// Chat history response
+struct ChatHistoryMessage {
+    uint64_t sessionId;
+    std::vector<ChatMessageInfo> messages;
+    
+    static constexpr const char* type = "chat_history";
+};
+
 // ============================================================================
 // LLM Provider messages
 // ============================================================================
@@ -268,6 +284,7 @@ using ServerMessage = std::variant<
     AIChunkMessage,
     AIDoneMessage,
     AIErrorMessage,
+    ChatHistoryMessage,
     LLMProvidersListMessage,
     LLMProviderAddedMessage,
     LLMProviderUpdatedMessage,

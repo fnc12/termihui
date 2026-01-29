@@ -180,6 +180,8 @@ std::string ClientCoreController::sendMessage(std::string_view message) {
             ));
         } else if (type == "list_llm_providers") {
             return setResponse(this->handleListLLMProviders());
+        } else if (type == "get_chat_history") {
+            return setResponse(this->handleGetChatHistory(j.at("session_id").get<uint64_t>()));
         } else if (type == "add_llm_provider") {
             return setResponse(this->handleAddLLMProvider(
                 j.at("name").get<std::string>(),
@@ -479,15 +481,28 @@ std::string ClientCoreController::handleCopyBlock(std::optional<uint64_t> comman
 
 std::string ClientCoreController::handleAIChat(uint64_t sessionId, uint64_t providerId, std::string_view message) {
     fmt::print("ClientCoreController: AI chat for session {}, provider {}: {}\n", sessionId, providerId, message.substr(0, 50));
-    
+
     if (!this->webSocketController || !this->webSocketController->isConnected()) {
         return "Not connected to server";
     }
-    
+
     // Send AI chat message to server
     AIChatMessage msg{sessionId, providerId, std::string(message)};
     this->webSocketController->send(serialize(msg));
-    
+
+    return "";
+}
+
+std::string ClientCoreController::handleGetChatHistory(uint64_t sessionId) {
+    fmt::print("ClientCoreController: Get chat history for session {}\n", sessionId);
+
+    if (!this->webSocketController || !this->webSocketController->isConnected()) {
+        return "Not connected to server";
+    }
+
+    GetChatHistoryMessage msg{sessionId};
+    this->webSocketController->send(serialize(msg));
+
     return "";
 }
 

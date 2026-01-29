@@ -27,6 +27,14 @@ extension TerminalViewController: ChatSidebarViewControllerDelegate {
         showAddProviderSheet()
     }
     
+    func chatSidebarViewControllerDidRequestChatHistory(_ controller: ChatSidebarViewController, forSession sessionId: UInt64) {
+        print("📜 Requesting chat history for session \(sessionId)")
+        clientCore?.send([
+            "type": "get_chat_history",
+            "session_id": sessionId
+        ])
+    }
+    
     // MARK: - Add Provider Sheet
     private func showAddProviderSheet() {
         let alert = NSAlert()

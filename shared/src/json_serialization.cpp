@@ -215,6 +215,17 @@ void from_json(const json& j, AIChatMessage& message) {
     j.at("message").get_to(message.message);
 }
 
+void to_json(json& j, const GetChatHistoryMessage& message) {
+    j = json{
+        {"type", GetChatHistoryMessage::type},
+        {"session_id", message.sessionId}
+    };
+}
+
+void from_json(const json& j, GetChatHistoryMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+}
+
 // LLM Provider client messages
 
 void to_json(json& j, const ListLLMProvidersMessage&) {
@@ -321,6 +332,10 @@ void from_json(const json& j, ClientMessage& message) {
         message = std::move(m);
     } else if (type == AIChatMessage::type) {
         AIChatMessage m;
+        from_json(j, m);
+        message = std::move(m);
+    } else if (type == GetChatHistoryMessage::type) {
+        GetChatHistoryMessage m;
         from_json(j, m);
         message = std::move(m);
     } else if (type == ListLLMProvidersMessage::type) {
@@ -682,6 +697,37 @@ void from_json(const json& j, AIErrorMessage& message) {
     j.at("error").get_to(message.error);
 }
 
+// Chat history messages
+
+void to_json(json& j, const ChatMessageInfo& info) {
+    j = json{
+        {"id", info.id},
+        {"role", info.role},
+        {"content", info.content},
+        {"created_at", info.createdAt}
+    };
+}
+
+void from_json(const json& j, ChatMessageInfo& info) {
+    j.at("id").get_to(info.id);
+    j.at("role").get_to(info.role);
+    j.at("content").get_to(info.content);
+    j.at("created_at").get_to(info.createdAt);
+}
+
+void to_json(json& j, const ChatHistoryMessage& message) {
+    j = json{
+        {"type", ChatHistoryMessage::type},
+        {"session_id", message.sessionId},
+        {"messages", message.messages}
+    };
+}
+
+void from_json(const json& j, ChatHistoryMessage& message) {
+    j.at("session_id").get_to(message.sessionId);
+    j.at("messages").get_to(message.messages);
+}
+
 // LLM Provider server messages
 
 void to_json(json& j, const LLMProviderInfo& info) {
@@ -831,6 +877,10 @@ void from_json(const json& j, ServerMessage& message) {
         AIErrorMessage m;
         from_json(j, m);
         message = std::move(m);
+    } else if (type == ChatHistoryMessage::type) {
+        ChatHistoryMessage m;
+        from_json(j, m);
+        message = std::move(m);
     } else if (type == LLMProvidersListMessage::type) {
         LLMProvidersListMessage m;
         from_json(j, m);
@@ -894,9 +944,11 @@ std::string serialize(const ScreenSnapshotMessage& message) { return serializeIm
 std::string serialize(const ScreenDiffMessage& message) { return serializeImpl(message); }
 std::string serialize(const InteractiveModeEndMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChatMessage& message) { return serializeImpl(message); }
+std::string serialize(const GetChatHistoryMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChunkMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIDoneMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIErrorMessage& message) { return serializeImpl(message); }
+std::string serialize(const ChatHistoryMessage& message) { return serializeImpl(message); }
 std::string serialize(const ListLLMProvidersMessage& message) { return serializeImpl(message); }
 std::string serialize(const AddLLMProviderMessage& message) { return serializeImpl(message); }
 std::string serialize(const UpdateLLMProviderMessage& message) { return serializeImpl(message); }

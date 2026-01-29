@@ -33,6 +33,11 @@ public:
     void deleteLLMProvider(uint64_t id);
     std::optional<LLMProvider> getLLMProvider(uint64_t id);
     std::vector<LLMProvider> getAllLLMProviders();
+    
+    // Chat history management
+    uint64_t saveChatMessage(uint64_t sessionId, const std::string& role, const std::string& content);
+    std::vector<ChatMessageRecord> getChatHistory(uint64_t sessionId);
+    void clearChatHistory(uint64_t sessionId);
 
 private:
     ServerStorageType storage;

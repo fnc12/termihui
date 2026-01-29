@@ -70,6 +70,12 @@ struct AIChatMessage {
     static constexpr const char* type = "ai_chat";
 };
 
+struct GetChatHistoryMessage {
+    uint64_t sessionId;
+    
+    static constexpr const char* type = "get_chat_history";
+};
+
 // ============================================================================
 // LLM Provider management
 // ============================================================================
@@ -115,6 +121,7 @@ using ClientMessage = std::variant<
     CloseSessionMessage,
     GetHistoryMessage,
     AIChatMessage,
+    GetChatHistoryMessage,
     ListLLMProvidersMessage,
     AddLLMProviderMessage,
     UpdateLLMProviderMessage,

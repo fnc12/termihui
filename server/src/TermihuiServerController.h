@@ -106,6 +106,7 @@ protected:
     virtual void handleMessageFromClient(int clientId, const CloseSessionMessage& message);
     virtual void handleMessageFromClient(int clientId, const GetHistoryMessage& message);
     virtual void handleMessageFromClient(int clientId, const AIChatMessage& message);
+    virtual void handleMessageFromClient(int clientId, const GetChatHistoryMessage& message);
     virtual void handleMessageFromClient(int clientId, const ListLLMProvidersMessage& message);
     virtual void handleMessageFromClient(int clientId, const AddLLMProviderMessage& message);
     virtual void handleMessageFromClient(int clientId, const UpdateLLMProviderMessage& message);

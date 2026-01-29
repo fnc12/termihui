@@ -33,6 +33,14 @@ struct LLMProvider {
     int64_t createdAt = 0;
 };
 
+struct ChatMessageRecord {
+    uint64_t id = 0;
+    uint64_t sessionId = 0;        // FK → terminal_sessions
+    std::string role;              // "user" or "assistant"
+    std::string content;
+    int64_t createdAt = 0;
+};
+
 inline auto createServerStorage(std::string path) {
     using namespace sqlite_orm;
     return make_storage(std::move(path),
@@ -60,6 +68,13 @@ inline auto createServerStorage(std::string path) {
             make_column("model", &LLMProvider::model),
             make_column("api_key", &LLMProvider::apiKey),
             make_column("created_at", &LLMProvider::createdAt)
+        ),
+        make_table("chat_messages",
+            make_column("id", &ChatMessageRecord::id, primary_key().autoincrement()),
+            make_column("session_id", &ChatMessageRecord::sessionId),
+            make_column("role", &ChatMessageRecord::role),
+            make_column("content", &ChatMessageRecord::content),
+            make_column("created_at", &ChatMessageRecord::createdAt)
         )
     );
 }

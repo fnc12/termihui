@@ -179,7 +179,8 @@ std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& req) {
                 if (!req.accumulatedContent.empty()) {
                     chatHistory[req.sessionId].push_back({"assistant", req.accumulatedContent});
                 }
-                events.push_back({AIEvent::Type::Done, req.sessionId, ""});
+                // Pass full response content in Done event for persistence
+                events.push_back({AIEvent::Type::Done, req.sessionId, req.accumulatedContent});
                 continue;
             }
             
@@ -305,7 +306,8 @@ std::vector<AIEvent> AIAgentControllerImpl::update() {
                             if (!it->second->accumulatedContent.empty()) {
                                 chatHistory[sessionId].push_back({"assistant", it->second->accumulatedContent});
                             }
-                            events.push_back({AIEvent::Type::Done, sessionId, ""});
+                            // Pass full response content in Done event for persistence
+                            events.push_back({AIEvent::Type::Done, sessionId, it->second->accumulatedContent});
                         }
                         
                         fmt::print("AI: Request completed for session {}\n", sessionId);

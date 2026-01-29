@@ -52,6 +52,9 @@ void from_json(const json& j, GetHistoryMessage& message);
 void to_json(json& j, const AIChatMessage& message);
 void from_json(const json& j, AIChatMessage& message);
 
+void to_json(json& j, const GetChatHistoryMessage& message);
+void from_json(const json& j, GetChatHistoryMessage& message);
+
 void to_json(json& j, const ListLLMProvidersMessage& message);
 void from_json(const json& j, ListLLMProvidersMessage& message);
 
@@ -149,6 +152,12 @@ void from_json(const json& j, AIDoneMessage& message);
 void to_json(json& j, const AIErrorMessage& message);
 void from_json(const json& j, AIErrorMessage& message);
 
+void to_json(json& j, const ChatMessageInfo& info);
+void from_json(const json& j, ChatMessageInfo& info);
+
+void to_json(json& j, const ChatHistoryMessage& message);
+void from_json(const json& j, ChatHistoryMessage& message);
+
 void to_json(json& j, const LLMProviderInfo& info);
 void from_json(const json& j, LLMProviderInfo& info);
 
@@ -202,9 +211,11 @@ std::string serialize(const ScreenSnapshotMessage& message);
 std::string serialize(const ScreenDiffMessage& message);
 std::string serialize(const InteractiveModeEndMessage& message);
 std::string serialize(const AIChatMessage& message);
+std::string serialize(const GetChatHistoryMessage& message);
 std::string serialize(const AIChunkMessage& message);
 std::string serialize(const AIDoneMessage& message);
 std::string serialize(const AIErrorMessage& message);
+std::string serialize(const ChatHistoryMessage& message);
 std::string serialize(const ListLLMProvidersMessage& message);
 std::string serialize(const AddLLMProviderMessage& message);
 std::string serialize(const UpdateLLMProviderMessage& message);

@@ -698,6 +698,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             chatSidebarController.setInteractive(true)
         }
         
+        // Request chat history when opening sidebar
+        if isChatSidebarVisible {
+            chatSidebarController.requestChatHistory()
+        }
+
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.15
             context.allowsImplicitAnimation = true
@@ -767,6 +772,15 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         chatSidebarController.updateProviders(providers)
     }
     
+    /// Load chat history from server
+    func loadChatHistory(_ messages: [ChatMessageInfo], forSession sessionId: UInt64) {
+        guard sessionId == cachedActiveSessionId else {
+            print("⚠️ Ignoring chat history for inactive session \(sessionId)")
+            return
+        }
+        chatSidebarController.loadChatHistory(messages)
+    }
+
     /// Access to chat sidebar for delegate setting
     var chatSidebarViewController: ChatSidebarViewController? {
         return chatSidebarController

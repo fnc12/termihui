@@ -9,7 +9,10 @@ class RootViewController: NSViewController {
     private lazy var connectingViewController = ConnectingViewController()
     private lazy var terminalViewController = TerminalViewController()
     
-    // MARK: - Properties  
+    // MARK: - Services
+    private let messageDecoder = MessageDecoder()
+
+    // MARK: - Properties
     
     /// Client core instance, passed from AppDelegate
     var clientCore: ClientCoreWrapper? {
@@ -158,10 +161,25 @@ class RootViewController: NSViewController {
     private func handleEvent(_ event: String) {
         // print("📥 ClientCore event: \(event)")
         
-        guard let data = event.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let type = json["type"] as? String else {
-            print("❌ Failed to parse event JSON: \(event)")
+        guard let data = event.data(using: .utf8) else {
+            print("❌ Failed to convert event to data: \(event)")
+            return
+        }
+        
+        let json: [String: Any]
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print("❌ Event is not a JSON object: \(event)")
+                return
+            }
+            json = parsed
+        } catch {
+            print("❌ Failed to parse event JSON: \(error.localizedDescription), event: \(event)")
+            return
+        }
+        
+        guard let type = json["type"] as? String else {
+            print("❌ Event missing 'type' field: \(json)")
             return
         }
         
@@ -279,15 +297,15 @@ class RootViewController: NSViewController {
             
         case "history":
             if let commands = messageDict["commands"] {
-                if let commandsData = try? JSONSerialization.data(withJSONObject: commands),
-                   let records = try? JSONDecoder().decode([CommandHistoryRecord].self, from: commandsData) {
+                switch messageDecoder.decode([CommandHistoryRecord].self, from: commands) {
+                case .success(let records):
                     // print("📜 History: \(records.count) commands")
                     terminalViewController.loadHistory(records)
-                } else {
-                    print("❌ history failed to decode 'commands': \(commands)")
+                case .failure(let error):
+                    print("❌ [history] \(error.description)")
                 }
             } else {
-                print("❌ history missing 'commands': \(messageDict)")
+                print("❌ [history] missing 'commands' field")
             }
             
         case "cwd_update":
@@ -309,9 +327,12 @@ class RootViewController: NSViewController {
             }
             
         case "sessions_list":
-            if let sessionsData = messageDict["sessions"],
-               let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
-               let sessions = try? JSONDecoder().decode([SessionInfo].self, from: jsonData) {
+            guard let sessionsData = messageDict["sessions"] else {
+                print("❌ [sessions_list] missing 'sessions' field")
+                break
+            }
+            switch messageDecoder.decode([SessionInfo].self, from: sessionsData) {
+            case .success(let sessions):
                 // print("📋 Sessions list: \(sessions.count) sessions")
                 // Use active_session_id from client-core (restored from storage or first session)
                 let activeSessionId = (messageDict["active_session_id"] as? UInt64)
@@ -319,10 +340,10 @@ class RootViewController: NSViewController {
                     ?? sessions.first?.id
                 terminalViewController.updateSessionList(sessions, activeSessionId: activeSessionId)
                 terminalViewController.updateSessionName(activeSessionId)
-            } else {
-                print("❌ sessions_list failed to decode: \(messageDict)")
+            case .failure(let error):
+                print("❌ [sessions_list] \(error.description)")
             }
-            
+
         case "session_created":
             if let sessionId = messageDict["session_id"] as? UInt64 ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) {
                 print("✅ Session created: #\(sessionId)")
@@ -371,13 +392,16 @@ class RootViewController: NSViewController {
             }
             
         case "llm_providers_list":
-            if let providersData = messageDict["providers"],
-               let jsonData = try? JSONSerialization.data(withJSONObject: providersData),
-               let providers = try? JSONDecoder().decode([LLMProvider].self, from: jsonData) {
+            guard let providersData = messageDict["providers"] else {
+                print("❌ [llm_providers_list] missing 'providers' field")
+                break
+            }
+            switch messageDecoder.decode([LLMProvider].self, from: providersData) {
+            case .success(let providers):
                 print("📋 Received \(providers.count) LLM providers")
                 terminalViewController.updateLLMProviders(providers)
-            } else {
-                print("❌ llm_providers_list failed to decode: \(messageDict)")
+            case .failure(let error):
+                print("❌ [llm_providers_list] \(error.description)")
             }
             
         case "llm_provider_added":
@@ -391,6 +415,23 @@ class RootViewController: NSViewController {
             print("✅ LLM provider \(messageType)")
             // Refresh providers list
             clientCore?.send(["type": "list_llm_providers"])
+            
+        case "chat_history":
+            guard let sessionId = messageDict["session_id"] as? UInt64 else {
+                print("❌ [chat_history] missing 'session_id' field")
+                break
+            }
+            guard let messagesData = messageDict["messages"] else {
+                print("❌ [chat_history] missing 'messages' field")
+                break
+            }
+            switch messageDecoder.decode([ChatMessageInfo].self, from: messagesData) {
+            case .success(let messages):
+                print("📜 Received chat history (\(messages.count) messages) for session \(sessionId)")
+                terminalViewController.loadChatHistory(messages, forSession: sessionId)
+            case .failure(let error):
+                print("❌ [chat_history] \(error.description)")
+            }
             
         // MARK: - Interactive Mode Messages
         case "interactive_mode_start":

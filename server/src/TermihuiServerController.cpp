@@ -113,6 +113,10 @@ void TermihuiServerController::update() {
                 this->webSocketServer->broadcastMessage(serialize(AIChunkMessage{event.sessionId, std::move(event.content)}));
                 break;
             case AIEvent::Type::Done:
+                // Save assistant message to DB (content contains full response)
+                if (!event.content.empty()) {
+                    this->serverStorage->saveChatMessage(event.sessionId, "assistant", event.content);
+                }
                 this->webSocketServer->broadcastMessage(serialize(AIDoneMessage{event.sessionId}));
                 break;
             case AIEvent::Type::Error:
@@ -383,7 +387,7 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
 
 void TermihuiServerController::handleMessageFromClient(int clientId, const AIChatMessage& message) {
     fmt::print("AI chat message for session {}, provider {}: {}\n", message.sessionId, message.providerId, message.message);
-    
+
     // Get provider from storage
     auto provider = this->serverStorage->getLLMProvider(message.providerId);
     if (!provider) {
@@ -391,14 +395,35 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const AICha
         this->webSocketServer->sendMessage(clientId, serialize(errorMessage));
         return;
     }
-    
+
+    // Save user message to DB
+    this->serverStorage->saveChatMessage(message.sessionId, "user", message.message);
+
     // Configure AI agent with provider settings
     this->aiAgentController->setEndpoint(provider->url);
     this->aiAgentController->setModel(provider->model);
     this->aiAgentController->setApiKey(provider->apiKey);
-    
+
     // Send message to AI agent (will respond with streaming events)
     this->aiAgentController->sendMessage(message.sessionId, message.message);
+}
+
+void TermihuiServerController::handleMessageFromClient(int clientId, const GetChatHistoryMessage& message) {
+    fmt::print("Get chat history for session {}\n", message.sessionId);
+
+    auto messages = this->serverStorage->getChatHistory(message.sessionId);
+
+    ChatHistoryMessage response;
+    response.sessionId = message.sessionId;
+    response.messages.reserve(messages.size());
+    for (const auto& m : messages) {
+        response.messages.push_back(ChatMessageInfo{
+            m.id, m.role, m.content, m.createdAt
+        });
+    }
+
+    this->webSocketServer->sendMessage(clientId, serialize(response));
+    fmt::print("Sent chat history ({} messages) for session {} to client {}\n", messages.size(), message.sessionId, clientId);
 }
 
 void TermihuiServerController::handleMessageFromClient(int clientId, const ListLLMProvidersMessage&) {

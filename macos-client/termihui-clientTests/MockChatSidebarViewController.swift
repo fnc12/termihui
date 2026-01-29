@@ -12,6 +12,9 @@ final class MockChatSidebarViewController: NSViewController, ChatSidebarViewCont
         case updateProviders([LLMProvider])
         case clearMessages
         case requestProviders
+        case requestChatHistory
+        case loadChatHistory(Int)  // message count
+        case setLoading(Bool)
     }
     
     private(set) var calls: [Call] = []
@@ -51,5 +54,17 @@ final class MockChatSidebarViewController: NSViewController, ChatSidebarViewCont
     
     func requestProviders() {
         calls.append(.requestProviders)
+    }
+    
+    func requestChatHistory() {
+        calls.append(.requestChatHistory)
+    }
+    
+    func loadChatHistory(_ messages: [ChatMessageInfo]) {
+        calls.append(.loadChatHistory(messages.count))
+    }
+    
+    func setLoading(_ loading: Bool) {
+        calls.append(.setLoading(loading))
     }
 }
