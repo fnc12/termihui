@@ -1,16 +1,16 @@
-#include "AIAgentController.h"
+#include "AIAgentControllerImpl.h"
 #include <hv/json.hpp>
 #include <fmt/core.h>
 #include <algorithm>
 
 using json = nlohmann::json;
 
-AIAgentController::AIAgentController() {
+AIAgentControllerImpl::AIAgentControllerImpl() {
     curl_global_init(CURL_GLOBAL_DEFAULT);
     multiHandle = curl_multi_init();
 }
 
-AIAgentController::~AIAgentController() {
+AIAgentControllerImpl::~AIAgentControllerImpl() {
     // Cleanup all active requests
     for (auto& [handle, req] : activeRequests) {
         curl_multi_remove_handle(multiHandle, handle);
@@ -27,26 +27,26 @@ AIAgentController::~AIAgentController() {
     curl_global_cleanup();
 }
 
-void AIAgentController::setEndpoint(std::string ep) {
+void AIAgentControllerImpl::setEndpoint(std::string ep) {
     endpoint = std::move(ep);
 }
 
-void AIAgentController::setModel(std::string m) {
+void AIAgentControllerImpl::setModel(std::string m) {
     model = std::move(m);
 }
 
-void AIAgentController::setApiKey(std::string key) {
+void AIAgentControllerImpl::setApiKey(std::string key) {
     apiKey = std::move(key);
 }
 
-size_t AIAgentController::writeCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+size_t AIAgentControllerImpl::writeCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t totalSize = size * nmemb;
     auto* req = static_cast<ActiveRequest*>(userdata);
     req->responseBuffer.append(ptr, totalSize);
     return totalSize;
 }
 
-std::string AIAgentController::buildRequestBody(uint64_t sessionId, const std::string& message) {
+std::string AIAgentControllerImpl::buildRequestBody(uint64_t sessionId, const std::string& message) {
     json messages = json::array();
     
     // Add system message
@@ -85,7 +85,7 @@ std::string AIAgentController::buildRequestBody(uint64_t sessionId, const std::s
     return requestBody.dump();
 }
 
-void AIAgentController::sendMessage(uint64_t sessionId, const std::string& message) {
+void AIAgentControllerImpl::sendMessage(uint64_t sessionId, const std::string& message) {
     // Add user message to history
     chatHistory[sessionId].push_back({std::string("user"), std::string(message)});
     
@@ -136,7 +136,7 @@ void AIAgentController::sendMessage(uint64_t sessionId, const std::string& messa
     fmt::print("AI: Started request for session {}\n", sessionId);
 }
 
-std::vector<AIEvent> AIAgentController::parseSSEBuffer(ActiveRequest& req) {
+std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& req) {
     std::vector<AIEvent> events;
     
     // Combine partial line with new data
@@ -229,7 +229,7 @@ std::vector<AIEvent> AIAgentController::parseSSEBuffer(ActiveRequest& req) {
     return events;
 }
 
-void AIAgentController::cleanupRequest(CURL* handle) {
+void AIAgentControllerImpl::cleanupRequest(CURL* handle) {
     auto it = activeRequests.find(handle);
     if (it != activeRequests.end()) {
         curl_multi_remove_handle(multiHandle, handle);
@@ -241,7 +241,7 @@ void AIAgentController::cleanupRequest(CURL* handle) {
     }
 }
 
-std::vector<AIEvent> AIAgentController::update() {
+std::vector<AIEvent> AIAgentControllerImpl::update() {
     std::vector<AIEvent> events;
     
     if (activeRequests.empty()) {
@@ -325,7 +325,7 @@ std::vector<AIEvent> AIAgentController::update() {
     return events;
 }
 
-void AIAgentController::clearHistory(uint64_t sessionId) {
+void AIAgentControllerImpl::clearHistory(uint64_t sessionId) {
     chatHistory.erase(sessionId);
     fmt::print("AI: Cleared history for session {}\n", sessionId);
 }

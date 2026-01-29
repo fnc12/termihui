@@ -37,8 +37,15 @@ public:
             return os << "BroadcastMessageCall{message=" << call.message << "}";
         }
     };
+    
+    struct UpdateCall {
+        bool operator==(const UpdateCall&) const = default;
+        friend std::ostream& operator<<(std::ostream& os, const UpdateCall&) {
+            return os << "UpdateCall{}";
+        }
+    };
 
-    using Call = std::variant<SendMessageCall, BroadcastMessageCall>;
+    using Call = std::variant<SendMessageCall, BroadcastMessageCall, UpdateCall>;
     
     friend std::ostream& operator<<(std::ostream& os, const Call& call) {
         std::visit([&os](const auto& c) { os << c; }, call);
@@ -47,13 +54,19 @@ public:
 
     // Call recording
     std::vector<Call> calls;
+    
+    // Configurable return value for update()
+    UpdateResult updateReturnValue;
 
     // Stub implementations
     bool start() override { return true; }
     void stop() override {}
     bool isRunning() const override { return false; }
     
-    UpdateResult update() override { return {}; }
+    UpdateResult update() override {
+        this->calls.push_back(UpdateCall{});
+        return this->updateReturnValue;
+    }
     
     void sendMessage(int clientId, const std::string& message) override {
         this->calls.push_back(SendMessageCall{clientId, message});

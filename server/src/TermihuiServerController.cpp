@@ -10,8 +10,10 @@ using json = nlohmann::json;
 // Static member initialization
 std::atomic<bool> TermihuiServerController::shouldExit{false};
 
-TermihuiServerController::TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer)
+TermihuiServerController::TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer,
+                                                   std::unique_ptr<AIAgentController> aiAgentController)
     : webSocketServer(std::move(webSocketServer))
+    , aiAgentController(std::move(aiAgentController))
     , lastStatsTime(std::chrono::steady_clock::now())
 {
 }
@@ -104,7 +106,7 @@ void TermihuiServerController::update() {
     }
     
     // Process AI agent events
-    auto aiEvents = this->aiAgentController.update();
+    auto aiEvents = this->aiAgentController->update();
     for (auto& event : aiEvents) {
         switch (event.type) {
             case AIEvent::Type::Chunk:
@@ -391,12 +393,12 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const AICha
     }
     
     // Configure AI agent with provider settings
-    this->aiAgentController.setEndpoint(provider->url);
-    this->aiAgentController.setModel(provider->model);
-    this->aiAgentController.setApiKey(provider->apiKey);
+    this->aiAgentController->setEndpoint(provider->url);
+    this->aiAgentController->setModel(provider->model);
+    this->aiAgentController->setApiKey(provider->apiKey);
     
     // Send message to AI agent (will respond with streaming events)
-    this->aiAgentController.sendMessage(message.sessionId, message.message);
+    this->aiAgentController->sendMessage(message.sessionId, message.message);
 }
 
 void TermihuiServerController::handleMessageFromClient(int clientId, const ListLLMProvidersMessage&) {

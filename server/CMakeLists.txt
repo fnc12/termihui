@@ -117,7 +117,7 @@ set(SOURCES
     src/TermihuiServerController.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
-    src/AIAgentController.cpp
+    src/AIAgentControllerImpl.cpp
     src/VirtualScreen.cpp
     src/AnsiProcessor.cpp
     src/OutputParser.cpp
@@ -136,6 +136,7 @@ set(HEADERS
     src/SessionStorageModels.h
     src/SessionStorageSchema.h
     src/AIAgentController.h
+    src/AIAgentControllerImpl.h
     src/VirtualScreen.h
     src/AnsiProcessor.h
     src/OutputParser.h
@@ -201,7 +202,7 @@ set(TEST_SOURCES
     src/JsonHelper.cpp
     src/ServerStorage.cpp
     src/SessionStorage.cpp
-    src/AIAgentController.cpp
+    src/AIAgentControllerImpl.cpp
     src/VirtualScreen.cpp
     src/AnsiProcessor.cpp
     src/OutputParser.cpp

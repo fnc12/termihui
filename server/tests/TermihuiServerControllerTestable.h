@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TermihuiServerController.h"
+#include "AIAgentController.h"
 #include <termihui/protocol/protocol.h>
 #include <variant>
 #include <vector>
@@ -46,8 +47,9 @@ public:
 
     using Call = std::variant<ExecuteCall, InputCall, CompletionCall, ResizeCall>;
 
-    explicit TermihuiServerControllerTestable(std::unique_ptr<WebSocketServer> webSocketServer)
-        : TermihuiServerController(std::move(webSocketServer))
+    TermihuiServerControllerTestable(std::unique_ptr<WebSocketServer> webSocketServer,
+                                     std::unique_ptr<AIAgentController> aiAgentController)
+        : TermihuiServerController(std::move(webSocketServer), std::move(aiAgentController))
     {
     }
     

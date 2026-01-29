@@ -1,5 +1,6 @@
 #include "TermihuiServerController.h"
 #include "WebSocketServerImpl.h"
+#include "AIAgentControllerImpl.h"
 #include <csignal>
 #include <memory>
 #include <fmt/core.h>
@@ -69,7 +70,8 @@ int main(int argc, char* argv[])
     
     // Create and start the server
     auto webSocketServer = std::make_unique<WebSocketServerImpl>(port, bindAddress);
-    TermihuiServerController termihuiServerController(std::move(webSocketServer));
+    auto aiAgentController = std::make_unique<AIAgentControllerImpl>();
+    TermihuiServerController termihuiServerController(std::move(webSocketServer), std::move(aiAgentController));
     
     if (!termihuiServerController.start()) {
         return 1;

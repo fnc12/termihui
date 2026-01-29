@@ -24,8 +24,10 @@ public:
     /**
      * Constructor
      * @param webSocketServer WebSocket server instance (dependency injection)
+     * @param aiAgentController AI agent controller instance (dependency injection)
      */
-    TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer);
+    TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer,
+                             std::unique_ptr<AIAgentController> aiAgentController);
     
     /**
      * Destructor (virtual for testability)
@@ -138,8 +140,8 @@ private:
     termihui::FileSystemManager fileSystemManager;
     std::unique_ptr<ServerStorage> serverStorage;
     std::unique_ptr<WebSocketServer> webSocketServer;
+    std::unique_ptr<AIAgentController> aiAgentController;
     CompletionManager completionManager;
-    AIAgentController aiAgentController;
     termihui::OutputParser outputParser;
     
     // Terminal sessions (sessionId -> controller)
