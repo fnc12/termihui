@@ -347,13 +347,12 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     
     /// Show error message
     func showError(_ error: String) {
-        // If streaming, finish with error
-        if !messages.isEmpty && messages[messages.count - 1].isStreaming {
-            messages[messages.count - 1].content += "\n[Error: \(error)]"
-            messages[messages.count - 1].isStreaming = false
-        } else {
-            messages.append(ChatMessage(role: .assistant, content: "[Error: \(error)]"))
+        // If streaming, remove empty streaming message
+        if !messages.isEmpty && messages[messages.count - 1].isStreaming && messages[messages.count - 1].content.isEmpty {
+            messages.removeLast()
         }
+        // Add error message with error role (displayed with red background)
+        messages.append(ChatMessage(role: .error, content: error))
         reloadAndScroll()
     }
     
@@ -420,9 +419,17 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
         
         // Clear existing messages and load from history
         messages.removeAll()
-        for msg in historyMessages {
-            let role: ChatMessage.Role = msg.role == "user" ? .user : .assistant
-            messages.append(ChatMessage(role: role, content: msg.content))
+        for message in historyMessages {
+            let role: ChatMessage.Role
+            switch message.role {
+            case "user":
+                role = .user
+            case "error":
+                role = .error
+            default:
+                role = .assistant
+            }
+            messages.append(ChatMessage(role: role, content: message.content))
         }
         
         reloadAndScroll()

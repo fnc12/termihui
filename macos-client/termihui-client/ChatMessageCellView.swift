@@ -67,6 +67,10 @@ class ChatMessageCellView: NSTableCellView {
             roleIndicator.stringValue = "AI"
             bubbleView.layer?.backgroundColor = NSColor.systemGray.withAlphaComponent(0.15).cgColor
             textColor = .labelColor
+        case .error:
+            roleIndicator.stringValue = "AI"
+            bubbleView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
+            textColor = .labelColor
         }
         
         // Streaming indicator

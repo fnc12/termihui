@@ -2,6 +2,7 @@
 #include "WebSocketServerImpl.h"
 #include "AIAgentControllerImpl.h"
 #include <csignal>
+#include <cstdio>
 #include <memory>
 #include <fmt/core.h>
 #include "hv/hlog.h"
@@ -22,6 +23,10 @@ void printUsage(std::string_view programName) {
 
 int main(int argc, char* argv[])
 {
+    // Disable stdout/stderr buffering for proper logging through launchd
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
+    
     // Default values
     std::string bindAddress = "127.0.0.1";
     int port = 37854;

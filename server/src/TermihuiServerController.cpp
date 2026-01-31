@@ -120,6 +120,8 @@ void TermihuiServerController::update() {
                 this->webSocketServer->broadcastMessage(serialize(AIDoneMessage{event.sessionId}));
                 break;
             case AIEvent::Type::Error:
+                // Save error message to DB so history is consistent after restart
+                this->serverStorage->saveChatMessage(event.sessionId, "error", event.content);
                 this->webSocketServer->broadcastMessage(serialize(AIErrorMessage{event.sessionId, std::move(event.content)}));
                 break;
         }

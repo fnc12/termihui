@@ -5,6 +5,7 @@ struct ChatMessage {
     enum Role {
         case user
         case assistant
+        case error
     }
     
     var role: Role

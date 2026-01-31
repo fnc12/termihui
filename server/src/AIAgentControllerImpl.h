@@ -41,6 +41,7 @@ private:
         std::string partialLine;      // Incomplete SSE line
         std::string accumulatedContent; // Full assistant response (for history)
         struct curl_slist* headers = nullptr;
+        std::string url;              // Keep URL alive (CURL stores pointer only)
         std::string postData;         // Keep POST data alive
     };
     

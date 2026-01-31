@@ -28,6 +28,7 @@ AIAgentControllerImpl::~AIAgentControllerImpl() {
 }
 
 void AIAgentControllerImpl::setEndpoint(std::string ep) {
+    fmt::print("AI: setEndpoint called with '{}'\n", ep);
     endpoint = std::move(ep);
 }
 
@@ -86,13 +87,15 @@ std::string AIAgentControllerImpl::buildRequestBody(uint64_t sessionId, const st
 }
 
 void AIAgentControllerImpl::sendMessage(uint64_t sessionId, const std::string& message) {
+    fmt::print("AI: sendMessage called, endpoint='{}', model='{}'\n", endpoint, model);
+    
     // Add user message to history
     chatHistory[sessionId].push_back({std::string("user"), std::string(message)});
     
     // Create new request
-    auto req = std::make_unique<ActiveRequest>();
-    req->sessionId = sessionId;
-    req->postData = buildRequestBody(sessionId, message);
+    auto activeRequest = std::make_unique<ActiveRequest>();
+    activeRequest->sessionId = sessionId;
+    activeRequest->postData = buildRequestBody(sessionId, message);
     
     // Setup CURL handle
     CURL* handle = curl_easy_init();
@@ -101,47 +104,51 @@ void AIAgentControllerImpl::sendMessage(uint64_t sessionId, const std::string& m
         return;
     }
     
-    req->handle = handle;
+    activeRequest->handle = handle;
     
-    // Build URL
-    std::string url = endpoint + "/v1/chat/completions";
-    fmt::print("AI: POST to {}\n", url);
-    fmt::print("AI: Request body: {}\n", req->postData);
+    // Build URL (store in ActiveRequest to keep it alive - CURL stores pointer only!)
+    activeRequest->url = endpoint + "/v1/chat/completions";
+    fmt::print("AI: POST to {}\n", activeRequest->url);
+    fmt::print("AI: Request body: {}\n", activeRequest->postData);
     
     // Setup headers
-    req->headers = curl_slist_append(nullptr, "Content-Type: application/json");
-    req->headers = curl_slist_append(req->headers, "Accept: text/event-stream");
+    activeRequest->headers = curl_slist_append(nullptr, "Content-Type: application/json");
+    activeRequest->headers = curl_slist_append(activeRequest->headers, "Accept: text/event-stream");
     if (!apiKey.empty()) {
         std::string authHeader = "Authorization: Bearer " + apiKey;
-        req->headers = curl_slist_append(req->headers, authHeader.c_str());
+        activeRequest->headers = curl_slist_append(activeRequest->headers, authHeader.c_str());
     }
     
     // Configure request
-    curl_easy_setopt(handle, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, activeRequest->url.c_str());
+    curl_easy_setopt(handle, CURLOPT_VERBOSE, 1L);  // Debug output
     curl_easy_setopt(handle, CURLOPT_POST, 1L);
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, req->postData.c_str());
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, static_cast<long>(req->postData.size()));
-    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, req->headers);
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, activeRequest->postData.c_str());
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, static_cast<long>(activeRequest->postData.size()));
+    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, activeRequest->headers);
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writeCallback);
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, req.get());
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, activeRequest.get());
     curl_easy_setopt(handle, CURLOPT_TIMEOUT, 300L);  // 5 minutes timeout
-    curl_easy_setopt(handle, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(handle, CURLOPT_CONNECTTIMEOUT, 30L);  // 30 seconds for initial connection (some LLM servers are slow to respond)
     
     // Add to multi handle
-    curl_multi_add_handle(multiHandle, handle);
+    CURLMcode mc = curl_multi_add_handle(multiHandle, handle);
+    if (mc != CURLM_OK) {
+        fmt::print(stderr, "AI: curl_multi_add_handle error: {}\n", curl_multi_strerror(mc));
+    }
     
     // Store request
-    activeRequests[handle] = std::move(req);
+    activeRequests[handle] = std::move(activeRequest);
     
-    fmt::print("AI: Started request for session {}\n", sessionId);
+    fmt::print("AI: Started request for session {} (active requests: {})\n", sessionId, activeRequests.size());
 }
 
-std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& req) {
+std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& activeRequest) {
     std::vector<AIEvent> events;
     
     // Combine partial line with new data
-    std::string& buffer = req.responseBuffer;
-    std::string& partial = req.partialLine;
+    std::string& buffer = activeRequest.responseBuffer;
+    std::string& partial = activeRequest.partialLine;
     
     // Process complete lines
     size_t pos = 0;
@@ -176,11 +183,11 @@ std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& req) {
             // Check for stream end
             if (data == "[DONE]") {
                 // Add assistant response to history
-                if (!req.accumulatedContent.empty()) {
-                    chatHistory[req.sessionId].push_back({"assistant", req.accumulatedContent});
+                if (!activeRequest.accumulatedContent.empty()) {
+                    chatHistory[activeRequest.sessionId].push_back({"assistant", activeRequest.accumulatedContent});
                 }
                 // Pass full response content in Done event for persistence
-                events.push_back({AIEvent::Type::Done, req.sessionId, req.accumulatedContent});
+                events.push_back({AIEvent::Type::Done, activeRequest.sessionId, activeRequest.accumulatedContent});
                 continue;
             }
             
@@ -211,8 +218,8 @@ std::vector<AIEvent> AIAgentControllerImpl::parseSSEBuffer(ActiveRequest& req) {
                 std::string content = contentIt->get<std::string>();
                 if (!content.empty()) {
                     fmt::print("AI: Chunk content: '{}'\n", content);
-                    req.accumulatedContent += content;
-                    events.push_back({AIEvent::Type::Chunk, req.sessionId, std::move(content)});
+                    activeRequest.accumulatedContent += content;
+                    events.push_back({AIEvent::Type::Chunk, activeRequest.sessionId, std::move(content)});
                 }
             } catch (const json::exception& e) {
                 fmt::print(stderr, "AI: JSON parse error: {}\n", e.what());
@@ -251,7 +258,12 @@ std::vector<AIEvent> AIAgentControllerImpl::update() {
     
     // Perform multi operations
     int stillRunning = 0;
-    curl_multi_perform(multiHandle, &stillRunning);
+    CURLMcode mc = curl_multi_perform(multiHandle, &stillRunning);
+    fmt::print("AI: update() - activeRequests={}, stillRunning={}, mc={}\n", 
+               activeRequests.size(), stillRunning, static_cast<int>(mc));
+    if (mc != CURLM_OK) {
+        fmt::print(stderr, "AI: curl_multi_perform error: {}\n", curl_multi_strerror(mc));
+    }
     
     // Process data from all active requests
     for (auto& [handle, req] : activeRequests) {
@@ -274,12 +286,14 @@ std::vector<AIEvent> AIAgentControllerImpl::update() {
             auto it = activeRequests.find(handle);
             if (it != activeRequests.end()) {
                 uint64_t sessionId = it->second->sessionId;
+                fmt::print("AI: Request done - CURLcode={} ({}), URL='{}'\n", 
+                           static_cast<int>(result), curl_easy_strerror(result), it->second->url);
                 
                 if (result != CURLE_OK) {
                     // Error occurred
                     std::string error = curl_easy_strerror(result);
                     events.push_back({AIEvent::Type::Error, sessionId, error});
-                    fmt::print(stderr, "AI: Request failed for session {}: {}\n", sessionId, error);
+                    fmt::print(stderr, "AI: Request failed for session {}: {} (code {})\n", sessionId, error, static_cast<int>(result));
                 } else {
                     // Check HTTP status code
                     long httpCode = 0;
