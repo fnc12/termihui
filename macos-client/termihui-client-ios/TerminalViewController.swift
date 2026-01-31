@@ -12,16 +12,27 @@ class TerminalViewController: UIViewController {
     // MARK: - UI
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let inputContainerView = UIView()
+    private let cwdLabel = UILabel()
     private let inputTextField = UITextField()
     private let sendButton = UIButton(type: .system)
     
     // MARK: - Properties
-    var sessionId: UInt64 = 0
+    var sessionId: UInt64 = 0 {
+        didSet {
+            updateSessionTitle()
+        }
+    }
     weak var delegate: TerminalViewControllerDelegate?
     
     private var commandBlocks: [CommandBlockModel] = []
     private var currentBlockIndex: Int?
     private var keyboardHeight: CGFloat = 0
+    
+    /// Server home directory (for path shortening)
+    var serverHome: String = ""
+    
+    /// Current working directory
+    private var currentCwd: String = ""
     
     // MARK: - Lifecycle
     
@@ -46,7 +57,11 @@ class TerminalViewController: UIViewController {
     // MARK: - Setup
     
     private func setupUI() {
-        title = "Session #\(sessionId)"
+        updateSessionTitle()
+        
+        // Use standard (not large) title for terminal screen
+        navigationItem.largeTitleDisplayMode = .never
+        
         view.backgroundColor = .systemBackground
         
         // Table view for command blocks
@@ -63,6 +78,12 @@ class TerminalViewController: UIViewController {
         
         // Input container
         inputContainerView.backgroundColor = .secondarySystemBackground
+        
+        // CWD label — purple, like in Warp
+        cwdLabel.font = UIFont.monospacedSystemFont(ofSize: 11, weight: .medium)
+        cwdLabel.textColor = UIColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1.0)
+        cwdLabel.text = "~"
+        cwdLabel.lineBreakMode = .byTruncatingHead
         
         // Input text field
         inputTextField.placeholder = "Enter command..."
@@ -81,6 +102,7 @@ class TerminalViewController: UIViewController {
         // Layout
         view.addSubview(tableView)
         view.addSubview(inputContainerView)
+        inputContainerView.addSubview(cwdLabel)
         inputContainerView.addSubview(inputTextField)
         inputContainerView.addSubview(sendButton)
         
@@ -92,18 +114,26 @@ class TerminalViewController: UIViewController {
         inputContainerView.snp.makeConstraints { make in
             make.leading.trailing.equalToSuperview()
             make.bottom.equalTo(view.safeAreaLayoutGuide)
-            make.height.equalTo(56)
+        }
+        
+        cwdLabel.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(12)
+            make.trailing.equalToSuperview().offset(-12)
+            make.top.equalToSuperview().offset(6)
+            make.height.equalTo(16)
         }
         
         inputTextField.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(12)
-            make.centerY.equalToSuperview()
+            make.top.equalTo(cwdLabel.snp.bottom).offset(4)
             make.trailing.equalTo(sendButton.snp.leading).offset(-8)
+            make.bottom.equalToSuperview().offset(-12)
+            make.height.greaterThanOrEqualTo(36)
         }
         
         sendButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalToSuperview()
+            make.centerY.equalTo(inputTextField)
             make.width.height.equalTo(36)
         }
     }
@@ -262,6 +292,30 @@ class TerminalViewController: UIViewController {
         tableView.reloadData()
     }
     
+    /// Updates current working directory display
+    func updateCurrentCwd(_ cwd: String) {
+        currentCwd = cwd
+        // Shorten path if server provided home directory
+        let displayCwd: String
+        if !serverHome.isEmpty && cwd.hasPrefix(serverHome) {
+            displayCwd = "~" + String(cwd.dropFirst(serverHome.count))
+        } else {
+            displayCwd = cwd
+        }
+        cwdLabel.text = displayCwd
+    }
+    
+    /// Updates navigation bar title with session ID
+    private func updateSessionTitle() {
+        if sessionId > 0 {
+            title = "#\(sessionId)"
+            print("📱 Title set to: #\(sessionId)")
+        } else {
+            title = "Terminal"
+            print("📱 Title set to: Terminal (sessionId=0)")
+        }
+    }
+    
     // MARK: - Helpers
     
     private func scrollToBottom() {
@@ -299,7 +353,7 @@ extension TerminalViewController: UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: CommandBlockCell.reuseIdentifier, for: indexPath) as! CommandBlockCell
-        cell.configure(with: commandBlocks[indexPath.row])
+        cell.configure(with: commandBlocks[indexPath.row], serverHome: serverHome)
         return cell
     }
 }

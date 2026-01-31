@@ -7,6 +7,7 @@ class CommandBlockCell: UITableViewCell {
     static let reuseIdentifier = "CommandBlockCell"
     
     // MARK: - UI
+    private let cwdLabel = UILabel()
     private let commandLabel = UILabel()
     private let outputTextView = UITextView()
     private let statusView = UIView()
@@ -28,6 +29,12 @@ class CommandBlockCell: UITableViewCell {
     private func setupUI() {
         backgroundColor = .systemBackground
         selectionStyle = .none
+        
+        // CWD label — gray, above command
+        cwdLabel.font = UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        cwdLabel.textColor = .systemGray
+        cwdLabel.numberOfLines = 1
+        cwdLabel.lineBreakMode = .byTruncatingHead
         
         // Command label ($ command)
         commandLabel.font = UIFont.monospacedSystemFont(ofSize: 14, weight: .bold)
@@ -52,6 +59,7 @@ class CommandBlockCell: UITableViewCell {
         
         // Layout
         contentView.addSubview(statusView)
+        contentView.addSubview(cwdLabel)
         contentView.addSubview(commandLabel)
         contentView.addSubview(outputTextView)
         contentView.addSubview(exitCodeLabel)
@@ -63,10 +71,16 @@ class CommandBlockCell: UITableViewCell {
             make.width.equalTo(4)
         }
         
-        commandLabel.snp.makeConstraints { make in
+        cwdLabel.snp.makeConstraints { make in
             make.leading.equalTo(statusView.snp.trailing).offset(8)
             make.trailing.equalToSuperview().offset(-8)
             make.top.equalToSuperview().offset(8)
+        }
+        
+        commandLabel.snp.makeConstraints { make in
+            make.leading.equalTo(statusView.snp.trailing).offset(8)
+            make.trailing.equalToSuperview().offset(-8)
+            make.top.equalTo(cwdLabel.snp.bottom).offset(2)
         }
         
         outputTextView.snp.makeConstraints { make in
@@ -84,7 +98,15 @@ class CommandBlockCell: UITableViewCell {
     
     // MARK: - Configure
     
-    func configure(with block: CommandBlockModel) {
+    func configure(with block: CommandBlockModel, serverHome: String = "") {
+        // CWD — gray, above command
+        if let cwd = block.cwdStart, !cwd.isEmpty {
+            cwdLabel.text = shortenHomePath(cwd, serverHome: serverHome)
+            cwdLabel.isHidden = false
+        } else {
+            cwdLabel.isHidden = true
+        }
+        
         // Command
         if let command = block.command, !command.isEmpty {
             commandLabel.text = "$ \(command)"
@@ -148,5 +170,13 @@ class CommandBlockCell: UITableViewCell {
         }
         
         return result
+    }
+    
+    /// Shorten path by replacing home directory with ~
+    private func shortenHomePath(_ path: String, serverHome: String) -> String {
+        if !serverHome.isEmpty && path.hasPrefix(serverHome) {
+            return "~" + String(path.dropFirst(serverHome.count))
+        }
+        return path
     }
 }

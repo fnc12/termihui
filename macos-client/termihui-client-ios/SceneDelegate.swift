@@ -156,6 +156,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
         
         switch messageType {
+        case "connected":
+            // Server sent initial cwd and home
+            if let home = messageDict["home"] as? String {
+                print("🏠 Server home: \(home)")
+                terminalVC?.serverHome = home
+            }
+            if let cwd = messageDict["cwd"] as? String {
+                print("📂 Initial CWD: \(cwd)")
+                terminalVC?.updateCurrentCwd(cwd)
+            }
+            
         case "sessions_list":
             if let sessionsData = messageDict["sessions"],
                let jsonData = try? JSONSerialization.data(withJSONObject: sessionsData),
@@ -206,6 +217,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let cwd = messageDict["cwd"] as? String
             print("🏁 Command end, exitCode=\(exitCode), cwd=\(cwd ?? "nil")")
             terminalVC?.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
+            // Update cwd display if it changed (e.g., after cd)
+            if let newCwd = cwd {
+                terminalVC?.updateCurrentCwd(newCwd)
+            }
+            
+        case "cwd_update":
+            if let cwd = messageDict["cwd"] as? String {
+                print("📂 CWD update: \(cwd)")
+                terminalVC?.updateCurrentCwd(cwd)
+            }
             
         case "error":
             if let message = messageDict["message"] as? String {
