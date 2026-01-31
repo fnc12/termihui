@@ -116,6 +116,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             if let message = json["message"] as? String {
                 print("❌ ClientCore error: \(message)")
                 showError(message)
+                
+                // При ошибке соединения возвращаемся к списку серверов
+                if sessionListVC != nil && !isConnected {
+                    navigationController?.popToRootViewController(animated: true)
+                    sessionListVC = nil
+                    currentServerAddress = nil
+                }
             }
         default:
             print("⚠️ Unknown event: \(type)")
@@ -227,8 +234,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // If disconnect happened without successful connection — error
         if !isConnected {
             let address = currentServerAddress ?? "server"
-            showError("Failed to connect to \(address)")
-            navigationController?.popToRootViewController(animated: true)
+            sessionListVC?.showError("Connection failed")
+            showConnectionError("Failed to connect to \(address)")
         }
         
         isConnected = false
@@ -239,6 +246,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func showError(_ message: String) {
         let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "OK", style: .default))
+        navigationController?.topViewController?.present(alert, animated: true)
+    }
+    
+    private func showConnectionError(_ message: String) {
+        let alert = UIAlertController(title: "Connection Error", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+            self?.navigationController?.popToRootViewController(animated: true)
+        })
         navigationController?.topViewController?.present(alert, animated: true)
     }
 }

@@ -93,6 +93,13 @@ class SessionListViewController: UIViewController {
         statusLabel.text = "Connected"
     }
     
+    func showError(_ message: String) {
+        isConnected = false
+        activityIndicator.stopAnimating()
+        statusLabel.text = message
+        statusLabel.textColor = .systemRed
+    }
+    
     func updateSessions(_ newSessions: [SessionInfo], activeId: UInt64? = nil) {
         sessions = newSessions
         if let activeId = activeId {
