@@ -25,9 +25,11 @@ public:
      * Constructor
      * @param webSocketServer WebSocket server instance (dependency injection)
      * @param aiAgentController AI agent controller instance (dependency injection)
+     * @param serverStorage Server storage instance (dependency injection, optional - created in start() if null)
      */
     TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer,
-                             std::unique_ptr<AIAgentController> aiAgentController);
+                             std::unique_ptr<AIAgentController> aiAgentController,
+                             std::unique_ptr<ServerStorage> serverStorage);
     
     /**
      * Destructor (virtual for testability)

@@ -3,6 +3,7 @@
 #include "TerminalSessionControllerMock.h"
 #include "WebSocketServerMock.h"
 #include "AIAgentControllerMock.h"
+#include "ServerStorageMock.h"
 #include <termihui/protocol/protocol.h>
 
 using json = nlohmann::json;
@@ -29,9 +30,10 @@ TEST_CASE("TermihuiServerController", "[handleMessage]") {
     
     auto webSocketServerMock = std::make_unique<WebSocketServerMock>();
     auto aiAgentControllerMock = std::make_unique<AIAgentControllerMock>();
+    auto serverStorageMock = std::make_unique<ServerStorageMock>();
     WebSocketServerMock* webSocketServerMockPointer = webSocketServerMock.get();
     
-    Testable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock));
+    Testable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock), std::move(serverStorageMock));
     controller.mockExecute = true;
     controller.mockInput = true;
     controller.mockCompletion = true;
@@ -153,12 +155,14 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
     using SessionMock = TerminalSessionControllerMock;
     using WsMock = WebSocketServerMock;
     using AiMock = AIAgentControllerMock;
+    using StorageMock = ServerStorageMock;
     
     auto webSocketServerMock = std::make_unique<WsMock>();
     auto aiAgentControllerMock = std::make_unique<AiMock>();
+    auto serverStorageMock = std::make_unique<StorageMock>();
     WsMock* wsMockPtr = webSocketServerMock.get();
     
-    TermihuiServerControllerTestable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock));
+    TermihuiServerControllerTestable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock), std::move(serverStorageMock));
     
     SessionMock sessionMock;
     std::vector<SessionMock::Call> expectedCalls;
@@ -365,11 +369,13 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
     using Testable = TermihuiServerControllerTestable;
     using WsMock = WebSocketServerMock;
     using AiMock = AIAgentControllerMock;
+    using StorageMock = ServerStorageMock;
     
     struct TestCase {
         std::vector<AIEvent> aiUpdateReturnValue;
         std::vector<WsMock::Call> expectedWsCalls;
         std::vector<AiMock::Call> expectedAiCalls;
+        std::vector<StorageMock::Call> expectedStorageCalls;
     };
     
     const std::vector<TestCase> testCases = {
@@ -377,7 +383,8 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
         {
             .aiUpdateReturnValue = {},
             .expectedWsCalls = {WsMock::UpdateCall{}},
-            .expectedAiCalls = {AiMock::UpdateCall{}}
+            .expectedAiCalls = {AiMock::UpdateCall{}},
+            .expectedStorageCalls = {}
         },
         // update processes AI events and broadcasts them
         {
@@ -390,9 +397,22 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
                 WsMock::BroadcastMessageCall{json{{"type", "ai_chunk"}, {"session_id", 123}, {"content", "Hello"}}.dump()},
                 WsMock::BroadcastMessageCall{json{{"type", "ai_done"}, {"session_id", 123}}.dump()}
             },
-            .expectedAiCalls = {AiMock::UpdateCall{}}
+            .expectedAiCalls = {AiMock::UpdateCall{}},
+            .expectedStorageCalls = {}  // Empty content is not saved
         },
-        // update processes AI error events
+        // update processes AI Done with content - saves to storage
+        {
+            .aiUpdateReturnValue = {
+                {AIEvent::Type::Done, 123, "Full response"}
+            },
+            .expectedWsCalls = {
+                WsMock::UpdateCall{},
+                WsMock::BroadcastMessageCall{json{{"type", "ai_done"}, {"session_id", 123}}.dump()}
+            },
+            .expectedAiCalls = {AiMock::UpdateCall{}},
+            .expectedStorageCalls = {StorageMock::SaveChatMessageCall{123, "assistant", "Full response"}}
+        },
+        // update processes AI error events - saves error to storage
         {
             .aiUpdateReturnValue = {
                 {AIEvent::Type::Error, 456, "Connection failed"}
@@ -401,23 +421,27 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
                 WsMock::UpdateCall{},
                 WsMock::BroadcastMessageCall{json{{"type", "ai_error"}, {"session_id", 456}, {"error", "Connection failed"}}.dump()}
             },
-            .expectedAiCalls = {AiMock::UpdateCall{}}
+            .expectedAiCalls = {AiMock::UpdateCall{}},
+            .expectedStorageCalls = {StorageMock::SaveChatMessageCall{456, "error", "Connection failed"}}
         }
     };
     
     for (const auto& testCase : testCases) {
         auto webSocketServerMock = std::make_unique<WsMock>();
         auto aiAgentControllerMock = std::make_unique<AiMock>();
+        auto serverStorageMock = std::make_unique<StorageMock>();
         
         WsMock* wsMockPtr = webSocketServerMock.get();
         AiMock* aiMockPtr = aiAgentControllerMock.get();
+        StorageMock* storageMockPtr = serverStorageMock.get();
         
         aiMockPtr->updateReturnValue = testCase.aiUpdateReturnValue;
         
-        Testable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock));
+        Testable controller(std::move(webSocketServerMock), std::move(aiAgentControllerMock), std::move(serverStorageMock));
         controller.update();
         
         REQUIRE(wsMockPtr->calls == testCase.expectedWsCalls);
         REQUIRE(aiMockPtr->calls == testCase.expectedAiCalls);
+        REQUIRE(storageMockPtr->calls == testCase.expectedStorageCalls);
     }
 }

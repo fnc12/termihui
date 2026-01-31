@@ -2,6 +2,7 @@
 
 #include "TermihuiServerController.h"
 #include "AIAgentController.h"
+#include "ServerStorage.h"
 #include <termihui/protocol/protocol.h>
 #include <variant>
 #include <vector>
@@ -48,8 +49,9 @@ public:
     using Call = std::variant<ExecuteCall, InputCall, CompletionCall, ResizeCall>;
 
     TermihuiServerControllerTestable(std::unique_ptr<WebSocketServer> webSocketServer,
-                                     std::unique_ptr<AIAgentController> aiAgentController)
-        : TermihuiServerController(std::move(webSocketServer), std::move(aiAgentController))
+                                     std::unique_ptr<AIAgentController> aiAgentController,
+                                     std::unique_ptr<ServerStorage> serverStorage)
+        : TermihuiServerController(std::move(webSocketServer), std::move(aiAgentController), std::move(serverStorage))
     {
     }
     

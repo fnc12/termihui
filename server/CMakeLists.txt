@@ -115,7 +115,7 @@ set(SOURCES
     src/CompletionManager.cpp
     src/JsonHelper.cpp
     src/TermihuiServerController.cpp
-    src/ServerStorage.cpp
+    src/ServerStorageImpl.cpp
     src/SessionStorage.cpp
     src/AIAgentControllerImpl.cpp
     src/VirtualScreen.cpp
@@ -131,6 +131,7 @@ set(HEADERS
     src/JsonHelper.h
     src/TermihuiServerController.h
     src/ServerStorage.h
+    src/ServerStorageImpl.h
     src/ServerStorageModels.h
     src/SessionStorage.h
     src/SessionStorageModels.h
@@ -200,7 +201,7 @@ set(TEST_SOURCES
     src/TermihuiServerController.cpp
     src/WebSocketServer.cpp
     src/JsonHelper.cpp
-    src/ServerStorage.cpp
+    src/ServerStorageImpl.cpp
     src/SessionStorage.cpp
     src/AIAgentControllerImpl.cpp
     src/VirtualScreen.cpp

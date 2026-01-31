@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     // Create and start the server
     auto webSocketServer = std::make_unique<WebSocketServerImpl>(port, bindAddress);
     auto aiAgentController = std::make_unique<AIAgentControllerImpl>();
-    TermihuiServerController termihuiServerController(std::move(webSocketServer), std::move(aiAgentController));
+    TermihuiServerController termihuiServerController(std::move(webSocketServer), std::move(aiAgentController), nullptr);
     
     if (!termihuiServerController.start()) {
         return 1;

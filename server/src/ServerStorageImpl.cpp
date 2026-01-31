@@ -1,15 +1,15 @@
-#include "ServerStorage.h"
+#include "ServerStorageImpl.h"
 #include <chrono>
 
 using namespace sqlite_orm;
 
-ServerStorage::ServerStorage(const std::filesystem::path& dbPath)
+ServerStorageImpl::ServerStorageImpl(const std::filesystem::path& dbPath)
     : storage(createServerStorage(dbPath.string()))
 {
     this->storage.sync_schema();
 }
 
-uint64_t ServerStorage::recordStart() {
+uint64_t ServerStorageImpl::recordStart() {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
@@ -20,7 +20,7 @@ uint64_t ServerStorage::recordStart() {
     return static_cast<uint64_t>(id);
 }
 
-void ServerStorage::recordStop(uint64_t runId) {
+void ServerStorageImpl::recordStop(uint64_t runId) {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
@@ -30,7 +30,7 @@ void ServerStorage::recordStop(uint64_t runId) {
     this->storage.insert(stop);
 }
 
-std::optional<ServerRun> ServerStorage::getLastRun() {
+std::optional<ServerRun> ServerStorageImpl::getLastRun() {
     auto runs = this->storage.get_all<ServerRun>(
         order_by(&ServerRun::id).desc(),
         limit(1)
@@ -42,7 +42,7 @@ std::optional<ServerRun> ServerStorage::getLastRun() {
     return runs[0];
 }
 
-std::optional<ServerStop> ServerStorage::getStopForRun(uint64_t runId) {
+std::optional<ServerStop> ServerStorageImpl::getStopForRun(uint64_t runId) {
     auto stops = this->storage.get_all<ServerStop>(
         where(c(&ServerStop::runId) == runId)
     );
@@ -53,7 +53,7 @@ std::optional<ServerStop> ServerStorage::getStopForRun(uint64_t runId) {
     return stops[0];
 }
 
-bool ServerStorage::wasLastRunCrashed() {
+bool ServerStorageImpl::wasLastRunCrashed() {
     auto lastRun = this->getLastRun();
     if (!lastRun) {
         return false;
@@ -63,7 +63,7 @@ bool ServerStorage::wasLastRunCrashed() {
     return !stop.has_value();
 }
 
-uint64_t ServerStorage::createTerminalSession(uint64_t serverRunId) {
+uint64_t ServerStorageImpl::createTerminalSession(uint64_t serverRunId) {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
@@ -78,7 +78,7 @@ uint64_t ServerStorage::createTerminalSession(uint64_t serverRunId) {
     return static_cast<uint64_t>(this->storage.insert(session));
 }
 
-void ServerStorage::markTerminalSessionAsDeleted(uint64_t sessionId) {
+void ServerStorageImpl::markTerminalSessionAsDeleted(uint64_t sessionId) {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
@@ -93,24 +93,24 @@ void ServerStorage::markTerminalSessionAsDeleted(uint64_t sessionId) {
     );
 }
 
-bool ServerStorage::isActiveTerminalSession(uint64_t sessionId) {
+bool ServerStorageImpl::isActiveTerminalSession(uint64_t sessionId) {
     return this->storage.count<TerminalSession>(
         where(c(&TerminalSession::id) == sessionId && c(&TerminalSession::isDeleted) == false)
     ) > 0;
 }
 
-std::optional<TerminalSession> ServerStorage::getTerminalSession(uint64_t sessionId) {
+std::optional<TerminalSession> ServerStorageImpl::getTerminalSession(uint64_t sessionId) {
     return this->storage.get_optional<TerminalSession>(sessionId);
 }
 
-std::vector<TerminalSession> ServerStorage::getActiveTerminalSessions() {
+std::vector<TerminalSession> ServerStorageImpl::getActiveTerminalSessions() {
     return this->storage.get_all<TerminalSession>(
         where(c(&TerminalSession::isDeleted) == false),
         order_by(&TerminalSession::id)
     );
 }
 
-uint64_t ServerStorage::addLLMProvider(const std::string& name, const std::string& type,
+uint64_t ServerStorageImpl::addLLMProvider(const std::string& name, const std::string& type,
                                         const std::string& url, const std::string& model,
                                         const std::string& apiKey) {
     auto now = std::chrono::system_clock::now();
@@ -129,7 +129,7 @@ uint64_t ServerStorage::addLLMProvider(const std::string& name, const std::strin
     return static_cast<uint64_t>(this->storage.insert(provider));
 }
 
-void ServerStorage::updateLLMProvider(uint64_t id, const std::string& name,
+void ServerStorageImpl::updateLLMProvider(uint64_t id, const std::string& name,
                                        const std::string& url, const std::string& model,
                                        const std::string& apiKey) {
     this->storage.update_all(
@@ -143,21 +143,21 @@ void ServerStorage::updateLLMProvider(uint64_t id, const std::string& name,
     );
 }
 
-void ServerStorage::deleteLLMProvider(uint64_t id) {
+void ServerStorageImpl::deleteLLMProvider(uint64_t id) {
     this->storage.remove<LLMProvider>(id);
 }
 
-std::optional<LLMProvider> ServerStorage::getLLMProvider(uint64_t id) {
+std::optional<LLMProvider> ServerStorageImpl::getLLMProvider(uint64_t id) {
     return this->storage.get_optional<LLMProvider>(id);
 }
 
-std::vector<LLMProvider> ServerStorage::getAllLLMProviders() {
+std::vector<LLMProvider> ServerStorageImpl::getAllLLMProviders() {
     return this->storage.get_all<LLMProvider>(
         order_by(&LLMProvider::id)
     );
 }
 
-uint64_t ServerStorage::saveChatMessage(uint64_t sessionId, const std::string& role, const std::string& content) {
+uint64_t ServerStorageImpl::saveChatMessage(uint64_t sessionId, const std::string& role, const std::string& content) {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
@@ -172,14 +172,14 @@ uint64_t ServerStorage::saveChatMessage(uint64_t sessionId, const std::string& r
     return static_cast<uint64_t>(this->storage.insert(msg));
 }
 
-std::vector<ChatMessageRecord> ServerStorage::getChatHistory(uint64_t sessionId) {
+std::vector<ChatMessageRecord> ServerStorageImpl::getChatHistory(uint64_t sessionId) {
     return this->storage.get_all<ChatMessageRecord>(
         where(c(&ChatMessageRecord::sessionId) == sessionId),
         order_by(&ChatMessageRecord::createdAt)
     );
 }
 
-void ServerStorage::clearChatHistory(uint64_t sessionId) {
+void ServerStorageImpl::clearChatHistory(uint64_t sessionId) {
     this->storage.remove_all<ChatMessageRecord>(
         where(c(&ChatMessageRecord::sessionId) == sessionId)
     );

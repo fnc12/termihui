@@ -1,4 +1,5 @@
 #include "TermihuiServerController.h"
+#include "ServerStorageImpl.h"
 #include "JsonHelper.h"
 #include <termihui/protocol/protocol.h>
 #include <fmt/core.h>
@@ -11,8 +12,10 @@ using json = nlohmann::json;
 std::atomic<bool> TermihuiServerController::shouldExit{false};
 
 TermihuiServerController::TermihuiServerController(std::unique_ptr<WebSocketServer> webSocketServer,
-                                                   std::unique_ptr<AIAgentController> aiAgentController)
-    : webSocketServer(std::move(webSocketServer))
+                                                   std::unique_ptr<AIAgentController> aiAgentController,
+                                                   std::unique_ptr<ServerStorage> serverStorage)
+    : serverStorage(std::move(serverStorage))
+    , webSocketServer(std::move(webSocketServer))
     , aiAgentController(std::move(aiAgentController))
     , lastStatsTime(std::chrono::steady_clock::now())
 {
@@ -32,9 +35,11 @@ bool TermihuiServerController::start() {
     this->fileSystemManager.initialize();
     fmt::print("📁 Data storage path: {}\n", this->fileSystemManager.getWritablePath().string());
     
-    // Initialize server storage and record start
-    auto serverDbPath = this->fileSystemManager.getWritablePath() / "server_state.sqlite";
-    this->serverStorage = std::make_unique<ServerStorage>(serverDbPath);
+    // Initialize server storage if not injected (production mode)
+    if (!this->serverStorage) {
+        auto serverDbPath = this->fileSystemManager.getWritablePath() / "server_state.sqlite";
+        this->serverStorage = std::make_unique<ServerStorageImpl>(serverDbPath);
+    }
     
     if (this->serverStorage->wasLastRunCrashed()) {
         fmt::print("⚠️  Previous server run was not properly shut down\n");
