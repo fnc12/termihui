@@ -18,6 +18,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private var serverListVC: ServerListViewController?
     var sessionListVC: SessionListViewController?
     var terminalVC: TerminalViewController?
+    var _chatVC: ChatViewController?  // Cached chat VC for session
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
@@ -234,8 +235,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             }
             
         default:
-            // Ignore other messages
-            break
+            // Try AI message handling
+            print("🔄 Trying AI message handling for: \(messageType)")
+            if !handleAIMessage(messageType, messageDict) {
+                print("⚠️ Unhandled message type: \(messageType)")
+            }
         }
     }
     

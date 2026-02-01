@@ -120,6 +120,7 @@ class CommandBlockCell: UITableViewCell {
             outputTextView.attributedText = attributedString(from: block.segments)
             outputTextView.isHidden = false
         } else {
+            outputTextView.attributedText = nil
             outputTextView.isHidden = true
         }
         

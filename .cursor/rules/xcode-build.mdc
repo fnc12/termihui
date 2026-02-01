@@ -1,0 +1,50 @@
+---
+description: Xcode build conventions for this project
+globs: "**/*.swift"
+alwaysApply: true
+---
+
+# Xcode Build Conventions
+
+## iOS Build
+
+Always build iOS target for **device** (not simulator):
+
+```bash
+xcodebuild -project termihui-client.xcodeproj \
+  -scheme termihui-client-ios \
+  -destination 'generic/platform=iOS' \
+  build
+```
+
+## macOS Build
+
+```bash
+xcodebuild -project termihui-client.xcodeproj \
+  -scheme termihui-client-macos \
+  -destination 'platform=macOS' \
+  build
+```
+
+## Running Tests
+
+```bash
+# macOS tests
+xcodebuild -project termihui-client.xcodeproj \
+  -scheme termihui-client-macos \
+  -destination 'platform=macOS' \
+  test
+
+# iOS tests (use simulator for tests)
+xcodebuild -project termihui-client.xcodeproj \
+  -scheme termihui-client-ios \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  test
+```
+
+## Project Structure
+
+- `macos-client/` — Xcode project with macOS and iOS targets
+- `macos-client/Shared/` — Code shared between macOS and iOS (add to both targets)
+- `macos-client/termihui-client/` — macOS-specific code (PBXFileSystemSynchronizedRootGroup)
+- `macos-client/termihui-client-ios/` — iOS-specific code (PBXFileSystemSynchronizedRootGroup)

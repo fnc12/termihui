@@ -4,6 +4,7 @@ import SnapKit
 protocol TerminalViewControllerDelegate: AnyObject {
     func terminalViewController(_ controller: TerminalViewController, didSendCommand command: String)
     func terminalViewControllerDidClose(_ controller: TerminalViewController)
+    func terminalViewControllerDidRequestChat(_ controller: TerminalViewController)
 }
 
 /// Terminal session screen for iOS with command blocks
@@ -61,6 +62,15 @@ class TerminalViewController: UIViewController {
         
         // Use standard (not large) title for terminal screen
         navigationItem.largeTitleDisplayMode = .never
+        
+        // Chat button in nav bar (right side)
+        let chatButton = UIBarButtonItem(
+            image: UIImage(systemName: "bubble.left.and.bubble.right"),
+            style: .plain,
+            target: self,
+            action: #selector(chatButtonTapped)
+        )
+        navigationItem.rightBarButtonItem = chatButton
         
         view.backgroundColor = .systemBackground
         
@@ -164,14 +174,14 @@ class TerminalViewController: UIViewController {
         
         keyboardHeight = keyboardFrame.height
         
-        UIView.animate(withDuration: duration) {
+        UIView.animate(withDuration: duration, animations: {
             self.inputContainerView.snp.updateConstraints { make in
                 make.bottom.equalTo(self.view.safeAreaLayoutGuide).offset(-(self.keyboardHeight - self.view.safeAreaInsets.bottom))
             }
             self.view.layoutIfNeeded()
-        }
-        
-        scrollToBottom()
+        }, completion: { _ in
+            self.scrollToBottom()
+        })
     }
     
     @objc private func keyboardWillHide(_ notification: Notification) {
@@ -194,6 +204,10 @@ class TerminalViewController: UIViewController {
     
     @objc private func sendButtonTapped() {
         sendCurrentCommand()
+    }
+    
+    @objc private func chatButtonTapped() {
+        delegate?.terminalViewControllerDidRequestChat(self)
     }
     
     private func sendCurrentCommand() {
@@ -232,9 +246,12 @@ class TerminalViewController: UIViewController {
         currentBlockIndex = commandBlocks.count - 1
         
         let indexPath = IndexPath(row: commandBlocks.count - 1, section: 0)
-        tableView.insertRows(at: [indexPath], with: .automatic)
-        updateContentInset()
-        scrollToBottom()
+        tableView.performBatchUpdates({
+            self.tableView.insertRows(at: [indexPath], with: .automatic)
+        }, completion: { _ in
+            self.updateContentInset()
+            self.scrollToBottom()
+        })
     }
     
     /// Called when command finishes
@@ -263,19 +280,25 @@ class TerminalViewController: UIViewController {
             currentBlockIndex = commandBlocks.count - 1
             
             let indexPath = IndexPath(row: commandBlocks.count - 1, section: 0)
-            tableView.insertRows(at: [indexPath], with: .none)
-            updateContentInset()
+            tableView.performBatchUpdates({
+                self.tableView.insertRows(at: [indexPath], with: .none)
+            }, completion: { _ in
+                self.updateContentInset()
+                self.scrollToBottom()
+            })
         } else {
             // Append to current block
             let index = currentBlockIndex!
             commandBlocks[index].segments.append(contentsOf: segments)
             
             let indexPath = IndexPath(row: index, section: 0)
-            tableView.reloadRows(at: [indexPath], with: .none)
-            updateContentInset()
+            tableView.performBatchUpdates({
+                self.tableView.reloadRows(at: [indexPath], with: .none)
+            }, completion: { _ in
+                self.updateContentInset()
+                self.scrollToBottom()
+            })
         }
-        
-        scrollToBottom()
     }
     
     /// Append raw text output
