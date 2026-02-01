@@ -55,6 +55,11 @@ class ChatMessageCell: UITableViewCell {
     
     // MARK: - Configuration
     
+    /// Update only text content (for streaming updates without full reconfigure)
+    func updateText(_ text: String) {
+        messageLabel.text = text
+    }
+    
     func configure(with message: ChatMessage) {
         messageLabel.text = message.content
         

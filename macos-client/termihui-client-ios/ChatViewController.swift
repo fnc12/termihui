@@ -373,10 +373,25 @@ class ChatViewController: UIViewController {
         
         messages[lastIndex].content += text
         
-        // Update only last row
         let indexPath = IndexPath(row: lastIndex, section: 0)
-        tableView.reloadRows(at: [indexPath], with: .none)
-        scrollToBottom()
+        
+        // Update cell directly if visible (avoids jarring reloads during streaming)
+        if let cell = tableView.cellForRow(at: indexPath) as? ChatMessageCell {
+            cell.updateText(messages[lastIndex].content)
+            
+            // Recalculate row heights without animation
+            UIView.performWithoutAnimation {
+                tableView.beginUpdates()
+                tableView.endUpdates()
+            }
+        } else {
+            // Cell not visible — fallback to reload
+            UIView.performWithoutAnimation {
+                tableView.reloadRows(at: [indexPath], with: .none)
+            }
+        }
+        
+        scrollToBottom(animated: false)
     }
     
     /// Finish streaming response
@@ -440,10 +455,10 @@ class ChatViewController: UIViewController {
         scrollToBottom()
     }
     
-    private func scrollToBottom() {
+    private func scrollToBottom(animated: Bool = true) {
         guard !messages.isEmpty else { return }
         let indexPath = IndexPath(row: messages.count - 1, section: 0)
-        tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        tableView.scrollToRow(at: indexPath, at: .bottom, animated: animated)
     }
     
     // MARK: - Accessors for TableView Extension
