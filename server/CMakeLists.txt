@@ -7,7 +7,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
 # ВАЖНО: должно быть установлено ДО любых FetchContent и add_subdirectory
 include(FetchContent)
-set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps" CACHE PATH "Dependencies cache" FORCE)
+
+# Раздельные папки кэша для разных генераторов (Xcode vs Make)
+if(CMAKE_GENERATOR MATCHES "Xcode")
+    set(DEPS_SUFFIX "-xcode")
+else()
+    set(DEPS_SUFFIX "")
+endif()
+set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps${DEPS_SUFFIX}" CACHE PATH "Dependencies cache" FORCE)
 
 # Если собираемся standalone (не как подпроект) — качаем зависимости сами
 if(NOT TARGET fmt::fmt OR NOT TARGET hv_static OR NOT TARGET Catch2::Catch2WithMain)
@@ -196,6 +203,7 @@ set(TEST_SOURCES
     tests/test_termihui_server_controller.cpp
     tests/test_virtual_screen.cpp
     tests/test_ansi_processor.cpp
+    tests/test_output_parser.cpp
     src/TerminalSessionController.cpp
     src/CompletionManager.cpp
     src/TermihuiServerController.cpp

@@ -84,6 +84,8 @@ cat > "$PLIST_PATH" << EOF
     <key>ProgramArguments</key>
     <array>
         <string>$INSTALL_PREFIX/bin/termihui-server</string>
+        <string>-b</string>
+        <string>0.0.0.0</string>
     </array>
     <key>RunAtLoad</key>
     <true/>

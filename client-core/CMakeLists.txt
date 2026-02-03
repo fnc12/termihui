@@ -13,11 +13,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Хранить зависимости вне build директории (не удаляются при rm -rf build/*)
 # ВАЖНО: должно быть установлено ДО любых FetchContent и add_subdirectory
 include(FetchContent)
+
+# Раздельные папки кэша: iOS vs macOS, Xcode vs Make
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps-ios" CACHE PATH "Dependencies cache" FORCE)
+    set(DEPS_SUFFIX "-ios")
+elseif(CMAKE_GENERATOR MATCHES "Xcode")
+    set(DEPS_SUFFIX "-xcode")
 else()
-    set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps" CACHE PATH "Dependencies cache" FORCE)
+    set(DEPS_SUFFIX "")
 endif()
+set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps${DEPS_SUFFIX}" CACHE PATH "Dependencies cache" FORCE)
 
 # Add shared library (with guard for when building as part of parent project)
 if(NOT TARGET termihui_shared)

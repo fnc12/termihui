@@ -76,34 +76,9 @@ std::vector<StyledSegment> OutputParser::parse(std::string_view input) {
             }
         }
         
-        // Check for 8-bit CSI (0x9B)
-        unsigned char uch = static_cast<unsigned char>(input[i]);
-        if (uch == 0x9B) {
-            if (!currentText.empty()) {
-                segments.push_back({std::move(currentText), this->currentStyle});
-                currentText.clear();
-            }
-            
-            size_t start = i + 1;
-            size_t end = start;
-            
-            while (end < input.size() && (input[end] < 0x40 || input[end] > 0x7E)) {
-                ++end;
-            }
-            
-            if (end < input.size()) {
-                char command = input[end];
-                std::string_view params{input.data() + start, end - start};
-                
-                if (command == 'm') {
-                    std::vector<int> codes = parseCSIParams(params);
-                    this->applySGRCodes(codes);
-                }
-                
-                i = end + 1;
-                continue;
-            }
-        }
+        // NOTE: 8-bit CSI (0x9B) intentionally NOT supported.
+        // 0x9B conflicts with UTF-8 (it's a valid continuation byte 10011011).
+        // Modern terminals use 7-bit CSI (ESC [) which we handle above.
         
         // Regular character
         currentText += input[i];

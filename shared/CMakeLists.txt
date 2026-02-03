@@ -10,9 +10,19 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Раздельные папки кэша для разных генераторов (Xcode vs Make)
+include(FetchContent)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(DEPS_SUFFIX "-ios")
+elseif(CMAKE_GENERATOR MATCHES "Xcode")
+    set(DEPS_SUFFIX "-xcode")
+else()
+    set(DEPS_SUFFIX "")
+endif()
+set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.deps${DEPS_SUFFIX}" CACHE PATH "Dependencies cache" FORCE)
+
 # Fetch libhv if not available (for nlohmann::json)
 if(NOT TARGET hv_static)
-    include(FetchContent)
     message(STATUS "Fetching libhv for termihui_shared...")
     FetchContent_Declare(
         libhv

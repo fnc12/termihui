@@ -1,0 +1,32 @@
+---
+description: Commands for managing termihui-server launchd service
+alwaysApply: true
+---
+
+# TermiHUI Server Service Management
+
+Service label: `studio.eugenezakharov.termihui-server`
+
+## Stop the service
+
+```bash
+launchctl bootout gui/$(id -u)/studio.eugenezakharov.termihui-server
+```
+
+## Start the service
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/studio.eugenezakharov.termihui-server.plist
+```
+
+## Check if running
+
+```bash
+launchctl list | grep termihui-server
+```
+
+## Reinstall service
+
+```bash
+cd /Users/yevgeniyzakharov/Desktop/sources/termihui2/server && ./install.sh
+```

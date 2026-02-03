@@ -15,6 +15,10 @@ server/xcode-build/
 # CMake dependencies cache (shared between builds)
 .deps/
 .deps-ios/
+.deps-xcode/
+
+# Local libhv copy (if any)
+libhv/
 
 # libhv logs  
 server/libhv.*.log

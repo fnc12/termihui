@@ -8,6 +8,60 @@
 
 using json = nlohmann::json;
 
+namespace {
+
+/**
+ * Find byte offset where complete UTF-8 ends in buffer.
+ * Returns position after last complete UTF-8 character.
+ */
+size_t findCompleteUtf8End(const std::string& data) {
+    if (data.empty()) {
+        return 0;
+    }
+    
+    // Scan backwards from end to find incomplete UTF-8 sequence
+    // Max UTF-8 sequence is 4 bytes, so check up to last 4 bytes
+    size_t pos = data.size();
+    
+    while (pos > 0 && pos > data.size() - 4) {
+        --pos;
+        unsigned char byte = static_cast<unsigned char>(data[pos]);
+        
+        // ASCII byte - we're at a complete character boundary
+        if (byte < 0x80) {
+            return data.size();
+        }
+        
+        // Continuation byte (10xxxxxx) - keep scanning backwards
+        if ((byte & 0xC0) == 0x80) {
+            continue;
+        }
+        
+        // Found a start byte - check if sequence is complete
+        int expectedLength = 0;
+        if ((byte & 0xE0) == 0xC0) expectedLength = 2;      // 110xxxxx
+        else if ((byte & 0xF0) == 0xE0) expectedLength = 3; // 1110xxxx
+        else if ((byte & 0xF8) == 0xF0) expectedLength = 4; // 11110xxx
+        else {
+            // Invalid start byte - treat as complete to avoid infinite buffering
+            return data.size();
+        }
+        
+        size_t availableLength = data.size() - pos;
+        if (availableLength < static_cast<size_t>(expectedLength)) {
+            // Incomplete sequence - truncate here
+            return pos;
+        }
+        
+        // Complete sequence
+        return data.size();
+    }
+    
+    return data.size();
+}
+
+} // anonymous namespace
+
 // Static member initialization
 std::atomic<bool> TermihuiServerController::shouldExit{false};
 
@@ -501,6 +555,26 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
     }
     
     std::string output = session.readOutput();
+    if (output.empty()) {
+        return;
+    }
+    
+    // Prepend any pending incomplete UTF-8 from previous read
+    uint64_t sessionId = session.getSessionId();
+    auto& pendingBuffer = this->utf8PendingBuffers[sessionId];
+    if (!pendingBuffer.empty()) {
+        output = pendingBuffer + output;
+        pendingBuffer.clear();
+    }
+    
+    // Handle incomplete UTF-8 at end of buffer
+    size_t completeEnd = findCompleteUtf8End(output);
+    if (completeEnd < output.size()) {
+        // Save incomplete UTF-8 sequence for next read
+        pendingBuffer = output.substr(completeEnd);
+        output.resize(completeEnd);
+    }
+    
     if (output.empty()) {
         return;
     }

@@ -365,6 +365,31 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
     REQUIRE(wsMockPtr->calls == expectedWsCalls);
 }
 
+// BUG REPRODUCTION: Real data from session - PTY chunk truncated mid-UTF8
+// This test reproduces the crash: [json.exception.type_error.316] incomplete UTF-8 string
+TEST_CASE("processTerminalOutput truncated UTF-8", "[processTerminalOutput][utf8]") {
+    using Testable = TermihuiServerControllerTestable;
+    
+    auto wsMock = std::make_unique<WebSocketServerMock>();
+    auto aiMock = std::make_unique<AIAgentControllerMock>();
+    auto storageMock = std::make_unique<ServerStorageMock>();
+    
+    Testable controller(std::move(wsMock), std::move(aiMock), std::move(storageMock));
+    TerminalSessionControllerMock sessionMock;
+    
+    // Real data: OSC 133;A + Cyrillic filenames + truncated 0xD0
+    sessionMock.readOutputReturnValues.push(
+        "\x1b]133;A;cwd=/Users/yevgeniyzakharov/Desktop\x07"
+        "\xd1\x81\xd0\xba\xd1\x80\xd0\xb8\xd0\xbd\xd1\x8b\r\n"  // "скрины\r\n"
+        "\xd0\xa5\xd0\xbd\xd0\xb8\xd0\xb3\xd0\xb8\r\n"          // "Хниги\r\n"
+        "\xd0"  // TRUNCATED: first byte of Cyrillic char without continuation
+    );
+    sessionMock.hasActiveCommandReturnValue = true;
+    
+    // This MUST NOT throw - server should handle gracefully
+    REQUIRE_NOTHROW(controller.processTerminalOutput(sessionMock));
+}
+
 TEST_CASE("TermihuiServerController::update", "[update]") {
     using Testable = TermihuiServerControllerTestable;
     using WsMock = WebSocketServerMock;
@@ -445,3 +470,4 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
         REQUIRE(storageMockPtr->calls == testCase.expectedStorageCalls);
     }
 }
+

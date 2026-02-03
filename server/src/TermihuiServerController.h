@@ -150,6 +150,9 @@ private:
     // Terminal sessions (sessionId -> controller)
     std::unordered_map<uint64_t, std::unique_ptr<TerminalSessionController>> sessions;
     
+    // UTF-8 pending buffers per session (for incomplete sequences between reads)
+    std::unordered_map<uint64_t, std::string> utf8PendingBuffers;
+    
     // State tracking
     uint64_t currentRunId = 0;
     std::chrono::steady_clock::time_point lastStatsTime;
