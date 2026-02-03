@@ -230,6 +230,13 @@ class TerminalViewController: UIViewController {
         tableView.reloadData()
         updateContentInset()
         scrollToBottom()
+        
+        // Update CWD from last finished block
+        if let lastBlock = commandBlocks.last(where: { $0.isFinished }) {
+            if let cwd = lastBlock.cwdEnd ?? lastBlock.cwdStart {
+                updateCurrentCwd(cwd)
+            }
+        }
     }
     
     /// Called when a new command starts
