@@ -53,3 +53,18 @@ std::optional<SessionCommand> SessionStorage::getCommand(uint64_t commandId) {
 std::vector<SessionCommand> SessionStorage::getAllCommands() {
     return this->storage.get_all<SessionCommand>(order_by(&SessionCommand::id));
 }
+
+std::optional<std::string> SessionStorage::getLastCwd() {
+    // Get last finished command with non-empty cwdEnd
+    auto commands = this->storage.get_all<SessionCommand>(
+        where(c(&SessionCommand::isFinished) == true and length(&SessionCommand::cwdEnd) > 0),
+        order_by(&SessionCommand::id).desc(),
+        limit(1)
+    );
+    
+    if (commands.empty()) {
+        return std::nullopt;
+    }
+    
+    return commands[0].cwdEnd;
+}

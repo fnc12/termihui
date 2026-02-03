@@ -56,6 +56,16 @@ bool TerminalSessionController::createSession()
         return false;
     }
 
+    // Determine initial cwd BEFORE fork (SQLite access must be in parent process)
+    std::string initialCwd;
+    if (auto lastCwd = this->sessionStorage.getLastCwd()) {
+        initialCwd = *lastCwd;
+        fmt::print("Session {}: Restoring cwd from history: {}\n", this->sessionId, initialCwd);
+    } else if (const char* home = getenv("HOME")) {
+        initialCwd = home;
+        fmt::print("Session {}: Using HOME as initial cwd: {}\n", this->sessionId, initialCwd);
+    }
+
     // Create PTY
     this->childPid = forkpty(&this->ptyFd, nullptr, nullptr, nullptr);
     
@@ -66,6 +76,17 @@ bool TerminalSessionController::createSession()
     
     if (this->childPid == 0) {
         // Child process
+        
+        // Change to initial cwd (from history or HOME)
+        if (!initialCwd.empty()) {
+            if (chdir(initialCwd.c_str()) != 0) {
+                // Directory doesn't exist or not accessible — fallback to HOME
+                if (const char* home = getenv("HOME")) {
+                    chdir(home);
+                }
+            }
+        }
+        
         // Set UTF-8 locale for proper Unicode handling
         setenv("LANG", "en_US.UTF-8", 1);
         setenv("LC_ALL", "en_US.UTF-8", 1);

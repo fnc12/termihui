@@ -26,6 +26,9 @@ public:
     
     // Get all commands
     std::vector<SessionCommand> getAllCommands();
+    
+    // Get last known cwd from finished commands (for session restoration)
+    std::optional<std::string> getLastCwd();
 
 private:
     std::filesystem::path dbPath;

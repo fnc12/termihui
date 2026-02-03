@@ -199,6 +199,7 @@ install(TARGETS ${PROJECT_NAME}
 set(TEST_SOURCES
     tests/test_main.cpp
     tests/test_interactive_session.cpp
+    tests/test_terminal_session.cpp
     tests/test_completion_manager.cpp
     tests/test_termihui_server_controller.cpp
     tests/test_virtual_screen.cpp
