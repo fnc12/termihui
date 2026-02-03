@@ -149,6 +149,19 @@
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
+    },
+    {
+      "label": "Install Server Service",
+      "type": "shell",
+      "command": "./install.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
     }
   ]
 }
