@@ -1,0 +1,112 @@
+/* TermiHUI GTK Client Styles */
+
+/* Main window */
+window {
+    background-color: #1e1e1e;
+}
+
+/* Terminal blocks container */
+.terminal-blocks {
+    background-color: #1e1e1e;
+    padding: 8px;
+}
+
+/* Command block */
+.command-block {
+    background-color: #252526;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+/* CWD label - purple/magenta like macOS */
+.cwd-label {
+    color: #c586c0;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+/* Command header */
+.command-header {
+    color: #d4d4d4;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+/* Output text */
+.output-text {
+    color: #d4d4d4;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+/* Dim label */
+.dim-label {
+    color: #808080;
+    font-size: 12px;
+}
+
+/* Input area */
+.input-box {
+    background-color: #252526;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 8px;
+}
+
+.input-box entry {
+    background-color: #3c3c3c;
+    border: none;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-family: monospace;
+    padding: 8px;
+}
+
+.input-box entry:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px #007acc;
+}
+
+/* Send button - circular */
+.send-button {
+    background-color: #0e639c;
+    background-image: none;
+    border-radius: 18px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    font-size: 16px;
+    color: white;
+    box-shadow: none;
+    -gtk-icon-shadow: none;
+}
+
+.send-button:hover {
+    background-color: #1177bb;
+    background-image: none;
+}
+
+/* Header */
+.header-box {
+    background-color: #252526;
+    padding: 8px 16px;
+}
+
+.session-label {
+    color: #d4d4d4;
+    font-weight: bold;
+}
+
+/* Scrolled window */
+scrolledwindow {
+    background-color: #1e1e1e;
+}
+
+/* Separator */
+separator {
+    background-color: #3c3c3c;
+    min-height: 1px;
+}

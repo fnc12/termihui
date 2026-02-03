@@ -1,0 +1,69 @@
+---
+description: C++ coding standards for termihui project
+globs: "**/*.cpp,**/*.h,**/*.hpp"
+alwaysApply: false
+---
+
+# C++ Code Style
+
+## Naming Conventions
+
+- Use `this->` prefix for member access
+- Name variables after their type with lowercase first letter, no abbreviations:
+
+```cpp
+// ❌ BAD
+ConnectedMessage msg;
+SessionsListMessage m;
+CommandStartMessage csm;
+
+// ✅ GOOD
+auto connectedMessage = j.get<ConnectedMessage>();
+auto sessionsListMessage = j.get<SessionsListMessage>();
+auto commandStartMessage = j.get<CommandStartMessage>();
+```
+
+## String Handling
+
+- Use `std::string_view` when string lives shorter than source and no ownership needed:
+
+```cpp
+// ❌ BAD - unnecessary copy
+std::string type = j.at("type").get<std::string>();
+
+// ✅ GOOD - no copy, j outlives type
+std::string_view type = j.at("type").get<std::string_view>();
+```
+
+## Parameter Passing
+
+- Pass by value + move for sink parameters:
+
+```cpp
+// ❌ BAD
+void setAddress(const std::string& address) {
+    this->address = address;
+}
+
+// ✅ GOOD
+void setAddress(std::string address) {
+    this->address = std::move(address);
+}
+```
+
+## JSON Deserialization
+
+- Use `j.get<Type>()` instead of explicit `from_json`:
+
+```cpp
+// ❌ BAD
+ConnectedMessage connectedMessage;
+from_json(j, connectedMessage);
+
+// ✅ GOOD
+auto connectedMessage = j.get<ConnectedMessage>();
+```
+
+## Comments
+
+- All comments in English (open source project)
