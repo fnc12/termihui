@@ -471,3 +471,39 @@ TEST_CASE("TermihuiServerController::update", "[update]") {
     }
 }
 
+TEST_CASE("TermihuiServerController::shortenHomePath", "[shortenHomePath]") {
+    using Testable = TermihuiServerControllerTestable;
+    
+    auto wsMock = std::make_unique<WebSocketServerMock>();
+    auto aiMock = std::make_unique<AIAgentControllerMock>();
+    auto storageMock = std::make_unique<ServerStorageMock>();
+    
+    Testable controller(std::move(wsMock), std::move(aiMock), std::move(storageMock));
+    controller.homeDirectory = "/Users/test";
+    
+    SECTION("replaces home with tilde") {
+        REQUIRE(controller.shortenHomePath("/Users/test/Documents") == "~/Documents");
+    }
+    
+    SECTION("exact home returns tilde") {
+        REQUIRE(controller.shortenHomePath("/Users/test") == "~");
+    }
+    
+    SECTION("no match returns original") {
+        REQUIRE(controller.shortenHomePath("/var/log") == "/var/log");
+    }
+    
+    SECTION("partial match not replaced") {
+        REQUIRE(controller.shortenHomePath("/Users/testuser/file") == "/Users/testuser/file");
+    }
+    
+    SECTION("empty home returns original") {
+        controller.homeDirectory = "";
+        REQUIRE(controller.shortenHomePath("/Users/test") == "/Users/test");
+    }
+    
+    SECTION("empty path returns empty") {
+        REQUIRE(controller.shortenHomePath("") == "");
+    }
+}
+

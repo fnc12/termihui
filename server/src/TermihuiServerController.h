@@ -97,6 +97,13 @@ public:
      */
     void processBlockModeOutput(TerminalSessionController& session, const std::string& output, bool skipOutputRecording);
 
+    /**
+     * Shorten path by replacing home directory with ~
+     * @param path full path
+     * @return path with home replaced by ~ if applicable
+     */
+    std::string shortenHomePath(const std::string& path) const;
+
 protected:
     // Type-safe message handlers (virtual for testability)
     virtual void handleMessageFromClient(int clientId, const ExecuteMessage& message);
@@ -118,6 +125,9 @@ protected:
      * Get session by ID, returns nullptr if not found
      */
     TerminalSessionController* findSession(uint64_t sessionId);
+    
+    // Home directory for path shortening (cached at start)
+    std::string homeDirectory;
 
 private:
     /**

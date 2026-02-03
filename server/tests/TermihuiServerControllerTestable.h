@@ -55,6 +55,9 @@ public:
     {
     }
     
+    // Expose protected members for testing
+    using TermihuiServerController::homeDirectory;
+    
     // Call recording
     std::vector<Call> calls;
     

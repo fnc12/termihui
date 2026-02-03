@@ -85,6 +85,11 @@ void TermihuiServerController::signalHandler(int signal) {
 }
 
 bool TermihuiServerController::start() {
+    // Cache home directory for path shortening
+    if (const char* home = getenv("HOME")) {
+        this->homeDirectory = home;
+    }
+    
     // Initialize file system manager and create storage directory
     this->fileSystemManager.initialize();
     fmt::print("📁 Data storage path: {}\n", this->fileSystemManager.getWritablePath().string());
@@ -198,7 +203,7 @@ void TermihuiServerController::handleNewConnection(int clientId) {
     
     ConnectedMessage connectedMessage;
     connectedMessage.serverVersion = "1.0.0";
-    // Add home directory for path shortening on client
+    // Home directory (kept for backward compatibility, server now shortens paths itself)
     if (const char* home = getenv("HOME")) {
         connectedMessage.home = home;
     }
@@ -417,8 +422,8 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
             record.command,
             this->outputParser.parse(record.output),
             record.exitCode,
-            record.cwdStart,
-            record.cwdEnd,
+            this->shortenHomePath(record.cwdStart),
+            this->shortenHomePath(record.cwdEnd),
             record.isFinished
         });
     }
@@ -765,7 +770,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
             session.startCommandInHistory(cwd);
             if (session.hasActiveCommand()) {
                 CommandStartMessage msg;
-                if (!cwd.empty()) msg.cwd = cwd;
+                if (!cwd.empty()) msg.cwd = this->shortenHomePath(cwd);
                 this->webSocketServer->broadcastMessage(serialize(msg));
             }
         } else if (osc.rfind("\x1b]133;B", 0) == 0) {
@@ -781,7 +786,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 session.finishCurrentCommand(exitCode, cwd);
                 CommandEndMessage msg;
                 msg.exitCode = exitCode;
-                if (!cwd.empty()) msg.cwd = cwd;
+                if (!cwd.empty()) msg.cwd = this->shortenHomePath(cwd);
                 this->webSocketServer->broadcastMessage(serialize(msg));
             }
             // Clear the flag - we've processed command_end, output recording can resume
@@ -804,7 +809,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 fmt::print("[OSC-PARSE] >>> OSC 2 (window_title) title={}, extracted_path={}\n", title, path);
                 if (!path.empty()) {
                     session.setLastKnownCwd(path);
-                    this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
+                    this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{this->shortenHomePath(path)}));
                 }
             }
         } else if (osc.rfind("\x1b]7;", 0) == 0) {
@@ -818,7 +823,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                         std::string path = osc.substr(slashPos, pathEnd - slashPos);
                         fmt::print("[OSC-PARSE] >>> OSC 7 (cwd) path={}\n", path);
                         session.setLastKnownCwd(path);
-                        this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{path}));
+                        this->webSocketServer->broadcastMessage(serialize(CwdUpdateMessage{this->shortenHomePath(path)}));
                     }
                 }
             } else {
@@ -841,4 +846,24 @@ void TermihuiServerController::printStats() {
     //     fmt::print("Active sessions: {}\n", this->sessions.size());
     //     this->lastStatsTime = now;
     // }
+}
+
+std::string TermihuiServerController::shortenHomePath(const std::string& path) const {
+    if (this->homeDirectory.empty() || path.empty()) {
+        return path;
+    }
+    
+    // Check if path starts with home directory
+    if (path.rfind(this->homeDirectory, 0) == 0) {
+        // Replace home with ~
+        if (path.length() == this->homeDirectory.length()) {
+            return "~";
+        }
+        // Ensure there's a / after home directory
+        if (path[this->homeDirectory.length()] == '/') {
+            return "~" + path.substr(this->homeDirectory.length());
+        }
+    }
+    
+    return path;
 }
