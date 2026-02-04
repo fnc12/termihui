@@ -163,6 +163,7 @@ if(TARGET Catch2::Catch2WithMain)
         Catch2::Catch2WithMain
         fmt::fmt
         hv_static
+        sqlite_orm::sqlite_orm
     )
 
     target_include_directories(client_core_tests PRIVATE
