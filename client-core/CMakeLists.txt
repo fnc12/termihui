@@ -146,6 +146,7 @@ if(TARGET Catch2::Catch2WithMain)
     set(TEST_SOURCES
         tests/test_main.cpp
         tests/test_client_core_controller.cpp
+        tests/test_client_storage.cpp
         tests/ClientCoreControllerTestable.cpp
     )
 

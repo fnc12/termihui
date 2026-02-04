@@ -443,8 +443,8 @@ std::string ClientCoreController::handleCopyBlock(std::optional<uint64_t> comman
     
     // Get command block from SQLite
     std::optional<CommandBlock> block;
-    if (commandId) {
-        block = this->clientStorage->getByCommandId(*commandId);
+    if (commandId && this->activeSessionId != 0) {
+        block = this->clientStorage->getByCommandId(*commandId, this->activeSessionId);
     } else if (this->activeSessionId != 0) {
         block = this->clientStorage->getLastBlock(this->activeSessionId);
     }

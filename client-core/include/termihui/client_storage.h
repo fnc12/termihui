@@ -75,8 +75,8 @@ public:
     /// Get command block by local ID
     std::optional<CommandBlock> getByLocalId(int64_t localId);
     
-    /// Get command block by server command ID
-    std::optional<CommandBlock> getByCommandId(uint64_t commandId);
+    /// Get command block by server command ID and session ID
+    std::optional<CommandBlock> getByCommandId(uint64_t commandId, uint64_t sessionId);
     
     /// Get last (most recent) command block for session
     std::optional<CommandBlock> getLastBlock(uint64_t sessionId);

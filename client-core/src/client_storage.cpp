@@ -77,9 +77,9 @@ std::optional<CommandBlock> ClientStorage::getByLocalId(int64_t localId) {
     return std::nullopt;
 }
 
-std::optional<CommandBlock> ClientStorage::getByCommandId(uint64_t commandId) {
+std::optional<CommandBlock> ClientStorage::getByCommandId(uint64_t commandId, uint64_t sessionId) {
     auto results = storage.get_all<CommandBlock>(
-        where(c(&CommandBlock::commandId) == commandId)
+        where(c(&CommandBlock::commandId) == commandId && c(&CommandBlock::sessionId) == sessionId)
     );
     if (!results.empty()) {
         return results[0];
