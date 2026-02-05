@@ -40,7 +40,7 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     private let scrollView = NSScrollView()
     private let tableView = NSTableView()
     private let inputContainerView = NSView()
-    private let inputTextField = NSTextField()
+    private let inputTextField = ChatInputTextField()
     private let sendButton = NSButton()
     private let noProvidersView = NSView()
     private let addProviderButton = NSButton()
@@ -241,8 +241,17 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
         inputTextField.focusRingType = .none
         inputTextField.isBordered = true
         inputTextField.bezelStyle = .roundedBezel
-        inputTextField.target = self
-        inputTextField.action = #selector(sendMessage)
+        inputTextField.onSendMessage = { [weak self] in
+            self?.sendMessage()
+        }
+        inputTextField.onHeightChanged = { [weak self] _ in
+            guard let self = self else { return }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.allowsImplicitAnimation = true
+                self.view.layoutSubtreeIfNeeded()
+            }
+        }
         inputContainerView.addSubview(inputTextField)
         
         // Send button
