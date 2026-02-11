@@ -14,7 +14,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     var collectionView = NSCollectionView()
     let collectionLayout = NSCollectionViewFlowLayout()
     
-    private let inputContainerView = NSView()
+    let inputContainerView = NSView()
     private let cwdLabel = NSTextField(labelWithString: "")
     let commandTextField = TabHandlingTextField()
     private let sendButton = NSButton(title: "Send", target: nil, action: nil)
@@ -511,19 +511,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.center.equalToSuperview()
         }
         
-        // Terminal view - fills space from toolbar to input
-        terminalScrollView.snp.makeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
-            make.leading.trailing.equalToSuperview()
-            make.height.greaterThanOrEqualTo(200)
-        }
-        
-        // Store constraint for dynamic changes in raw mode
-        updateTerminalBottomConstraint(isRawMode: false)
-        
-        // print("🔧 Terminal constraints set with minimum height 200")
-        
-        // Input container - dynamic height
+        // Input container - dynamic height (MUST be constrained BEFORE terminalScrollView
+        // references inputContainerView.snp.top, otherwise the constraint won't work correctly)
         inputContainerView.snp.makeConstraints { make in
             make.leading.trailing.equalToSuperview()
             make.bottom.equalToSuperview()
@@ -558,6 +547,16 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.trailing.equalTo(commandTextField.snp.trailing)
             make.bottom.equalTo(commandTextField.snp.bottom).offset(2)
             make.height.equalTo(1)
+        }
+        
+        // Terminal view - fills space from toolbar to input
+        // NOTE: This must come AFTER inputContainerView constraints are set,
+        // because we reference inputContainerView.snp.top
+        terminalScrollView.snp.makeConstraints { make in
+            make.top.equalTo(topToolbarView.snp.bottom)
+            make.leading.trailing.equalToSuperview()
+            make.height.greaterThanOrEqualTo(200)
+            make.bottom.equalTo(inputContainerView.snp.top)
         }
         
         // print("🔧 setupLayout completed: all constraints set")

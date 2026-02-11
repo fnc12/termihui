@@ -8,6 +8,8 @@
 #include "hv/hlog.h"
 #include <cstring>
 #include <string_view>
+#include <thread>
+#include <chrono>
 
 void printUsage(std::string_view programName) {
     fmt::print("Usage: {} [options]\n", programName);
@@ -87,7 +89,8 @@ int main(int argc, char* argv[])
     // Main server loop
     while (!termihuiServerController.shouldStop()) {
         termihuiServerController.update();
-                }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
     
     fmt::print("\n=== Server shutdown ===\n");
     termihuiServerController.stop();
