@@ -132,15 +132,27 @@ uint64_t ServerStorageImpl::addLLMProvider(const std::string& name, const std::s
 void ServerStorageImpl::updateLLMProvider(uint64_t id, const std::string& name,
                                        const std::string& url, const std::string& model,
                                        const std::string& apiKey) {
-    this->storage.update_all(
-        set(
-            c(&LLMProvider::name) = name,
-            c(&LLMProvider::url) = url,
-            c(&LLMProvider::model) = model,
-            c(&LLMProvider::apiKey) = apiKey
-        ),
-        where(c(&LLMProvider::id) == id)
-    );
+    if (apiKey.empty()) {
+        // Empty apiKey means "keep current" — don't overwrite
+        this->storage.update_all(
+            set(
+                c(&LLMProvider::name) = name,
+                c(&LLMProvider::url) = url,
+                c(&LLMProvider::model) = model
+            ),
+            where(c(&LLMProvider::id) == id)
+        );
+    } else {
+        this->storage.update_all(
+            set(
+                c(&LLMProvider::name) = name,
+                c(&LLMProvider::url) = url,
+                c(&LLMProvider::model) = model,
+                c(&LLMProvider::apiKey) = apiKey
+            ),
+            where(c(&LLMProvider::id) == id)
+        );
+    }
 }
 
 void ServerStorageImpl::deleteLLMProvider(uint64_t id) {

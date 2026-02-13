@@ -4,6 +4,7 @@ import SnapKit
 protocol ChatViewControllerDelegate: AnyObject {
     func chatViewController(_ controller: ChatViewController, didSendMessage message: String, withProviderId providerId: UInt64)
     func chatViewControllerDidRequestProviders(_ controller: ChatViewController)
+    func chatViewControllerDidRequestManageProviders(_ controller: ChatViewController)
     func chatViewControllerDidRequestChatHistory(_ controller: ChatViewController, forSession sessionId: UInt64)
     func chatViewControllerDidClose(_ controller: ChatViewController)
 }
@@ -75,14 +76,20 @@ class ChatViewController: UIViewController {
         // Use standard (not large) title
         navigationItem.largeTitleDisplayMode = .never
         
-        // Terminal button in nav bar (right side)
+        // Right bar buttons: settings + terminal
+        let settingsButton = UIBarButtonItem(
+            image: UIImage(systemName: "gearshape"),
+            style: .plain,
+            target: self,
+            action: #selector(settingsTapped)
+        )
         let terminalButton = UIBarButtonItem(
             image: UIImage(systemName: "terminal"),
             style: .plain,
             target: self,
             action: #selector(backToTerminalTapped)
         )
-        navigationItem.rightBarButtonItem = terminalButton
+        navigationItem.rightBarButtonItems = [terminalButton, settingsButton]
         
         // Provider button (tappable header below nav bar)
         setupProviderButton()
@@ -269,6 +276,10 @@ class ChatViewController: UIViewController {
         navigationController?.popViewController(animated: true)
     }
     
+    @objc private func settingsTapped() {
+        delegate?.chatViewControllerDidRequestManageProviders(self)
+    }
+    
     @objc private func providerButtonTapped() {
         guard !providers.isEmpty else { return }
         
@@ -301,6 +312,11 @@ class ChatViewController: UIViewController {
     }
     
     // MARK: - Public API
+    
+    /// Current list of providers
+    var currentProviders: [LLMProvider] {
+        return providers
+    }
     
     /// Update providers list
     func updateProviders(_ newProviders: [LLMProvider]) {

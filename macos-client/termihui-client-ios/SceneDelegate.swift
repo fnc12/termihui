@@ -19,6 +19,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var sessionListVC: SessionListViewController?
     var terminalVC: TerminalViewController?
     var _chatVC: ChatViewController?  // Cached chat VC for session
+    var _llmProvidersVC: LLMProvidersViewController?  // Currently open providers VC
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }

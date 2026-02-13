@@ -22,6 +22,8 @@
 		EC6AAE482F162069007CB410 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73072F1585A10050750B /* ChatMessage.swift */; };
 		EC6AAE492F162069007CB410 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4E73082F1585A10050750B /* LLMProvider.swift */; };
 		EC6AB0AD2F16A154007CB410 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC6AB0AC2F16A154007CB410 /* SnapKit */; };
+		ECAABB012F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECAABB002F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift */; };
+		ECAABB022F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECAABB002F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +71,7 @@
 		ECA742E32F142C3300B74D3D /* termihui-client-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "termihui-client-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECA742F82F142C3500B74D3D /* termihui-client-iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECA743022F142C3500B74D3D /* termihui-client-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "termihui-client-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECAABB002F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProvidersViewControllerDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -210,6 +213,7 @@
 				EC4E73072F1585A10050750B /* ChatMessage.swift */,
 				EC4E73022F1585A10050750B /* ClientCoreWrapper.swift */,
 				EC4E73082F1585A10050750B /* LLMProvider.swift */,
+				ECAABB002F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift */,
 				EC4E73032F1585A10050750B /* SessionInfo.swift */,
 			);
 			path = Shared;
@@ -513,6 +517,7 @@
 				EC4E73062F1585A10050750B /* AppState.swift in Sources */,
 				EC6AAE482F162069007CB410 /* ChatMessage.swift in Sources */,
 				EC6AAE492F162069007CB410 /* LLMProvider.swift in Sources */,
+				ECAABB022F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -540,6 +545,7 @@
 				EC4E730C2F1585A10050750B /* SessionInfo.swift in Sources */,
 				EC4E730D2F1585A10050750B /* ChatMessage.swift in Sources */,
 				EC4E730E2F1585A10050750B /* LLMProvider.swift in Sources */,
+				ECAABB012F200000005C4C31 /* LLMProvidersViewControllerDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

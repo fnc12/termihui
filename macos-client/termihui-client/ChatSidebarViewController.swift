@@ -302,11 +302,11 @@ final class ChatSidebarViewControllerImpl: NSViewController, ChatSidebarViewCont
     }
     
     @objc private func settingsButtonClicked() {
-        delegate?.chatSidebarViewControllerDidRequestAddProvider(self)
+        delegate?.chatSidebarViewControllerDidRequestManageProviders(self)
     }
     
     @objc private func addProviderButtonClicked() {
-        delegate?.chatSidebarViewControllerDidRequestAddProvider(self)
+        delegate?.chatSidebarViewControllerDidRequestManageProviders(self)
     }
     
     @objc private func providerSelectionChanged() {

@@ -38,6 +38,14 @@ extension SceneDelegate: ChatViewControllerDelegate {
         clientCore?.send(["type": "list_llm_providers"])
     }
     
+    func chatViewControllerDidRequestManageProviders(_ controller: ChatViewController) {
+        print("⚙️ Opening LLM providers management")
+        let providersVC = LLMProvidersViewController(providers: controller.currentProviders)
+        providersVC.delegate = self
+        self._llmProvidersVC = providersVC
+        navigationController?.pushViewController(providersVC, animated: true)
+    }
+    
     func chatViewControllerDidRequestChatHistory(_ controller: ChatViewController, forSession sessionId: UInt64) {
         clientCore?.send([
             "type": "get_chat_history",
@@ -108,6 +116,7 @@ extension SceneDelegate {
                     let jsonData = try JSONSerialization.data(withJSONObject: providersData)
                     let providers = try JSONDecoder().decode([LLMProvider].self, from: jsonData)
                     chatVC?.updateProviders(providers)
+                    _llmProvidersVC?.updateProviders(providers)
                 } catch {
                     print("❌ [llm_providers_list] decode error: \(error)")
                 }

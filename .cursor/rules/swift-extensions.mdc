@@ -1,0 +1,28 @@
+---
+description: Swift extensions should always be placed in separate files
+globs: "**/*.swift"
+alwaysApply: false
+---
+
+# Swift Extensions Convention
+
+Protocol conformance extensions for a class **must** live in a separate file named `ClassName+ProtocolName.swift`.
+
+```swift
+// ❌ BAD — extension in the same file as the class
+// MyViewController.swift
+class MyViewController: NSViewController { ... }
+
+extension MyViewController: NSTableViewDataSource { ... }
+extension MyViewController: NSTableViewDelegate { ... }
+
+// ✅ GOOD — extensions in separate files
+// MyViewController.swift
+class MyViewController: NSViewController { ... }
+
+// MyViewController+TableView.swift
+extension MyViewController: NSTableViewDataSource { ... }
+extension MyViewController: NSTableViewDelegate { ... }
+```
+
+If one file already contains an extension for `ClassName`, add new extensions for the same class to a **new** `+Topic` file rather than appending to the existing one, unless they are closely related (e.g. DataSource + Delegate for the same table).

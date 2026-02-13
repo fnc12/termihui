@@ -33,6 +33,10 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }()
     private var isChatSidebarVisible = false
     
+    // LLM providers management
+    var cachedProviders: [LLMProvider] = []
+    weak var llmProvidersVC: LLMProvidersViewController?
+    
     // Cached session data (applied when sidebar is created)
     var cachedSessions: [SessionInfo] = []
     var cachedActiveSessionId: UInt64 = 0
@@ -807,7 +811,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     
     /// Update LLM providers
     func updateLLMProviders(_ providers: [LLMProvider]) {
+        cachedProviders = providers
         chatSidebarController.updateProviders(providers)
+        llmProvidersVC?.updateProviders(providers)
     }
     
     /// Load chat history from server
