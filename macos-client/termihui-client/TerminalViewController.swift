@@ -100,6 +100,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Raw Input Mode (when command is running)
     var isCommandRunning: Bool = false
     
+    // MARK: - Titlebar Accessory (toolbar in titlebar for fullscreen menu bar support)
+    private var titlebarAccessoryVC: NSTitlebarAccessoryViewController?
+    
     // MARK: - Interactive Mode (full terminal emulation)
     var isInteractiveMode: Bool = false
     private var interactiveTextView: NSTextView?
@@ -131,6 +134,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     override func viewDidAppear() {
         super.viewDidAppear()
         
+        // Add toolbar to window titlebar area (slides with menu bar in fullscreen)
+        setupTitlebarAccessory()
+        
         // Force update parent view layout
         view.superview?.layoutSubtreeIfNeeded()
         view.layoutSubtreeIfNeeded()
@@ -143,6 +149,39 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             // Set focus on command input field
             self.view.window?.makeFirstResponder(self.commandTextField)
         }
+    }
+    
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        removeTitlebarAccessory()
+    }
+    
+    // MARK: - Titlebar Accessory
+    
+    /// Adds topToolbarView as a NSTitlebarAccessoryViewController to the window.
+    /// This makes the toolbar automatically slide down with the menu bar in fullscreen mode.
+    private func setupTitlebarAccessory() {
+        guard titlebarAccessoryVC == nil, let window = view.window else { return }
+        
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.view = topToolbarView
+        accessory.layoutAttribute = .bottom
+        accessory.fullScreenMinHeight = 36  // Keep toolbar visible in fullscreen, slides down with menu bar
+        
+        window.addTitlebarAccessoryViewController(accessory)
+        titlebarAccessoryVC = accessory
+    }
+    
+    /// Removes toolbar accessory from window (called when terminal VC is removed)
+    private func removeTitlebarAccessory() {
+        guard let accessory = titlebarAccessoryVC, let window = view.window else {
+            titlebarAccessoryVC = nil
+            return
+        }
+        if let index = window.titlebarAccessoryViewControllers.firstIndex(of: accessory) {
+            window.removeTitlebarAccessoryViewController(at: index)
+        }
+        titlebarAccessoryVC = nil
     }
     
     override func viewDidLayout() {
@@ -235,7 +274,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Add main views
         view.addSubview(terminalScrollView)
         view.addSubview(inputContainerView)
-        view.addSubview(topToolbarView) // Toolbar on top (last = front)
+        // NOTE: topToolbarView is added via NSTitlebarAccessoryViewController in viewDidAppear
+        // This makes it slide down with the menu bar in fullscreen mode
         
         // NOTE: Sidebar is created lazily on first toggle to prevent flash on startup
     }
@@ -313,7 +353,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Position sidebar
         controller.view.snp.makeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
+            make.top.equalToSuperview()
             make.bottom.equalToSuperview()
             make.leading.equalToSuperview()
             make.width.equalToSuperview().multipliedBy(0.33)
@@ -489,9 +529,8 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         // Force layout update before setting constraints
         view.layoutSubtreeIfNeeded()
         
-        // Top toolbar
+        // Toolbar height (positioning managed by NSTitlebarAccessoryViewController)
         topToolbarView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview()
             make.height.equalTo(36)
         }
         
@@ -549,11 +588,11 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
             make.height.equalTo(1)
         }
         
-        // Terminal view - fills space from toolbar to input
+        // Terminal view - fills space from top to input
         // NOTE: This must come AFTER inputContainerView constraints are set,
         // because we reference inputContainerView.snp.top
         terminalScrollView.snp.makeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
+            make.top.equalToSuperview()
             make.leading.trailing.equalToSuperview()
             make.height.greaterThanOrEqualTo(200)
             make.bottom.equalTo(inputContainerView.snp.top)
@@ -565,7 +604,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     /// Updates bottom constraint of command list depending on mode
     private func updateTerminalBottomConstraint(isRawMode: Bool) {
         terminalScrollView.snp.remakeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
+            make.top.equalToSuperview()
             make.leading.trailing.equalToSuperview()
             make.height.greaterThanOrEqualTo(200)
             
@@ -665,7 +704,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         // Position chat sidebar on the right
         chatSidebarController.view.snp.makeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
+            make.top.equalToSuperview()
             make.bottom.equalToSuperview()
             make.trailing.equalToSuperview()
             make.width.equalToSuperview().multipliedBy(0.35)
@@ -1071,9 +1110,9 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         
         view.addSubview(scrollView)
         
-        // Layout: fill entire area below toolbar
+        // Layout: fill entire view area
         scrollView.snp.makeConstraints { make in
-            make.top.equalTo(topToolbarView.snp.bottom)
+            make.top.equalToSuperview()
             make.leading.trailing.bottom.equalToSuperview()
         }
         
