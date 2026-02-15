@@ -85,3 +85,15 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Run iOS Client tests
+        if: runner.os == 'macOS'
+        run: |
+          xcodebuild test \
+            -project macos-client/termihui-client.xcodeproj \
+            -scheme termihui-client-ios \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -only-testing:termihui-client-iosTests \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
