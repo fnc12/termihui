@@ -1,0 +1,45 @@
+---
+description: Swift unit test conventions — file organization and test structure
+globs: **/*Tests*/**/*.swift
+alwaysApply: false
+---
+
+# Swift Test Conventions
+
+## File Organization
+
+- **Testable subclasses** (e.g. `TestableChatViewController`) — always in a separate file, one per file
+- **Mock classes** (e.g. `MockChatViewControllerDelegate`) — always in a separate file, one per file
+- **Test classes** — in their own file, contain only test logic
+
+```
+termihui-client-iosTests/
+  TestableChatViewController.swift   # testable subclass
+  MockChatViewControllerDelegate.swift  # mock
+  ChatViewControllerTests.swift      # tests only
+```
+
+## Parameterized Tests
+
+When testing the same function with multiple inputs, use a single test function with a `TestCase` struct array instead of separate test functions:
+
+```swift
+func testSendCurrentMessage() {
+    struct TestCase: CustomStringConvertible {
+        let description: String
+        let text: String?
+        let providerId: UInt64
+        let expectedResult: ChatViewController.SendCurrentMessageResult
+        // ... expected side effects
+    }
+
+    let testCases: [TestCase] = [
+        TestCase(description: "nil text", text: nil, ...),
+        TestCase(description: "valid input", text: "Hello", ...),
+    ]
+
+    for tc in testCases {
+        // reset state, run, assert
+    }
+}
+```

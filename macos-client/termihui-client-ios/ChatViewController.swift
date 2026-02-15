@@ -12,13 +12,21 @@ protocol ChatViewControllerDelegate: AnyObject {
 /// AI Chat screen for iOS
 class ChatViewController: UIViewController {
     
+    // MARK: - Types
+    
+    nonisolated enum SendCurrentMessageResult: Equatable {
+        case textIsEmpty
+        case noProviderError
+        case ok
+    }
+    
     // MARK: - Properties
     var sessionId: UInt64 = 0
     weak var delegate: ChatViewControllerDelegate?
     
     private var messages: [ChatMessage] = []
     private var providers: [LLMProvider] = []
-    private var selectedProviderId: UInt64 = 0
+    var selectedProviderId: UInt64 = 0
     private var isLoadingHistory = false
     private var historyLoadedForSession: UInt64 = 0
     
@@ -26,7 +34,7 @@ class ChatViewController: UIViewController {
     private let providerButton = UIButton(type: .system)
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let inputContainerView = UIView()
-    private let inputTextField = UITextField()
+    let inputTextField = UITextField()
     private let sendButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .medium)
     private let noProvidersView = UIView()
@@ -308,7 +316,9 @@ class ChatViewController: UIViewController {
     }
     
     @objc private func sendButtonTapped() {
-        sendCurrentMessage()
+        if sendCurrentMessage() == .noProviderError {
+            showError("No LLM provider selected")
+        }
     }
     
     // MARK: - Public API
@@ -487,13 +497,13 @@ class ChatViewController: UIViewController {
         return messages[index]
     }
     
-    func sendCurrentMessage() {
+    @discardableResult
+    func sendCurrentMessage() -> SendCurrentMessageResult {
         guard let text = inputTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else { return }
+              !text.isEmpty else { return .textIsEmpty }
         
         guard selectedProviderId != 0 else {
-            showError("No LLM provider selected")
-            return
+            return .noProviderError
         }
         
         // Add user message to UI
@@ -504,5 +514,7 @@ class ChatViewController: UIViewController {
         
         // Send to server
         delegate?.chatViewController(self, didSendMessage: text, withProviderId: selectedProviderId)
+        
+        return .ok
     }
 }

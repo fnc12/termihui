@@ -27,7 +27,9 @@ extension ChatViewController: UITableViewDelegate {
 
 extension ChatViewController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        sendCurrentMessage()
+        if sendCurrentMessage() == .noProviderError {
+            showError("No LLM provider selected")
+        }
         return false
     }
 }

@@ -1,10 +1,3 @@
-//
-//  termihui_client_iosTests.swift
-//  termihui-client-iosTests
-//
-//  Created by Yevgeniy Zakharov on 12.01.2026.
-//
-
 import XCTest
 @testable import termihui_client_ios
 
