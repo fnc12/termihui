@@ -395,11 +395,13 @@ void from_json(const json& j, ErrorMessage& message) {
 
 void to_json(json& j, const OutputMessage& message) {
     j["type"] = OutputMessage::type;
+    j["session_id"] = message.sessionId;
     j["segments"] = message.segments;
 }
 
 void from_json(const json& j, OutputMessage& message) {
     j.at("segments").get_to(message.segments);
+    if (auto it = j.find("session_id"); it != j.end()) it->get_to(message.sessionId);
 }
 
 void to_json(json& j, const StatusMessage& message) {
@@ -537,7 +539,7 @@ void from_json(const json& j, HistoryMessage& message) {
 }
 
 void to_json(json& j, const CommandStartMessage& message) {
-    j = json{{"type", CommandStartMessage::type}};
+    j = json{{"type", CommandStartMessage::type}, {"session_id", message.sessionId}};
     if (message.cwd) {
         j["cwd"] = *message.cwd;
     }
@@ -552,6 +554,7 @@ void from_json(const json& j, CommandStartMessage& message) {
 void to_json(json& j, const CommandEndMessage& message) {
     j = json{
         {"type", CommandEndMessage::type},
+        {"session_id", message.sessionId},
         {"exit_code", message.exitCode}
     };
     if (message.cwd) {
@@ -566,20 +569,20 @@ void from_json(const json& j, CommandEndMessage& message) {
     }
 }
 
-void to_json(json& j, const PromptStartMessage&) {
-    j = json{{"type", PromptStartMessage::type}};
+void to_json(json& j, const PromptStartMessage& message) {
+    j = json{{"type", PromptStartMessage::type}, {"session_id", message.sessionId}};
 }
 
-void from_json(const json&, PromptStartMessage&) {
-    // No fields
+void from_json(const json& j, PromptStartMessage& message) {
+    if (auto it = j.find("session_id"); it != j.end()) it->get_to(message.sessionId);
 }
 
-void to_json(json& j, const PromptEndMessage&) {
-    j = json{{"type", PromptEndMessage::type}};
+void to_json(json& j, const PromptEndMessage& message) {
+    j = json{{"type", PromptEndMessage::type}, {"session_id", message.sessionId}};
 }
 
-void from_json(const json&, PromptEndMessage&) {
-    // No fields
+void from_json(const json& j, PromptEndMessage& message) {
+    if (auto it = j.find("session_id"); it != j.end()) it->get_to(message.sessionId);
 }
 
 void to_json(json& j, const CwdUpdateMessage& message) {
@@ -647,6 +650,22 @@ void to_json(json& j, const ScreenDiffMessage& message) {
 }
 
 void from_json(const json& j, ScreenDiffMessage& message) {
+    j.at("cursor_row").get_to(message.cursorRow);
+    j.at("cursor_column").get_to(message.cursorColumn);
+    j.at("updates").get_to(message.updates);
+}
+
+void to_json(json& j, const BlockScreenUpdateMessage& message) {
+    j = json{
+        {"type", BlockScreenUpdateMessage::type},
+        {"session_id", message.sessionId},
+        {"cursor_row", message.cursorRow},
+        {"cursor_column", message.cursorColumn},
+        {"updates", message.updates}
+    };
+}
+
+void from_json(const json& j, BlockScreenUpdateMessage& message) {
     j.at("cursor_row").get_to(message.cursorRow);
     j.at("cursor_column").get_to(message.cursorColumn);
     j.at("updates").get_to(message.updates);
@@ -943,6 +962,7 @@ std::string serialize(const InteractiveModeStartMessage& message) { return seria
 std::string serialize(const ScreenSnapshotMessage& message) { return serializeImpl(message); }
 std::string serialize(const ScreenDiffMessage& message) { return serializeImpl(message); }
 std::string serialize(const InteractiveModeEndMessage& message) { return serializeImpl(message); }
+std::string serialize(const BlockScreenUpdateMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChatMessage& message) { return serializeImpl(message); }
 std::string serialize(const GetChatHistoryMessage& message) { return serializeImpl(message); }
 std::string serialize(const AIChunkMessage& message) { return serializeImpl(message); }

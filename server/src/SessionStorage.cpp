@@ -54,17 +54,33 @@ std::vector<SessionCommand> SessionStorage::getAllCommands() {
     return this->storage.get_all<SessionCommand>(order_by(&SessionCommand::id));
 }
 
+void SessionStorage::addOutputLine(uint64_t commandId, std::string segmentsJson) {
+    auto maxOrder = this->storage.max(&CommandOutputLine::lineOrder,
+        where(c(&CommandOutputLine::commandId) == commandId));
+    uint64_t nextOrder = maxOrder ? static_cast<uint64_t>(*maxOrder) + 1 : 0;
+    
+    CommandOutputLine line;
+    line.commandId = commandId;
+    line.lineOrder = nextOrder;
+    line.segmentsJson = std::move(segmentsJson);
+    this->storage.insert(line);
+}
+
+std::vector<std::string> SessionStorage::getOutputLines(uint64_t commandId) {
+    return this->storage.select(&CommandOutputLine::segmentsJson,
+        where(c(&CommandOutputLine::commandId) == commandId),
+        order_by(&CommandOutputLine::lineOrder));
+}
+
 std::optional<std::string> SessionStorage::getLastCwd() {
-    // Get last finished command with non-empty cwdEnd
-    auto commands = this->storage.get_all<SessionCommand>(
+    auto results = this->storage.select(&SessionCommand::cwdEnd,
         where(c(&SessionCommand::isFinished) == true and length(&SessionCommand::cwdEnd) > 0),
         order_by(&SessionCommand::id).desc(),
-        limit(1)
-    );
+        limit(1));
     
-    if (commands.empty()) {
+    if (results.empty()) {
         return std::nullopt;
     }
     
-    return commands[0].cwdEnd;
+    return results[0];
 }

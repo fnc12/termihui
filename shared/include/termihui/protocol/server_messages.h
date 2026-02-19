@@ -27,6 +27,7 @@ struct ErrorMessage {
 };
 
 struct OutputMessage {
+    uint64_t sessionId = 0;
     std::vector<StyledSegment> segments;
     
     static constexpr const char* type = "output";
@@ -101,12 +102,14 @@ struct HistoryMessage {
 };
 
 struct CommandStartMessage {
+    uint64_t sessionId = 0;
     std::optional<std::string> cwd;
     
     static constexpr const char* type = "command_start";
 };
 
 struct CommandEndMessage {
+    uint64_t sessionId = 0;
     int exitCode;
     std::optional<std::string> cwd;
     
@@ -114,10 +117,12 @@ struct CommandEndMessage {
 };
 
 struct PromptStartMessage {
+    uint64_t sessionId = 0;
     static constexpr const char* type = "prompt_start";
 };
 
 struct PromptEndMessage {
+    uint64_t sessionId = 0;
     static constexpr const char* type = "prompt_end";
 };
 
@@ -176,6 +181,19 @@ struct ScreenDiffMessage {
  */
 struct InteractiveModeEndMessage {
     static constexpr const char* type = "interactive_mode_end";
+};
+
+/**
+ * Block mode active screen update (rows that may be overwritten by \r progress)
+ * Uses the same ScreenRowUpdate format as interactive mode diffs.
+ */
+struct BlockScreenUpdateMessage {
+    uint64_t sessionId = 0;
+    size_t cursorRow;
+    size_t cursorColumn;
+    std::vector<ScreenRowUpdate> updates;
+    
+    static constexpr const char* type = "block_screen_update";
 };
 
 // ============================================================================
@@ -281,6 +299,7 @@ using ServerMessage = std::variant<
     ScreenSnapshotMessage,
     ScreenDiffMessage,
     InteractiveModeEndMessage,
+    BlockScreenUpdateMessage,
     AIChunkMessage,
     AIDoneMessage,
     AIErrorMessage,

@@ -115,9 +115,27 @@ class CommandBlockCell: UITableViewCell {
             commandLabel.isHidden = true
         }
         
-        // Output
-        if !block.segments.isEmpty {
-            outputTextView.attributedText = attributedString(from: block.segments)
+        // Output: committed segments + active screen lines
+        let hasCommitted = !block.segments.isEmpty
+        let hasActive = !block.activeScreenLines.isEmpty && block.activeScreenLines.contains { !$0.isEmpty }
+        
+        if hasCommitted || hasActive {
+            let result = NSMutableAttributedString()
+            
+            if hasCommitted {
+                result.append(attributedString(from: block.segments))
+            }
+            
+            if hasActive {
+                for (i, line) in block.activeScreenLines.enumerated() where !line.isEmpty {
+                    if result.length > 0 || i > 0 {
+                        result.append(NSAttributedString(string: "\n"))
+                    }
+                    result.append(attributedString(from: line))
+                }
+            }
+            
+            outputTextView.attributedText = result
             outputTextView.isHidden = false
         } else {
             outputTextView.attributedText = nil

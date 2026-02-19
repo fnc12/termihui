@@ -218,6 +218,16 @@ public:
     bool isInInteractiveMode() const { return this->interactiveMode; }
     
     /**
+     * Get current command ID (for storage operations)
+     */
+    uint64_t getCurrentCommandId() const { return this->currentCommandId; }
+    
+    /**
+     * Get session storage (for direct output line storage)
+     */
+    SessionStorage& getSessionStorage() { return this->sessionStorage; }
+    
+    /**
      * Set interactive mode state
      * @param enabled true to enable, false to disable
      */

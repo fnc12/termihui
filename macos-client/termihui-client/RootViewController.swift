@@ -253,12 +253,12 @@ class RootViewController: NSViewController {
             }
             
         case "output":
+            guard isActiveSession(messageDict) else { break }
             // New format: segments array from C++ ANSI parser
             if let segmentsData = messageDict["segments"] {
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: segmentsData)
                     let segments = try JSONDecoder().decode([StyledSegment].self, from: jsonData)
-                    print("📺 Output: \(segments.count) segments")
                     terminalViewController.appendStyledOutput(segments)
                 } catch {
                     print("❌ Failed to decode segments: \(error)")
@@ -266,10 +266,7 @@ class RootViewController: NSViewController {
             }
             // Fallback: raw data (for backward compatibility)
             else if let outputData = messageDict["data"] as? String {
-                print("📺 Output (raw): \(outputData.prefix(50))...")
                 terminalViewController.appendOutput(outputData)
-            } else {
-                print("❌ output missing 'segments' or 'data': \(messageDict)")
             }
             
         case "status":
@@ -284,15 +281,15 @@ class RootViewController: NSViewController {
             }
             
         case "command_start":
+            guard isActiveSession(messageDict) else { break }
             let cwd = messageDict["cwd"] as? String
             let command = messageDict["command"] as? String
-            print("▶️ Command start: '\(command ?? "nil")', cwd=\(cwd ?? "nil")")
             terminalViewController.didStartCommandBlock(command: command, cwd: cwd)
             
         case "command_end":
+            guard isActiveSession(messageDict) else { break }
             let exitCode = messageDict["exit_code"] as? Int ?? 0
             let cwd = messageDict["cwd"] as? String
-            print("🏁 Command end, exitCode=\(exitCode), cwd=\(cwd ?? "nil")")
             terminalViewController.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
             
         case "history":
@@ -434,6 +431,10 @@ class RootViewController: NSViewController {
             }
             
         // MARK: - Interactive Mode Messages
+        case "block_screen_update":
+            guard isActiveSession(messageDict) else { break }
+            handleBlockScreenUpdate(messageDict)
+            
         case "interactive_mode_start":
             let rows = messageDict["rows"] as? Int ?? 24
             let columns = messageDict["columns"] as? Int ?? 80
@@ -480,6 +481,31 @@ class RootViewController: NSViewController {
             terminalViewController.handleScreenSnapshot(lines: lines, cursorRow: cursorRow, cursorColumn: cursorColumn)
         } catch {
             print("❌ Failed to decode screen_snapshot lines: \(error)")
+        }
+    }
+    
+    private func isActiveSession(_ messageDict: [String: Any]) -> Bool {
+        guard let sessionId = messageDict["session_id"] as? UInt64
+                ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) else {
+            return true // No session_id → legacy message, allow through
+        }
+        return sessionId == terminalViewController.cachedActiveSessionId
+    }
+    
+    private func handleBlockScreenUpdate(_ messageDict: [String: Any]) {
+        guard let updatesData = messageDict["updates"],
+              let cursorRow = messageDict["cursor_row"] as? Int,
+              let cursorColumn = messageDict["cursor_column"] as? Int else {
+            print("❌ block_screen_update missing fields")
+            return
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: updatesData)
+            let updates = try JSONDecoder().decode([ScreenRowUpdate].self, from: jsonData)
+            terminalViewController.handleBlockScreenUpdate(updates: updates, cursorRow: cursorRow, cursorColumn: cursorColumn)
+        } catch {
+            print("❌ Failed to decode block_screen_update: \(error)")
         }
     }
     
