@@ -21,7 +21,41 @@ static std::string makeExpectedOutputMessage(const std::string& text) {
         {"strikethrough", false}
     };
     json segment = {{"text", text}, {"style", defaultStyle}};
-    json message = {{"type", "output"}, {"segments", json::array({segment})}};
+    json message = {{"type", "output"}, {"session_id", 1}, {"segments", json::array({segment})}};
+    return message.dump();
+}
+
+// Helper to create expected block_screen_update message
+// rowTexts: vector of (row_index, text) pairs for rows with content
+static std::string makeExpectedBlockScreenUpdate(
+    size_t cursorRow, size_t cursorColumn,
+    std::vector<std::pair<size_t, std::string>> rowTexts)
+{
+    json defaultStyle = {
+        {"fg", nullptr},
+        {"bg", nullptr},
+        {"bold", false},
+        {"dim", false},
+        {"italic", false},
+        {"underline", false},
+        {"reverse", false},
+        {"strikethrough", false}
+    };
+    json updates = json::array();
+    for (const auto& [row, text] : rowTexts) {
+        json segments = json::array();
+        if (!text.empty()) {
+            segments.push_back({{"text", text}, {"style", defaultStyle}});
+        }
+        updates.push_back({{"row", row}, {"segments", segments}});
+    }
+    json message = {
+        {"type", "block_screen_update"},
+        {"session_id", 1},
+        {"cursor_row", cursorRow},
+        {"cursor_column", cursorColumn},
+        {"updates", updates}
+    };
     return message.dump();
 }
 
@@ -179,15 +213,16 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
         controller.processTerminalOutput(sessionMock);
     }
     
-    SECTION("plain text output - broadcasts and appends to history") {
+    SECTION("plain text output - broadcasts as block screen update") {
         sessionMock.readOutputReturnValues.push("hello world\r\n");
         controller.processTerminalOutput(sessionMock);
         
         expectedCalls = {
             SessionMock::AppendOutputToCurrentCommandCall{"hello world\r\n"}
         };
+        // VirtualScreen: "hello world" on row 0, cursor at row 1 col 0
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("hello world\r\n")}
+            WsMock::BroadcastMessageCall{makeExpectedBlockScreenUpdate(1, 0, {{0, "hello world"}})}
         };
     }
     
@@ -201,7 +236,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::StartCommandInHistoryCall{"/tmp"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/tmp"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"session_id", 1}, {"cwd", "/tmp"}}.dump()}
         };
     }
     
@@ -215,7 +250,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::FinishCurrentCommandCall{0, "/home"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/home"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"session_id", 1}, {"exit_code", 0}, {"cwd", "/home"}}.dump()}
         };
     }
     
@@ -229,7 +264,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::FinishCurrentCommandCall{127, "/tmp"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 127}, {"cwd", "/tmp"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"session_id", 1}, {"exit_code", 127}, {"cwd", "/tmp"}}.dump()}
         };
     }
     
@@ -250,9 +285,9 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::FinishCurrentCommandCall{0, "/Users/test"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/Users/test"}}.dump()},
-            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("/Users/test\r\n")},
-            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/Users/test"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"session_id", 1}, {"cwd", "/Users/test"}}.dump()},
+            WsMock::BroadcastMessageCall{makeExpectedBlockScreenUpdate(1, 0, {{0, "/Users/test"}})},
+            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"session_id", 1}, {"exit_code", 0}, {"cwd", "/Users/test"}}.dump()}
         };
     }
     
@@ -271,8 +306,8 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::FinishCurrentCommandCall{0, "/new/path"}
         };
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/old/path"}}.dump()},
-            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/new/path"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"session_id", 1}, {"cwd", "/old/path"}}.dump()},
+            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"session_id", 1}, {"exit_code", 0}, {"cwd", "/new/path"}}.dump()}
         };
     }
     
@@ -281,7 +316,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
         controller.processTerminalOutput(sessionMock);
         
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "prompt_start"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "prompt_start"}, {"session_id", 1}}.dump()}
         };
     }
     
@@ -290,7 +325,7 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
         controller.processTerminalOutput(sessionMock);
         
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "prompt_end"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "prompt_end"}, {"session_id", 1}}.dump()}
         };
     }
     
@@ -331,9 +366,9 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::AppendOutputToCurrentCommandCall{"text"},
             SessionMock::AppendOutputToCurrentCommandCall{"\x1b]133;A"}
         };
+        // "text" → row 0, cursor at col 4; incomplete OSC produces no visible output
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("text")},
-            WsMock::BroadcastMessageCall{json{{"type", "output"}, {"segments", json::array()}}.dump()}
+            WsMock::BroadcastMessageCall{makeExpectedBlockScreenUpdate(0, 4, {{0, "text"}})}
         };
     }
     
@@ -354,10 +389,11 @@ TEST_CASE("TermihuiServerController", "[processTerminalOutput]") {
             SessionMock::SetLastKnownCwdCall{"/tmp"},
             SessionMock::FinishCurrentCommandCall{0, "/tmp"}
         };
+        // VirtualScreen: "file1.txt" on row 0, "file2.txt" on row 1, cursor at row 2
         expectedWsCalls = {
-            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"cwd", "/tmp"}}.dump()},
-            WsMock::BroadcastMessageCall{makeExpectedOutputMessage("file1.txt\r\nfile2.txt\r\n")},
-            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"exit_code", 0}, {"cwd", "/tmp"}}.dump()}
+            WsMock::BroadcastMessageCall{json{{"type", "command_start"}, {"session_id", 1}, {"cwd", "/tmp"}}.dump()},
+            WsMock::BroadcastMessageCall{makeExpectedBlockScreenUpdate(2, 0, {{0, "file1.txt"}, {1, "file2.txt"}})},
+            WsMock::BroadcastMessageCall{json{{"type", "command_end"}, {"session_id", 1}, {"exit_code", 0}, {"cwd", "/tmp"}}.dump()}
         };
     }
     

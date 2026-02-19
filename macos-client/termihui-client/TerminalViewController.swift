@@ -63,15 +63,20 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     struct CommandBlock {
         var commandId: UInt64?  // Server command ID, nil for currently executing command
         var command: String?
-        var outputSegments: [StyledSegment]  // Pre-parsed styled segments from C++ core
+        var outputSegments: [StyledSegment]  // Committed output (scrolled-off lines)
         var isFinished: Bool
         var exitCode: Int?
         var cwdStart: String?   // cwd when command started
         var cwdEnd: String?     // cwd after command finished (can change, e.g. cd)
+        var activeScreenLines: [[StyledSegment]] = []  // Active VirtualScreen rows (may be overwritten by \r)
         
-        /// Plain text output (for history, search, etc.)
+        /// Plain text output (for height estimation, search, etc.)
         var outputText: String {
-            outputSegments.map { $0.text }.joined()
+            let committed = outputSegments.map { $0.text }.joined()
+            let active = activeScreenLines.map { row in row.map { $0.text }.joined() }.joined(separator: "\n")
+            if active.isEmpty { return committed }
+            if committed.isEmpty { return active }
+            return committed + "\n" + active
         }
     }
     var commandBlocks: [CommandBlock] = []
@@ -606,7 +611,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     }
     
     /// Updates bottom constraint of command list depending on mode
-    private func updateTerminalBottomConstraint(isRawMode: Bool) {
+    func updateTerminalBottomConstraint(isRawMode: Bool) {
         terminalScrollView.snp.remakeConstraints { make in
             make.top.equalToSuperview()
             make.leading.trailing.equalToSuperview()
@@ -889,6 +894,42 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
         }
     }
     
+    /// Move active screen lines into committed output segments (called on command_end)
+    func finalizeActiveScreenLines(blockIndex: Int) {
+        let activeLines = commandBlocks[blockIndex].activeScreenLines
+        for line in activeLines where !line.isEmpty {
+            // Add newline separator if there's already committed output
+            if !commandBlocks[blockIndex].outputSegments.isEmpty {
+                commandBlocks[blockIndex].outputSegments.append(
+                    StyledSegment(text: "\n", style: SegmentStyle()))
+            }
+            commandBlocks[blockIndex].outputSegments.append(contentsOf: line)
+        }
+        commandBlocks[blockIndex].activeScreenLines.removeAll()
+    }
+    
+    /// Handle block screen update (active terminal rows that may be overwritten by \r progress)
+    func handleBlockScreenUpdate(updates: [ScreenRowUpdate], cursorRow: Int, cursorColumn: Int) {
+        guard let idx = currentBlockIndex else { return }
+        
+        // Ensure activeScreenLines is large enough
+        let neededRows = cursorRow + 1
+        while commandBlocks[idx].activeScreenLines.count < neededRows {
+            commandBlocks[idx].activeScreenLines.append([])
+        }
+        
+        // Also ensure we have room for all update rows
+        for update in updates {
+            while commandBlocks[idx].activeScreenLines.count <= update.row {
+                commandBlocks[idx].activeScreenLines.append([])
+            }
+            commandBlocks[idx].activeScreenLines[update.row] = update.segments
+        }
+        
+        reloadBlock(at: idx)
+        rebuildGlobalDocument(startingAt: idx)
+    }
+    
     func showConnectionStatus(_ status: String) {
         // Status is now in window title
         if !serverAddress.isEmpty {
@@ -953,7 +994,7 @@ class TerminalViewController: NSViewController, NSGestureRecognizerDelegate {
     // MARK: - Raw Input Mode
     
     /// Counter to track animation state and prevent race conditions
-    private var rawModeAnimationCounter: Int = 0
+    var rawModeAnimationCounter: Int = 0
     
     /// Enters raw input mode when command starts executing
     func enterRawInputMode() {

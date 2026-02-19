@@ -9,6 +9,7 @@ struct CommandBlockModel {
     var exitCode: Int
     var cwdStart: String?
     var cwdEnd: String?
+    var activeScreenLines: [[StyledSegmentShared]] = []
     
     init(id: UInt64 = 0,
          command: String? = nil,

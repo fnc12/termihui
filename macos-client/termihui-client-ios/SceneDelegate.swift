@@ -181,6 +181,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             }
             
         case "output":
+            guard isActiveSession(messageDict) else { break }
             // New format: segments array from C++ ANSI parser
             if let segmentsData = messageDict["segments"] {
                 do {
@@ -208,16 +209,30 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 }
             }
             
+        case "block_screen_update":
+            guard isActiveSession(messageDict) else { break }
+            if let updatesData = messageDict["updates"],
+               let cursorRow = messageDict["cursor_row"] as? Int,
+               let cursorColumn = messageDict["cursor_column"] as? Int {
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: updatesData)
+                    let updates = try JSONDecoder().decode([ScreenRowUpdateShared].self, from: jsonData)
+                    terminalVC?.handleBlockScreenUpdate(updates: updates, cursorRow: cursorRow, cursorColumn: cursorColumn)
+                } catch {
+                    print("❌ Failed to decode block_screen_update: \(error)")
+                }
+            }
+            
         case "command_start":
+            guard isActiveSession(messageDict) else { break }
             let cwd = messageDict["cwd"] as? String
             let command = messageDict["command"] as? String
-            print("▶️ Command start: '\(command ?? "nil")', cwd=\(cwd ?? "nil")")
             terminalVC?.didStartCommandBlock(command: command, cwd: cwd)
             
         case "command_end":
+            guard isActiveSession(messageDict) else { break }
             let exitCode = messageDict["exit_code"] as? Int ?? 0
             let cwd = messageDict["cwd"] as? String
-            print("🏁 Command end, exitCode=\(exitCode), cwd=\(cwd ?? "nil")")
             terminalVC?.didFinishCommandBlock(exitCode: exitCode, cwd: cwd)
             // Update cwd display if it changed (e.g., after cd)
             if let newCwd = cwd {
@@ -235,6 +250,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 showError(message)
             }
             
+        case "prompt_start", "prompt_end":
+            break
+            
         default:
             // Try AI message handling
             print("🔄 Trying AI message handling for: \(messageType)")
@@ -242,6 +260,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 print("⚠️ Unhandled message type: \(messageType)")
             }
         }
+    }
+    
+    private func isActiveSession(_ messageDict: [String: Any]) -> Bool {
+        guard let sessionId = messageDict["session_id"] as? UInt64
+                ?? (messageDict["session_id"] as? Int).map({ UInt64($0) }) else {
+            return true
+        }
+        return sessionId == terminalVC?.sessionId ?? 0
     }
     
     private func handleDisconnected() {

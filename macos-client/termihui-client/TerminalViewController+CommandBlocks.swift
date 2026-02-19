@@ -40,6 +40,9 @@ extension TerminalViewController {
     func didFinishCommandBlock(exitCode: Int, cwd: String? = nil) {
         // print("🏁 Finished command block (exit=\(exitCode)), cwd: \(cwd ?? "<unknown>")")
         if let idx = currentBlockIndex {
+            // Finalize active screen lines → committed output
+            finalizeActiveScreenLines(blockIndex: idx)
+            
             commandBlocks[idx].isFinished = true
             commandBlocks[idx].exitCode = exitCode
             commandBlocks[idx].cwdEnd = cwd
@@ -59,6 +62,14 @@ extension TerminalViewController {
     /// Loads command history from server
     func loadHistory(_ history: [CommandHistoryRecord]) {
         // print("📜 Loading history: \(history.count) commands")
+        
+        // Reset raw mode layout without first responder changes
+        // (exitRawInputMode/enterRawInputMode cause hangs during sidebar animation)
+        isCommandRunning = false
+        rawModeAnimationCounter += 1
+        updateTerminalBottomConstraint(isRawMode: false)
+        inputContainerView.isHidden = false
+        inputContainerView.alphaValue = 1
         
         // Clear current state
         commandBlocks.removeAll()
@@ -88,11 +99,12 @@ extension TerminalViewController {
             rebuildGlobalDocument(startingAt: 0)
             
             // Check if last block is unfinished (running command)
-            // If so, set currentBlockIndex to continue appending output to it
-            // NOTE: Don't enter raw mode here - wait for server signal (interactive_mode_start or output)
             if let lastIndex = commandBlocks.indices.last, !commandBlocks[lastIndex].isFinished {
                 currentBlockIndex = lastIndex
-                // print("📜 Resuming unfinished command block at index \(lastIndex)")
+                isCommandRunning = true
+                rawModeAnimationCounter += 1
+                updateTerminalBottomConstraint(isRawMode: true)
+                inputContainerView.isHidden = true
             }
             
             // Update CWD from last finished block
@@ -102,11 +114,10 @@ extension TerminalViewController {
                 }
             }
             
-            // Scroll to bottom
-            DispatchQueue.main.async {
-                self.updateTextViewFrame()
-                self.scrollToBottom()
-            }
+            // Force layout recalculation and scroll
+            view.layoutSubtreeIfNeeded()
+            updateTextViewFrame()
+            scrollToBottom()
         }
         
         // print("📜 History loaded")

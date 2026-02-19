@@ -412,15 +412,49 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
     }
     
     auto commandHistory = terminalSessionController->getCommandHistory();
+    auto& sessionStorage = terminalSessionController->getSessionStorage();
     
     HistoryMessage historyMessage;
     historyMessage.sessionId = message.sessionId;
     historyMessage.commands.reserve(commandHistory.size());
     for (const auto& record : commandHistory) {
+        std::vector<StyledSegment> segments;
+        
+        if (!record.isFinished && record.id == terminalSessionController->getCurrentCommandId()) {
+            // Running command: only include committed (scrolled-off) lines from SQLite.
+            // Active screen rows will arrive via block_screen_update messages.
+            auto outputLineJsons = sessionStorage.getOutputLines(record.id);
+            for (size_t i = 0; i < outputLineJsons.size(); ++i) {
+                if (i > 0) {
+                    segments.push_back(StyledSegment{"\n", {}});
+                }
+                auto lineSegments = json::parse(outputLineJsons[i]).get<std::vector<StyledSegment>>();
+                segments.insert(segments.end(),
+                    std::make_move_iterator(lineSegments.begin()),
+                    std::make_move_iterator(lineSegments.end()));
+            }
+        } else {
+            // Finished command: load rendered output from SQLite
+            auto outputLineJsons = sessionStorage.getOutputLines(record.id);
+            for (size_t i = 0; i < outputLineJsons.size(); ++i) {
+                if (i > 0) {
+                    segments.push_back(StyledSegment{"\n", {}});
+                }
+                auto lineSegments = json::parse(outputLineJsons[i]).get<std::vector<StyledSegment>>();
+                segments.insert(segments.end(),
+                    std::make_move_iterator(lineSegments.begin()),
+                    std::make_move_iterator(lineSegments.end()));
+            }
+            // Fallback to OutputParser for pre-migration data
+            if (segments.empty() && !record.output.empty()) {
+                segments = this->outputParser.parse(record.output);
+            }
+        }
+        
         historyMessage.commands.push_back(CommandRecord{
             record.id,
             record.command,
-            this->outputParser.parse(record.output),
+            std::move(segments),
             record.exitCode,
             this->shortenHomePath(record.cwdStart),
             this->shortenHomePath(record.cwdEnd),
@@ -430,6 +464,25 @@ void TermihuiServerController::handleMessageFromClient(int clientId, const GetHi
     
     this->webSocketServer->sendMessage(clientId, serialize(historyMessage));
     fmt::print("Sent history for session {} ({} commands) to client {}\n", message.sessionId, commandHistory.size(), clientId);
+    
+    // If session has a running command, send current VirtualScreen as block_screen_update
+    if (terminalSessionController->hasActiveCommand() && !terminalSessionController->isInInteractiveMode()) {
+        auto& screen = terminalSessionController->getVirtualScreen();
+        BlockScreenUpdateMessage blockScreenUpdateMessage;
+        blockScreenUpdateMessage.sessionId = message.sessionId;
+        blockScreenUpdateMessage.cursorRow = screen.cursorRow();
+        blockScreenUpdateMessage.cursorColumn = screen.cursorColumn();
+        for (size_t row = 0; row < screen.rows(); ++row) {
+            auto rowSegments = screen.getRowSegments(row);
+            if (!rowSegments.empty()) {
+                blockScreenUpdateMessage.updates.push_back(
+                    ScreenRowUpdate{row, std::move(rowSegments)});
+            }
+        }
+        if (!blockScreenUpdateMessage.updates.empty()) {
+            this->webSocketServer->sendMessage(clientId, serialize(blockScreenUpdateMessage));
+        }
+    }
     
     // If session is in interactive mode, send interactive mode start and screen snapshot
     if (terminalSessionController->isInInteractiveMode()) {
@@ -586,44 +639,24 @@ void TermihuiServerController::processTerminalOutput(TerminalSessionController& 
     
     fmt::print("[PTY] Raw output ({} bytes): {}\n", output.size(), escapeForLog(output));
     
-    // Always process through AnsiProcessor to track mode changes and update VirtualScreen
-    auto events = session.getAnsiProcessor().process(output);
-    
-    // Handle ANSI events (mode changes, etc.)
-    for (const auto& event : events) {
-        std::visit([this, &session](const auto& e) {
-            using T = std::decay_t<decltype(e)>;
-            if constexpr (std::is_same_v<T, termihui::AnsiEvent::InteractiveModeChanged>) {
-                session.setInteractiveMode(e.entered);
-                if (e.entered) {
-                    fmt::print("[INTERACTIVE] Entered interactive mode\n");
-                    auto& screen = session.getVirtualScreen();
-                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeStartMessage{
-                        screen.rows(),
-                        screen.columns()
-                    }));
-                    // Send initial full snapshot
-                    this->sendScreenSnapshot(session);
-                } else {
-                    fmt::print("[INTERACTIVE] Exited interactive mode\n");
-                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeEndMessage{}));
-                }
-            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::TitleChanged>) {
-                fmt::print("[ANSI] Title changed: {}\n", e.title);
-            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::Bell>) {
-                fmt::print("[ANSI] Bell\n");
-            }
-        }, event);
-    }
-    
-    // If in interactive mode, send screen diff
     if (session.isInInteractiveMode()) {
+        // Interactive mode: process all at once, send screen diff
+        auto events = session.getAnsiProcessor().process(output);
+        this->handleAnsiEvents(events, session);
+        
+        if (!session.isInInteractiveMode()) {
+            // Switched back to block mode mid-output; remaining will be handled next call
+            return;
+        }
         this->sendScreenDiff(session);
         return;
     }
     
-    // Block mode: process OSC markers for command tracking
-    // If we just exited interactive mode (flag persists across calls), skip output recording
+    // Block mode: chunked processing through VirtualScreen
+    // Clear tracking state so we capture changes per-chunk
+    session.getVirtualScreen().clearDirtyRows();
+    session.getVirtualScreen().takeScrolledOffRows();
+    
     bool skipOutputRecording = session.hasJustExitedInteractiveMode();
     if (skipOutputRecording) {
         fmt::print("[INTERACTIVE] Skipping output recording (just exited interactive mode), {} bytes\n", output.size());
@@ -676,6 +709,68 @@ void TermihuiServerController::sendScreenDiff(TerminalSessionController& session
     this->webSocketServer->broadcastMessage(serialize(screenDiffMessage));
 }
 
+void TermihuiServerController::handleAnsiEvents(const std::vector<termihui::AnsiEventVariant>& events, TerminalSessionController& session) {
+    for (const auto& event : events) {
+        std::visit([this, &session](const auto& e) {
+            using T = std::decay_t<decltype(e)>;
+            if constexpr (std::is_same_v<T, termihui::AnsiEvent::InteractiveModeChanged>) {
+                session.setInteractiveMode(e.entered);
+                if (e.entered) {
+                    fmt::print("[INTERACTIVE] Entered interactive mode\n");
+                    auto& screen = session.getVirtualScreen();
+                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeStartMessage{
+                        screen.rows(),
+                        screen.columns()
+                    }));
+                    this->sendScreenSnapshot(session);
+                } else {
+                    fmt::print("[INTERACTIVE] Exited interactive mode\n");
+                    this->webSocketServer->broadcastMessage(serialize(InteractiveModeEndMessage{}));
+                }
+            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::TitleChanged>) {
+                fmt::print("[ANSI] Title changed: {}\n", e.title);
+            } else if constexpr (std::is_same_v<T, termihui::AnsiEvent::Bell>) {
+                fmt::print("[ANSI] Bell\n");
+            }
+        }, event);
+    }
+}
+
+void TermihuiServerController::sendBlockScreenChanges(TerminalSessionController& session) {
+    auto& screen = session.getVirtualScreen();
+    
+    // 1. Send committed (scrolled-off) lines as OutputMessage
+    auto scrolledOff = screen.takeScrolledOffRows();
+    for (auto& lineSegments : scrolledOff) {
+        // Store rendered line in SQLite for history
+        if (session.hasActiveCommand()) {
+            json segmentsJson = lineSegments;
+            session.getSessionStorage().addOutputLine(
+                session.getCurrentCommandId(), segmentsJson.dump());
+        }
+        this->webSocketServer->broadcastMessage(serialize(OutputMessage{session.getSessionId(), std::move(lineSegments)}));
+    }
+    
+    // 2. Send dirty rows as BlockScreenUpdate
+    const auto& dirtyRows = screen.dirtyRows();
+    if (!dirtyRows.empty() || screen.isCursorDirty()) {
+        BlockScreenUpdateMessage blockScreenUpdateMessage;
+        blockScreenUpdateMessage.sessionId = session.getSessionId();
+        blockScreenUpdateMessage.cursorRow = screen.cursorRow();
+        blockScreenUpdateMessage.cursorColumn = screen.cursorColumn();
+        blockScreenUpdateMessage.updates.reserve(dirtyRows.size());
+        
+        for (size_t row : dirtyRows) {
+            blockScreenUpdateMessage.updates.push_back(
+                ScreenRowUpdate{row, screen.getRowSegments(row)});
+        }
+        
+        this->webSocketServer->broadcastMessage(serialize(blockScreenUpdateMessage));
+    }
+    
+    screen.clearDirtyRows();
+}
+
 void TermihuiServerController::processBlockModeOutput(TerminalSessionController& session, const std::string& output, bool skipOutputRecording) {
     // Helper: find next OSC sequence (any type)
     auto findNextOSC = [&output](size_t from) -> size_t {
@@ -695,6 +790,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
     };
     
     // Streaming parser: preserve order "text → event → text"
+    // Text chunks are processed through AnsiProcessor → VirtualScreen, then changes are sent.
     size_t i = 0;
     int iteration = 0;
     while (true) {
@@ -710,19 +806,25 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 if (!chunk.empty()) {
                     fmt::print("[OSC-PARSE] Final text chunk: {}\n", escapeForLog(chunk));
                     session.appendOutputToCurrentCommand(chunk);
-                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
+                    auto events = session.getAnsiProcessor().process(chunk);
+                    this->handleAnsiEvents(events, session);
+                    if (session.isInInteractiveMode()) return;
+                    this->sendBlockScreenChanges(session);
                 }
             }
             break;
         }
 
-        // Send text before marker (skip if we just exited interactive mode)
+        // Process text before OSC marker through VirtualScreen
         if (oscPos > i && !skipOutputRecording) {
             std::string chunk = output.substr(i, oscPos - i);
             if (!chunk.empty()) {
                 fmt::print("[OSC-PARSE] Text before OSC: {}\n", escapeForLog(chunk));
                 session.appendOutputToCurrentCommand(chunk);
-                this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
+                auto events = session.getAnsiProcessor().process(chunk);
+                this->handleAnsiEvents(events, session);
+                if (session.isInInteractiveMode()) return;
+                this->sendBlockScreenChanges(session);
             }
         }
 
@@ -742,7 +844,10 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 if (!chunk.empty()) {
                     fmt::print("[OSC-PARSE] Incomplete OSC, treating as text: {}\n", escapeForLog(chunk));
                     session.appendOutputToCurrentCommand(chunk);
-                    this->webSocketServer->broadcastMessage(serialize(OutputMessage{this->outputParser.parse(chunk)}));
+                    auto events = session.getAnsiProcessor().process(chunk);
+                    this->handleAnsiEvents(events, session);
+                    if (session.isInInteractiveMode()) return;
+                    this->sendBlockScreenChanges(session);
                 }
             }
             break;
@@ -750,6 +855,9 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
 
         std::string osc = output.substr(oscPos, oscEnd - oscPos + 1);
         fmt::print("[OSC-PARSE] Found OSC sequence: {}\n", escapeForLog(osc));
+        
+        // Process OSC through AnsiProcessor for state consistency (title changes etc.)
+        session.getAnsiProcessor().process(osc);
         
         auto extractParam = [&osc](const std::string& key) -> std::string {
             auto pos = osc.find(key + "=");
@@ -770,6 +878,7 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
             session.startCommandInHistory(cwd);
             if (session.hasActiveCommand()) {
                 CommandStartMessage msg;
+                msg.sessionId = session.getSessionId();
                 if (!cwd.empty()) msg.cwd = this->shortenHomePath(cwd);
                 this->webSocketServer->broadcastMessage(serialize(msg));
             }
@@ -783,8 +892,20 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
                 session.setLastKnownCwd(cwd);
             }
             if (session.hasActiveCommand()) {
+                // Store remaining active screen rows before finishing
+                auto& screen = session.getVirtualScreen();
+                for (size_t row = 0; row < screen.rows(); ++row) {
+                    auto segments = screen.getRowSegments(row);
+                    if (!segments.empty()) {
+                        json segmentsJson = segments;
+                        session.getSessionStorage().addOutputLine(
+                            session.getCurrentCommandId(), segmentsJson.dump());
+                    }
+                }
+                
                 session.finishCurrentCommand(exitCode, cwd);
                 CommandEndMessage msg;
+                msg.sessionId = session.getSessionId();
                 msg.exitCode = exitCode;
                 if (!cwd.empty()) msg.cwd = this->shortenHomePath(cwd);
                 this->webSocketServer->broadcastMessage(serialize(msg));
@@ -796,10 +917,10 @@ void TermihuiServerController::processBlockModeOutput(TerminalSessionController&
             }
         } else if (osc.rfind("\x1b]133;C", 0) == 0) {
             fmt::print("[OSC-PARSE] >>> OSC 133;C (prompt_start)\n");
-            this->webSocketServer->broadcastMessage(serialize(PromptStartMessage{}));
+            this->webSocketServer->broadcastMessage(serialize(PromptStartMessage{session.getSessionId()}));
         } else if (osc.rfind("\x1b]133;D", 0) == 0) {
             fmt::print("[OSC-PARSE] >>> OSC 133;D (prompt_end)\n");
-            this->webSocketServer->broadcastMessage(serialize(PromptEndMessage{}));
+            this->webSocketServer->broadcastMessage(serialize(PromptEndMessage{session.getSessionId()}));
         } else if (osc.rfind("\x1b]2;", 0) == 0) {
             size_t titleStart = 4;
             size_t titleEnd = osc.find_first_of("\x07\x1b", titleStart);

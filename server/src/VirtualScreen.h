@@ -205,6 +205,24 @@ public:
      * Mark all rows as dirty
      */
     void markAllDirty();
+    
+    // =========================================================================
+    // Scroll-off Capture
+    // =========================================================================
+    
+    /**
+     * Get rows that were pushed off the top of the screen by scroll operations
+     * since the last call to this method. Returns and clears the internal buffer.
+     *
+     * Each entry is a row's styled segments captured before it was overwritten.
+     * Bounded: at most rowCount entries accumulate between calls.
+     */
+    std::vector<std::vector<StyledSegment>> takeScrolledOffRows();
+    
+    /**
+     * Check if there are any scrolled-off rows pending
+     */
+    bool hasScrolledOffRows() const { return !this->scrolledOffRows.empty(); }
 
 private:
     Grid2D<Cell> buffer;
@@ -215,6 +233,7 @@ private:
     TextStyle currentTextStyle;
     std::set<size_t> dirtyRowSet;
     bool cursorDirtyFlag = false;
+    std::vector<std::vector<StyledSegment>> scrolledOffRows;
     
     void markDirty(size_t row);
     void ensureCursorInBounds();

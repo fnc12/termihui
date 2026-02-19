@@ -17,6 +17,12 @@ inline auto makeSessionStorage(std::string path) {
             make_column("cwd_end", &SessionCommand::cwdEnd),
             make_column("is_finished", &SessionCommand::isFinished),
             make_column("timestamp", &SessionCommand::timestamp)
+        ),
+        make_table("command_output_lines",
+            make_column("id", &CommandOutputLine::id, primary_key().autoincrement()),
+            make_column("command_id", &CommandOutputLine::commandId),
+            make_column("line_order", &CommandOutputLine::lineOrder),
+            make_column("segments_json", &CommandOutputLine::segmentsJson)
         )
     );
 }

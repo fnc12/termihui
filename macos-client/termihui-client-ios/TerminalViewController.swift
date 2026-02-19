@@ -265,6 +265,17 @@ class TerminalViewController: UIViewController {
     func didFinishCommandBlock(exitCode: Int, cwd: String?) {
         guard let index = currentBlockIndex else { return }
         
+        // Finalize active screen lines → committed segments
+        let activeLines = commandBlocks[index].activeScreenLines
+        for line in activeLines where !line.isEmpty {
+            if !commandBlocks[index].segments.isEmpty {
+                commandBlocks[index].segments.append(
+                    StyledSegmentShared(text: "\n", style: SegmentStyleShared()))
+            }
+            commandBlocks[index].segments.append(contentsOf: line)
+        }
+        commandBlocks[index].activeScreenLines.removeAll()
+        
         commandBlocks[index].isFinished = true
         commandBlocks[index].exitCode = exitCode
         commandBlocks[index].cwdEnd = cwd
@@ -313,6 +324,28 @@ class TerminalViewController: UIViewController {
         let style = SegmentStyleShared()
         let segment = StyledSegmentShared(text: text, style: style)
         appendStyledOutput([segment])
+    }
+    
+    /// Handle block screen update (active terminal rows that may be overwritten by \r progress)
+    func handleBlockScreenUpdate(updates: [ScreenRowUpdateShared], cursorRow: Int, cursorColumn: Int) {
+        guard let idx = currentBlockIndex else { return }
+        
+        let neededRows = max(cursorRow + 1, (updates.map { $0.row }.max() ?? 0) + 1)
+        while commandBlocks[idx].activeScreenLines.count < neededRows {
+            commandBlocks[idx].activeScreenLines.append([])
+        }
+        
+        for update in updates {
+            commandBlocks[idx].activeScreenLines[update.row] = update.segments
+        }
+        
+        let indexPath = IndexPath(row: idx, section: 0)
+        tableView.performBatchUpdates({
+            self.tableView.reloadRows(at: [indexPath], with: .none)
+        }, completion: { _ in
+            self.updateContentInset()
+            self.scrollToBottom()
+        })
     }
     
     /// Clear all output

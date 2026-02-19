@@ -378,6 +378,19 @@ TEST_CASE("VirtualScreen tracks dirty rows", "[VirtualScreen][dirty]") {
     CHECK(screen.dirtyRows().empty());
 }
 
+TEST_CASE("VirtualScreen cursor dirty flag tracks cursor changes", "[VirtualScreen][dirty]") {
+    VirtualScreen screen(5, 10);
+    screen.clearDirtyRows();
+    
+    CHECK_FALSE(screen.isCursorDirty());
+    
+    screen.moveCursor(2, 3);
+    CHECK(screen.isCursorDirty());
+    
+    screen.clearDirtyRows();
+    CHECK_FALSE(screen.isCursorDirty());
+}
+
 TEST_CASE("VirtualScreen markAllDirty marks all rows", "[VirtualScreen][dirty]") {
     VirtualScreen screen(5, 10);
     
@@ -388,4 +401,178 @@ TEST_CASE("VirtualScreen markAllDirty marks all rows", "[VirtualScreen][dirty]")
     for (size_t row = 0; row < 5; ++row) {
         CHECK(screen.dirtyRows().count(row) == 1);
     }
+}
+
+// =============================================================================
+// Scroll-off Capture Tests
+// =============================================================================
+
+TEST_CASE("VirtualScreen has no scrolled-off rows initially", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    CHECK_FALSE(screen.hasScrolledOffRows());
+    CHECK(screen.takeScrolledOffRows().empty());
+}
+
+TEST_CASE("VirtualScreen captures top row on scroll up", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    screen.moveCursor(0, 0);
+    for (char c : std::string("Alpha")) screen.putCharacter(c);
+    screen.moveCursor(1, 0);
+    for (char c : std::string("Bravo")) screen.putCharacter(c);
+    screen.moveCursor(2, 0);
+    for (char c : std::string("Charlie")) screen.putCharacter(c);
+    
+    screen.scroll(1);
+    
+    CHECK(screen.hasScrolledOffRows());
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 1);
+    REQUIRE(scrolledOff[0].size() == 1);
+    CHECK(scrolledOff[0][0].text == "Alpha");
+}
+
+TEST_CASE("VirtualScreen captures multiple rows on scroll by N", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(4, 10);
+    
+    screen.moveCursor(0, 0);
+    for (char c : std::string("Row0")) screen.putCharacter(c);
+    screen.moveCursor(1, 0);
+    for (char c : std::string("Row1")) screen.putCharacter(c);
+    screen.moveCursor(2, 0);
+    for (char c : std::string("Row2")) screen.putCharacter(c);
+    screen.moveCursor(3, 0);
+    for (char c : std::string("Row3")) screen.putCharacter(c);
+    
+    screen.scroll(2);
+    
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 2);
+    CHECK(scrolledOff[0][0].text == "Row0");
+    CHECK(scrolledOff[1][0].text == "Row1");
+    
+    // Screen content should now be Row2, Row3, blank, blank
+    CHECK(screen.getRowText(0) == "Row2");
+    CHECK(screen.getRowText(1) == "Row3");
+    CHECK(screen.getRowText(2).empty());
+    CHECK(screen.getRowText(3).empty());
+}
+
+TEST_CASE("VirtualScreen takeScrolledOffRows clears the buffer", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    screen.moveCursor(0, 0);
+    screen.putCharacter('A');
+    screen.scroll(1);
+    
+    auto first = screen.takeScrolledOffRows();
+    CHECK(first.size() == 1);
+    
+    // Second call returns empty
+    auto second = screen.takeScrolledOffRows();
+    CHECK(second.empty());
+    CHECK_FALSE(screen.hasScrolledOffRows());
+}
+
+TEST_CASE("VirtualScreen scroll down does not capture rows", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    screen.moveCursor(0, 0);
+    screen.putCharacter('A');
+    screen.moveCursor(1, 0);
+    screen.putCharacter('B');
+    
+    screen.scroll(-1);
+    
+    CHECK_FALSE(screen.hasScrolledOffRows());
+    CHECK(screen.takeScrolledOffRows().empty());
+}
+
+TEST_CASE("VirtualScreen captures scrolled-off rows from lineFeed at bottom", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    // Fill all 3 rows
+    screen.moveCursor(0, 0);
+    for (char c : std::string("Line1")) screen.putCharacter(c);
+    screen.moveCursor(1, 0);
+    for (char c : std::string("Line2")) screen.putCharacter(c);
+    screen.moveCursor(2, 0);
+    for (char c : std::string("Line3")) screen.putCharacter(c);
+    
+    // lineFeed at bottom row triggers scroll(1)
+    screen.moveCursor(2, 0);
+    screen.lineFeed();
+    
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 1);
+    CHECK(scrolledOff[0][0].text == "Line1");
+    
+    // Screen: Line2, Line3, <blank>
+    CHECK(screen.getRowText(0) == "Line2");
+    CHECK(screen.getRowText(1) == "Line3");
+}
+
+TEST_CASE("VirtualScreen captures empty row on scroll of blank screen", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    screen.scroll(1);
+    
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 1);
+    // Empty row → empty segments
+    CHECK(scrolledOff[0].empty());
+}
+
+TEST_CASE("VirtualScreen accumulates scrolled-off rows across multiple scrolls", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 10);
+    
+    screen.moveCursor(0, 0);
+    for (char c : std::string("First")) screen.putCharacter(c);
+    screen.moveCursor(1, 0);
+    for (char c : std::string("Second")) screen.putCharacter(c);
+    screen.moveCursor(2, 0);
+    for (char c : std::string("Third")) screen.putCharacter(c);
+    
+    // First scroll: "First" falls off
+    screen.scroll(1);
+    
+    // Write new content and scroll again: "Second" falls off
+    screen.moveCursor(2, 0);
+    for (char c : std::string("Fourth")) screen.putCharacter(c);
+    screen.scroll(1);
+    
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 2);
+    CHECK(scrolledOff[0][0].text == "First");
+    CHECK(scrolledOff[1][0].text == "Second");
+}
+
+TEST_CASE("VirtualScreen captures styled segments on scroll-off", "[VirtualScreen][scroll-capture]") {
+    VirtualScreen screen(3, 20);
+    
+    // Write styled text on row 0
+    TextStyle boldRed;
+    boldRed.bold = true;
+    boldRed.foreground = Color::standard(1); // red
+    
+    screen.moveCursor(0, 0);
+    screen.setCurrentStyle(boldRed);
+    for (char c : std::string("error")) screen.putCharacter(c);
+    
+    TextStyle normal;
+    screen.setCurrentStyle(normal);
+    for (char c : std::string(": fail")) screen.putCharacter(c);
+    
+    screen.scroll(1);
+    
+    auto scrolledOff = screen.takeScrolledOffRows();
+    REQUIRE(scrolledOff.size() == 1);
+    // Should have 2 segments: bold-red "error" and normal ": fail"
+    REQUIRE(scrolledOff[0].size() == 2);
+    CHECK(scrolledOff[0][0].text == "error");
+    CHECK(scrolledOff[0][0].style.bold == true);
+    CHECK(scrolledOff[0][0].style.foreground.has_value());
+    CHECK(scrolledOff[0][1].text == ": fail");
+    CHECK(scrolledOff[0][1].style.bold == false);
 }

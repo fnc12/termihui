@@ -59,7 +59,7 @@ final class CommandBlockItem: NSCollectionViewItem {
         delegate?.commandBlockItem(self, didRequestCopyOutput: commandId)
     }
     
-    func configure(commandId: UInt64?, command: String?, outputSegments: [StyledSegment], isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
+    func configure(commandId: UInt64?, command: String?, outputSegments: [StyledSegment], activeScreenLines: [[StyledSegment]] = [], isFinished: Bool, exitCode: Int?, cwdStart: String?, serverHome: String = "") {
         self.commandId = commandId
         
         // CWD label — gray, above command
@@ -79,8 +79,10 @@ final class CommandBlockItem: NSCollectionViewItem {
             headerLabel.isHidden = true
         }
         
-        // Hide body if output is empty and toggle constraints
-        let hasOutput = !outputSegments.isEmpty && outputSegments.contains { !$0.text.isEmpty }
+        // Combine committed output + active screen lines
+        let hasCommittedOutput = !outputSegments.isEmpty && outputSegments.contains { !$0.text.isEmpty }
+        let hasActiveLines = !activeScreenLines.isEmpty && activeScreenLines.contains { !$0.isEmpty }
+        let hasOutput = hasCommittedOutput || hasActiveLines
         bodyTextView.isHidden = !hasOutput
         
         // Switch constraints based on whether we have output
@@ -88,8 +90,22 @@ final class CommandBlockItem: NSCollectionViewItem {
         headerBottomConstraint?.isActive = !hasOutput
         
         if hasOutput {
-            // Use pre-parsed segments from C++ core
-            let attributedOutput = NSMutableAttributedString(attributedString: outputSegments.toAttributedString())
+            let attributedOutput = NSMutableAttributedString()
+            
+            // 1. Committed output (scrolled-off lines)
+            if hasCommittedOutput {
+                attributedOutput.append(outputSegments.toAttributedString())
+            }
+            
+            // 2. Active screen lines (may be overwritten by \r progress)
+            if hasActiveLines {
+                for (i, line) in activeScreenLines.enumerated() where !line.isEmpty {
+                    if attributedOutput.length > 0 || i > 0 {
+                        attributedOutput.append(NSAttributedString(string: "\n"))
+                    }
+                    attributedOutput.append(line.toAttributedString())
+                }
+            }
             
             // Apply paragraph style with tab stops to entire string
             if let paragraphStyle = bodyTextView.defaultParagraphStyle {

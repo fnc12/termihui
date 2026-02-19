@@ -140,6 +140,9 @@ void from_json(const json& j, ScreenRowUpdate& update);
 void to_json(json& j, const ScreenDiffMessage& message);
 void from_json(const json& j, ScreenDiffMessage& message);
 
+void to_json(json& j, const BlockScreenUpdateMessage& message);
+void from_json(const json& j, BlockScreenUpdateMessage& message);
+
 void to_json(json& j, const InteractiveModeEndMessage& message);
 void from_json(const json& j, InteractiveModeEndMessage& message);
 
@@ -210,6 +213,7 @@ std::string serialize(const InteractiveModeStartMessage& message);
 std::string serialize(const ScreenSnapshotMessage& message);
 std::string serialize(const ScreenDiffMessage& message);
 std::string serialize(const InteractiveModeEndMessage& message);
+std::string serialize(const BlockScreenUpdateMessage& message);
 std::string serialize(const AIChatMessage& message);
 std::string serialize(const GetChatHistoryMessage& message);
 std::string serialize(const AIChunkMessage& message);

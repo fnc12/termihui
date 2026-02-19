@@ -96,6 +96,16 @@ public:
      * @param output raw output string
      */
     void processBlockModeOutput(TerminalSessionController& session, const std::string& output, bool skipOutputRecording);
+    
+    /**
+     * Handle ANSI events (mode changes, title, bell)
+     */
+    void handleAnsiEvents(const std::vector<termihui::AnsiEventVariant>& events, TerminalSessionController& session);
+    
+    /**
+     * Send VirtualScreen changes (scroll-off + dirty rows) to client in block mode
+     */
+    void sendBlockScreenChanges(TerminalSessionController& session);
 
     /**
      * Shorten path by replacing home directory with ~

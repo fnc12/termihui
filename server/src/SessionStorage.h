@@ -29,6 +29,10 @@ public:
     
     // Get last known cwd from finished commands (for session restoration)
     std::optional<std::string> getLastCwd();
+    
+    // Rendered output lines (stored as pre-serialized JSON for client passthrough)
+    void addOutputLine(uint64_t commandId, std::string segmentsJson);
+    std::vector<std::string> getOutputLines(uint64_t commandId);
 
 private:
     std::filesystem::path dbPath;

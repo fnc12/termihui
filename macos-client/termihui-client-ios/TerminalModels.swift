@@ -115,6 +115,12 @@ struct StyledSegmentShared: Codable {
     var style: SegmentStyleShared
 }
 
+/// Screen row update for block mode / interactive mode diff
+struct ScreenRowUpdateShared: Codable {
+    let row: Int
+    let segments: [StyledSegmentShared]
+}
+
 /// Command history record received from server
 struct CommandHistoryRecordShared: Codable {
     let id: UInt64

@@ -171,6 +171,11 @@ void VirtualScreen::scroll(int lines) {
         // Scroll up (content moves up, new blank lines at bottom)
         size_t scrollAmount = std::min(static_cast<size_t>(lines), this->rowCount);
         
+        // Capture rows that will be pushed off the top before overwriting
+        for (size_t row = 0; row < scrollAmount; ++row) {
+            this->scrolledOffRows.push_back(this->getRowSegments(row));
+        }
+        
         // Move lines up
         for (size_t row = 0; row < this->rowCount - scrollAmount; ++row) {
             for (size_t col = 0; col < this->columnCount; ++col) {
@@ -359,6 +364,16 @@ void VirtualScreen::markAllDirty() {
     for (size_t row = 0; row < this->rowCount; ++row) {
         this->dirtyRowSet.insert(row);
     }
+}
+
+// =============================================================================
+// Scroll-off Capture
+// =============================================================================
+
+std::vector<std::vector<StyledSegment>> VirtualScreen::takeScrolledOffRows() {
+    auto result = std::move(this->scrolledOffRows);
+    this->scrolledOffRows.clear();
+    return result;
 }
 
 // =============================================================================
